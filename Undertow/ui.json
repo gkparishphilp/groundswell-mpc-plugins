@@ -1,29 +1,163 @@
 {
   "kit": "cyan",
   "pages": [
-    { "name": "DELAY",
+    {
+      "name": "DELAY",
       "controls": [
-        { "param": "Time",      "widget": "knob" },
-        { "param": "Feedback",  "widget": "knob" },
-        { "param": "Wobble",    "widget": "knob" },
-        { "param": "Mix",       "widget": "fader" },
-
-        { "param": "Time Mode", "widget": "switch" },
-        { "param": "Ping-Pong", "widget": "switch" },
-        { "param": "Limit",     "widget": "knob" },
-        { "param": "Output",    "widget": "fader" }
-      ] },
-    { "name": "LOOP",
+        {
+          "param": "Time",
+          "widget": "knob"
+        },
+        {
+          "param": "Feedback",
+          "widget": "knob"
+        },
+        {
+          "param": "Wobble",
+          "widget": "knob"
+        },
+        {
+          "param": "Mix",
+          "widget": "fader"
+        },
+        {
+          "param": "Time Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "Ping-Pong",
+          "widget": "switch"
+        },
+        {
+          "param": "Limit",
+          "widget": "knob"
+        },
+        {
+          "param": "Output",
+          "widget": "fader"
+        },
+        {
+          "param": "Input",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "LOOP",
       "controls": [
-        { "param": "Filter",    "widget": "switch" },
-        { "param": "Cutoff",    "widget": "knob" },
-        { "param": "Resonance", "widget": "knob" },
-        { "param": "Drive",     "widget": "knob" },
-
-        { "param": "FX Type",   "widget": "slider", "overlay": "menu" },
-        { "param": "FX Amount", "widget": "knob" },
-        { "param": "FX Rate",   "widget": "knob" },
+        {
+          "param": "Filter",
+          "widget": "switch"
+        },
+        {
+          "param": "Cutoff",
+          "widget": "knob"
+        },
+        {
+          "param": "Resonance",
+          "widget": "knob"
+        },
+        {
+          "param": "Drive",
+          "widget": "knob"
+        },
+        {
+          "param": "FX Type",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "FX Amount",
+          "widget": "knob"
+        },
+        {
+          "param": "FX Rate",
+          "widget": "knob"
+        },
         "empty"
-      ] }
+      ]
+    },
+    {
+      "name": "PITCH",
+      "controls": [
+        {
+          "param": "Pitch Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "Pitch",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Pitch Mix",
+          "widget": "fader"
+        },
+        {
+          "param": "Reverse",
+          "widget": "switch"
+        }
+      ]
+    },
+    {
+      "name": "MOD",
+      "controls": [
+        {
+          "param": "Env Speed",
+          "widget": "knob"
+        },
+        {
+          "param": "Env>Cutoff",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Env>FX",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Duck",
+          "widget": "knob"
+        },
+        {
+          "param": "LFO Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "LFO Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "LFO Shape",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Spread",
+          "widget": "knob"
+        },
+        {
+          "param": "LFO>Cutoff",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>Pitch",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>FX",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>Time",
+          "widget": "knob",
+          "polarity": "bipolar"
+        }
+      ]
+    }
   ]
 }

@@ -7,7 +7,7 @@ the original author and states its licence.
 | Plugin | Kind | Based on | Licence |
 |---|---|---|---|
 | [Galactic](Galactic/) | Effect: ambient reverb | Airwindows Galactic by Chris Johnson | MIT |
-| [Undertow](Undertow/) | Effect: dub delay with filter and FX in the feedback loop | Original design | MIT |
+| [Undertow](Undertow/) | Effect: dub delay with filter, FX, pitch shift, reverse and modulation in the feedback loop; custom skin | Original design | MIT |
 
 ## Installing on an MPC
 
