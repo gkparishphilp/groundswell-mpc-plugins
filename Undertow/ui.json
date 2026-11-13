@@ -1,0 +1,34 @@
+{
+  "kit": "cyan",
+  "pages": [
+    { "name": "DELAY",
+      "controls": [
+        { "param": "Time",      "widget": "knob", "visibleWhen": { "param": "Sync", "choice": "Off" } },
+        { "param": "Division",  "widget": "slider", "overlay": "menu", "visibleWhen": { "param": "Sync", "choice": "On" } },
+        { "param": "Feedback",  "widget": "knob" },
+        { "param": "Mix",       "widget": "fader" },
+
+        { "param": "Sync",      "widget": "switch" },
+        { "param": "Ping-Pong", "widget": "switch" },
+        { "param": "Wobble",    "widget": "knob" },
+        "empty",
+
+        { "param": "Limit",     "widget": "knob" },
+        { "param": "Output",    "widget": "fader" },
+        "empty",
+        "empty"
+      ] },
+    { "name": "LOOP",
+      "controls": [
+        { "param": "Filter",    "widget": "switch" },
+        { "param": "Cutoff",    "widget": "knob" },
+        { "param": "Resonance", "widget": "knob" },
+        { "param": "Drive",     "widget": "knob" },
+
+        { "param": "FX Type",   "widget": "slider", "overlay": "menu" },
+        { "param": "FX Amount", "widget": "knob" },
+        { "param": "FX Rate",   "widget": "knob" },
+        "empty"
+      ] }
+  ]
+}
