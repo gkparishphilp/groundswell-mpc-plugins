@@ -1,0 +1,16 @@
+{
+  "kit": "cyan",
+  "pages": [
+    { "name": "GALACTIC",
+      "controls": [
+        { "param": "Replace", "widget": "knob" },
+        { "param": "Bright",  "widget": "knob" },
+        { "param": "Detune",  "widget": "knob" },
+        { "param": "Bigness", "widget": "knob" },
+        { "param": "Mix",     "widget": "fader" },
+        { "param": "Output",  "widget": "fader" },
+        "empty",
+        "empty"
+      ] }
+  ]
+}

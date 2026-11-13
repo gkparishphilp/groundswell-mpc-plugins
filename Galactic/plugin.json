@@ -1,0 +1,17 @@
+{
+  "name": "Galactic",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GFVZ",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/galactic-arm32.so",
+  "file64": "VST/galactic-arm64.so",
+  "description": "Huge, dark, shimmering ambient reverb. A port of Airwindows Galactic by Chris Johnson (MIT).",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}
