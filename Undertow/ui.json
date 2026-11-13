@@ -39,6 +39,14 @@
         {
           "param": "Input",
           "widget": "knob"
+        },
+        {
+          "param": "Freeze",
+          "widget": "switch"
+        },
+        {
+          "param": "Character",
+          "widget": "switch"
         }
       ]
     },
@@ -74,7 +82,11 @@
           "param": "FX Rate",
           "widget": "knob"
         },
-        "empty"
+        "empty",
+        {
+          "param": "Drive",
+          "widget": "knob"
+        }
       ]
     },
     {
@@ -156,6 +168,43 @@
           "param": "LFO>Time",
           "widget": "knob",
           "polarity": "bipolar"
+        }
+      ]
+    },
+    {
+      "name": "SPACE",
+      "controls": [
+        {
+          "param": "Drip",
+          "widget": "knob"
+        },
+        {
+          "param": "Spring Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Mix",
+          "widget": "fader"
+        },
+        {
+          "param": "Output",
+          "widget": "fader"
+        },
+        {
+          "param": "Space",
+          "widget": "knob"
+        },
+        {
+          "param": "Space Position",
+          "widget": "switch"
+        },
+        {
+          "param": "Freeze",
+          "widget": "switch"
+        },
+        {
+          "param": "Spring Decay",
+          "widget": "knob"
         }
       ]
     }

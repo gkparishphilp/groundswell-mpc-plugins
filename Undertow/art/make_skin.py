@@ -40,11 +40,13 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 P = dict(output=0, sync=1, time=3, feedback=4, mix=5, pingpong=6, wobble=7, limit=8, filter=9, cutoff=10,
          reso=11, drive=12, fxtype=13, fxamount=14, fxrate=15, pmode=16, pitch=17, pmix=18, reverse=19, input=20,
          lfoshape=21, lfosync=22, lforate=23, spread=24, lfocut=25, lfopitch=26, lfofx=27, lfotime=28,
-         envcut=29, envfx=30, envspeed=31, duck=32)
+         envcut=29, envfx=30, envspeed=31, duck=32, freeze=33, space=34, sdecay=35, stone=36, drip=37, spos=38,
+         character=39, age=40)
 CHOICES = {1: ["Free", "Sync"], 6: ["Off", "On"], 9: ["Off", "LP", "BP", "HP"],
            13: ["Off", "Chorus", "Flanger", "Phaser", "Bitcrush", "Downsample", "Ring Mod", "Fuzz"],
            16: ["Semitones", "Hz"], 19: ["Off", "On"],
-           21: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"], 22: ["Free", "Sync"]}
+           21: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"], 22: ["Free", "Sync"],
+           33: ["Off", "On"], 38: ["After", "In Loop"], 39: ["Digital", "Tape", "BBD"]}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -299,9 +301,10 @@ def large_knob(param, x, y, heading):
                 heading_pos="above")
 
 
-def pills(param, items, heading=None, heading_xy=None):
-    """items: list of (choice index, caption, x, y, width) in tab coordinates (x, y = top-left of the body)."""
-    return dict(kind="pills", param=param, items=items, heading=heading, heading_xy=heading_xy)
+def pills(param, items, heading=None, heading_xy=None, toggle=False):
+    """items: list of (choice index, caption, x, y, width) in tab coordinates (x, y = top-left of the body).
+    toggle: a single on/off button for a bool (tap flips it)."""
+    return dict(kind="pills", param=param, items=items, heading=heading, heading_xy=heading_xy, toggle=toggle)
 
 
 def readout(param, box, size, overlay, case="Original"):
@@ -313,14 +316,16 @@ def page_delay():
     mid = (bx0 + bx1) / 2
     controls = [
         small_knob(P["input"], 150, ROW_A_Y, "INPUT"),
-        small_knob(P["drive"], 318, ROW_A_Y, "DRIVE"),
+        small_knob(P["age"], 318, ROW_A_Y, "AGE"),
         small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
         small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
 
         large_knob(P["time"], 168, ROW_B_Y, "DELAY TIME"),
         pills(P["sync"], [(1, "Sync", 292, 312, 88), (0, "Free", 292, 356, 88)], "TIME MODE", (336, 290)),
-        readout(P["time"], (bx0 + 20, by0 + 30, bx1 - bx0 - 40, 70), 62, "knob overlay"),
-        pills(P["pingpong"], [(0, "Straight", mid - 158, 392, 150), (1, "Ping-Pong", mid + 8, 392, 150)]),
+        readout(P["time"], (bx0 + 20, by0 + 28, bx1 - bx0 - 40, 64), 58, "knob overlay"),
+        pills(P["character"], [(0, "Digital", 416, 342, 128), (1, "Tape", 552, 342, 128), (2, "BBD", 712, 342, 150)]),
+        pills(P["pingpong"], [(0, "Straight", 416, 392, 128), (1, "Ping-Pong", 552, 392, 128)]),
+        pills(P["freeze"], [(1, "Freeze", 712, 392, 150)], toggle=True),
         large_knob(P["feedback"], 1000, ROW_B_Y, "FEEDBACK"),
 
         small_knob(P["cutoff"], 125, ROW_C_Y, "CUTOFF", heading_pos="right"),
@@ -329,9 +334,9 @@ def page_delay():
         small_knob(P["reso"], 1155, ROW_C_Y, "RESONANCE", heading_pos="left"),
     ]
     statics = dict(headings=[("FILTER", (465, 470)), ("RESPONSE", (765, 470))],
-                   centre_title="DELAY TIME", dividers_b=(281, 890), waveform=True, graph=True)
-    qlinks = [[P["input"], P["drive"], P["mix"], P["output"]],
-              [P["time"], P["sync"], P["pingpong"], P["feedback"]],
+                   centre_title="DELAY TIME", dividers_b=(281, 890), waveform=False, graph=True)
+    qlinks = [[P["input"], P["age"], P["mix"], P["output"]],
+              [P["time"], P["sync"], P["character"], P["feedback"]],
               [P["cutoff"], P["filter"], P["reso"], -1]]
     return "DELAY", controls, statics, qlinks
 
@@ -348,7 +353,8 @@ def page_loop():
         small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
         small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
 
-        large_knob(P["fxamount"], 200, ROW_B_Y, "FX AMOUNT"),
+        large_knob(P["fxamount"], 168, ROW_B_Y, "FX AMOUNT"),
+        small_knob(P["drive"], 334, ROW_B_Y + 6, "DRIVE"),
         readout(P["fxtype"], (bx0 + 20, by0 + 32, bx1 - bx0 - 40, 56), 46, "menu overlay", case="Upper"),
         pills(P["fxtype"], fx_items),
         large_knob(P["fxrate"], 1000, ROW_B_Y, "FX RATE"),
@@ -361,7 +367,7 @@ def page_loop():
     statics = dict(headings=[("SHIFT MODE", (465, 482)), ("DIRECTION", (765, 482))],
                    centre_title="LOOP FX", dividers_b=(), waveform=False, graph=False)
     qlinks = [[P["wobble"], P["limit"], P["mix"], P["output"]],
-              [P["fxamount"], P["fxtype"], P["fxrate"], -1],
+              [P["fxamount"], P["drive"], P["fxtype"], P["fxrate"]],
               [P["pitch"], P["pmode"], P["reverse"], P["pmix"]]]
     return "LOOP", controls, statics, qlinks
 
@@ -398,6 +404,31 @@ def page_mod():
               [P["lforate"], P["lfosync"], P["lfoshape"], P["spread"]],
               [P["lfocut"], P["lfopitch"], P["lfofx"], P["lfotime"]]]
     return "MOD", controls, statics, qlinks
+
+
+def page_space():
+    controls = [
+        small_knob(P["drip"], 150, ROW_A_Y, "DRIP"),
+        small_knob(P["stone"], 318, ROW_A_Y, "TONE"),
+        small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
+        small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
+
+        large_knob(P["space"], 168, ROW_B_Y, "SPACE"),
+        pills(P["spos"], [(0, "After", 292, 312, 88), (1, "In Loop", 292, 356, 88)], "POSITION", (336, 290)),
+        pills(P["freeze"], [(1, "Freeze", 530, 386, 220)], toggle=True),
+        large_knob(P["sdecay"], 1000, ROW_B_Y, "DECAY"),
+
+        small_knob(P["cutoff"], 125, ROW_C_Y, "CUTOFF", heading_pos="right"),
+        pills(P["filter"], [(0, "Off", 360, 488, 96), (1, "LP", 474, 488, 96),
+                            (2, "BP", 360, 534, 96), (3, "HP", 474, 534, 96)], None),
+        small_knob(P["reso"], 1155, ROW_C_Y, "RESONANCE", heading_pos="left"),
+    ]
+    statics = dict(headings=[("FILTER", (465, 470)), ("RESPONSE", (765, 470))],
+                   centre_title="SPRING", dividers_b=(281, 890), waveform=False, graph=True, coil=True)
+    qlinks = [[P["drip"], P["stone"], P["mix"], P["output"]],
+              [P["space"], P["spos"], P["freeze"], P["sdecay"]],
+              [P["cutoff"], P["filter"], P["reso"], -1]]
+    return "SPACE", controls, statics, qlinks
 
 
 LAMP_POS = (1118, 284)
@@ -465,9 +496,23 @@ def draw_background(controls, statics):
             d.line(pts, fill=ORANGE + (255,), width=int(1.6 * sc))
             d.line([(x0 * sc, yc * sc), (x1 * sc, yc * sc)], fill=ORANGE + (60,), width=sc)
 
+        # A spring, side view, in the centre box.
+        if statics.get("coil"):
+            x0, x1, yc, turns, rx, ry = 452, 828, 322, 22, 9.0, 24.0
+            pts = []
+            steps = 2400
+            for i in range(steps + 1):
+                t = i / steps
+                th = t * turns * 2 * math.pi
+                pts.append(((x0 + 18 + t * (x1 - x0 - 36) + rx * math.cos(th)) * sc, (yc + ry * math.sin(th)) * sc))
+            d.line(pts, fill=(205, 140, 90, 235), width=int(1.6 * sc), joint="curve")
+            for bx in (x0, x1 - 12):   # mounting tabs
+                d.rounded_rectangle([bx * sc, (yc - 30) * sc, (bx + 12) * sc, (yc + 30) * sc], radius=3 * sc,
+                                    outline=CREAM + (120,), width=int(1.2 * sc))
+
     overlay = supersampled((W, H), s, paint)
     glow = overlay.copy()
-    if statics["waveform"]:
+    if statics["waveform"] or statics.get("coil"):
         r, g, b, a = glow.split()
         glow = Image.merge("RGBA", (r, g, b, a)).filter(ImageFilter.GaussianBlur(5))
         im = Image.alpha_composite(Image.alpha_composite(im, glow), glow)
@@ -552,7 +597,8 @@ def pill_component(ctl, files, n_choices):
     h = max(ys) + PILL_H + PILL_MARGIN - oy
     children = [focus_child(int(w), int(h))]
     for (choice, caption, x, y, pw), (on, off) in zip(ctl["items"], files):
-        children.append(G.entry("pill %d" % choice, "Button", G.button_data(on, off, choice, n_choices),
+        bid, group = (1, 1) if ctl.get("toggle") else (choice, n_choices)
+        children.append(G.entry("pill %d" % choice, "Button", G.button_data(on, off, bid, group),
                                 "%d %d %d %d" % (round(x - PILL_MARGIN - ox), round(y - PILL_MARGIN - oy),
                                                  pw + 2 * PILL_MARGIN, PILL_H + 2 * PILL_MARGIN),
                                 "No", "Show", "Always"))
@@ -592,7 +638,7 @@ def build():
 
     tabs, qlink_entries, previews = [], [], []
     pill_files = {}
-    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_loop(), page_mod())):
+    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_loop(), page_mod(), page_space())):
         bg_file = "bg_%s.jpg" % name.lower()
         bg = draw_background(controls, statics)
         bg.save(os.path.join(OUT, bg_file), quality=92)
@@ -692,7 +738,8 @@ DEFAULTS = {0: (1.0, "0.0 dB"), 1: (1, None), 3: (0.5625, "1/8D"), 4: (55 / 120,
             16: (0, None), 17: (0.5 + 7 / 48, "+7 st"), 18: (0.6, "60 %"), 19: (1, None), 20: (30 / 42, "0.0 dB"),
             21: (5, None), 22: (1, None), 23: (0.2, "1 bar"), 24: (0.5, "90 deg"), 25: (0.5 + 2.5 / 8, "+2.5 oct"),
             26: (0.5, "0 st"), 27: (0.75, "+50 %"), 28: (0.5, "0 %"), 29: (0.5 + 1.5 / 8, "+1.5 oct"), 30: (0.5, "0 %"),
-            31: (0.3, "30 %"), 32: (0.4, "40 %")}
+            31: (0.3, "30 %"), 32: (0.4, "40 %"), 33: (1, None), 34: (0.45, "45 %"), 35: (0.57, "2.4 s"),
+            36: (0.45, "45 %"), 37: (0.7, "70 %"), 38: (0, None), 39: (1, None), 40: (0.5, "50 %")}
 
 
 def make_previews(previews, images):
@@ -730,7 +777,7 @@ def make_previews(previews, images):
         lh = lamp.height // 25
         fi = 22 if ti == 0 else 9
         im.alpha_composite(lamp.crop((0, fi * lh, lamp.width, (fi + 1) * lh)), LAMP_POS)
-        if ti == 0:
+        if ti in (0, 3):   # pages with the filter response
             curve = images["curve_lp.png"]
             gx, gy, gw, gh = GRAPH
             fi = 30
@@ -740,7 +787,7 @@ def make_previews(previews, images):
         full.alpha_composite(im, (0, 110))
         fd = ImageDraw.Draw(full)
         fd.text((24, 55), "MPC header (drawn by the MPC)", font=font(18, FONT_MEDIUM), fill=(120, 120, 120), anchor="lm")
-        for k, nm in enumerate(("DELAY", "LOOP", "MOD")):
+        for k, nm in enumerate(("DELAY", "LOOP", "MOD", "SPACE")):
             fd.text((80 + k * 213, 770), nm, font=font(18, FONT_DEMI), fill=(200, 200, 200), anchor="mm")
         os.makedirs(PREVIEW_DIR, exist_ok=True)
         full.convert("RGB").save(os.path.join(PREVIEW_DIR, "skin-preview-%d.png" % (ti + 1)))

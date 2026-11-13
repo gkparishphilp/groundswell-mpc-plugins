@@ -73,6 +73,36 @@
 //   30 Env>FX     %  -100..100     0
 //   31 Env Speed  %   0..100       30     attack 1..30 ms, release 60..1000 ms (on the dB-scaled envelope)
 //   32 Duck       %   0..100       0      repeats are turned down while the input is loud (100% = silent at -6 dBFS)
+//   33 Freeze     Off/On           Off    hold the loop: it repeats forever at unity, input shut out (see below)
+//   34 Space      %   0..100       0      spring reverb amount
+//   35 Spring Decay s 0.3..6       1.8
+//   36 Spring Tone %  0..100       50     loop low-pass 1.5..9 kHz
+//   37 Drip       %   0..100       50     dispersion: how much each spring "chirps"
+//   38 Space Position  After/In Loop  After   After: on the repeats, before the wet limiter. In Loop: after
+//                                         pitch + FX, so every repeat gets more diffuse (see below)
+//   39 Character  Digital/Tape/BBD Digital  the delay medium, applied to every repeat as it leaves the delay line
+//   40 Age        %   0..100       50     how worn: Tape = duller, more compression, hiss and wow; BBD = fewer
+//                                         stages (darker, grittier)
+//
+// Character: Digital is clean. Tape: a one-pole high-frequency loss (12 kHz at Age 0 down to 3 kHz), a little
+// low-frequency loss, soft compression (tanh, unity for quiet signals), hiss, and extra wow. BBD: a bucket-brigade
+// chip of 4096 (Age 0) to 1024 (Age 100) stages clocked to give the delay time, so the clock is stages / time:
+// the signal is sampled and held at that clock and filtered at about 0.35 x clock (two one-poles), so longer
+// delays are darker and grittier, as on a real BBD; harder, slightly asymmetric saturation and a little noise.
+// Every stage has a gain of at most 1, so the modes never make the loop run away.
+//
+// Freeze: as it engages, the loop length is latched (the current delay time; twice that in Ping-Pong, where the
+// two lines feed each other) and the delay lines recirculate their own contents unprocessed at exactly unity.
+// Filter, pitch, FX, drive and reverse then work on the output only, so sweeping them over a frozen loop never
+// wears it away. Engaging and releasing crossfade over 20 ms; because the crossfade blends the normal loop into
+// the held one, the loop's wrap point is seamless.
+//
+// Spring: one spring per side (43.7 / 51.3 ms): a delay line, 24 stretched first-order allpasses (the chirp,
+// after Parker & Valimaki's spring models), a one-pole low-pass and a decay gain, with a little delay
+// modulation, fed with the mono sum of the repeats and normalised to about unity power (After). A resonant spring
+// like that inside the feedback loop would make it run away at its resonances, so In Loop uses the same spring as
+// a Schroeder allpass (flat magnitude: they smear each repeat in time without changing its level at any
+// frequency), followed by the tone low-pass, crossfaded in by Space: the loop's gain can never exceed Feedback.
 //
 // Modulation: one LFO (computed per sample, smoothed over 4 ms so steps and saw resets do not click) and an
 // envelope follower (peak, in dB over a 48 dB range) drive fixed destinations. Cutoff, FX Amount and Pitch
@@ -100,7 +130,8 @@ enum ParamIndex
     kFilterMode, kCutoff, kResonance, kDrive, kFxType, kFxAmount, kFxRate,
     kPitchMode, kPitch, kPitchMix, kReverse, kInput,
     kLfoShape, kLfoSync, kLfoRate, kLfoSpread, kLfoCutoff, kLfoPitch, kLfoFx, kLfoTime,
-    kEnvCutoff, kEnvFx, kEnvSpeed, kDuck, kNumParams
+    kEnvCutoff, kEnvFx, kEnvSpeed, kDuck,
+    kFreeze, kSpace, kSpringDecay, kSpringTone, kDrip, kSpacePos, kCharacter, kAge, kNumParams
 };
 
 enum FilterMode { kFilterOff = 0, kFilterLP, kFilterBP, kFilterHP };
@@ -118,6 +149,7 @@ constexpr float kAgcMinGain = 0.25f, kAgcMaxGain = 4.0f;   // level match range:
 constexpr int   kMaxSemitones = 24;
 constexpr float kMaxShiftHz = 1000.0f;
 enum PitchMode { kPitchSemitones = 0, kPitchHz };
+enum Character { kCharDigital = 0, kCharTape, kCharBbd };
 
 // Modulation.
 enum LfoShape { kLfoSine = 0, kLfoTriangle, kLfoSawUp, kLfoSawDown, kLfoSquare, kLfoRandom, kLfoDrift };
@@ -131,6 +163,7 @@ constexpr float kLfoMinHz = 0.02f, kLfoMaxHz = 20.0f;
 constexpr float kLfoPitchSemis = 12.0f;  // LFO>Pitch at 100% in Semitones mode
 constexpr float kLfoPitchHz = 200.0f;    // ...and in Hz mode
 constexpr float kLfoTimeDepth = 0.2f;    // LFO>Time at 100%: +-20% of the delay time
+constexpr float kSpringOutGain = 3.5f;   // spring output trim (After: on top of power normalisation)
 
 // One LFO output (left or right). Random and Drift pick a new value each time the phase wraps.
 struct LfoVoice
@@ -205,6 +238,56 @@ inline float twoTapRead(const DelayLine& line, float phase, float w)
     return line.readLinear(1.0f + phase * w) * g1 + line.readLinear(1.0f + p2 * w) * (1.0f - g1);
 }
 
+// Spring reverb building blocks.
+constexpr int kSpringStages = 36;        // stretched allpasses per spring
+constexpr int kSpringStretch = 4;        // their delay in samples (concentrates the chirp lower down)
+constexpr int kSpringsPerChannel = 1;   // one spring per side (two per side doubled the CPU for little gain)
+constexpr float kSpringMaxSeconds = 0.075f;
+constexpr float kSpringLengthsMs[2][kSpringsPerChannel] = { { 43.7f }, { 51.3f } };
+
+struct StretchedAllpass   // (a + z^-M) / (1 + a z^-M)
+{
+    float x[kSpringStretch] = {}, y[kSpringStretch] = {};
+    int i = 0;
+    float process(float in, float a)
+    {
+        const float out = a * in + x[i] - a * y[i];
+        x[i] = in; y[i] = out;
+        if (++i == kSpringStretch) i = 0;
+        return out;
+    }
+    void reset() { for (int k = 0; k < kSpringStretch; ++k) x[k] = y[k] = 0.0f; i = 0; }
+};
+
+struct Spring
+{
+    DelayLine line;
+    StretchedAllpass ap[kSpringStages];
+    float lp = 0.0f, length = 1000.0f, modPhase = 0.0f, modInc = 0.0f;
+    float g = 0.5f, norm = 1.0f;          // decay gain and output normalisation, set per block
+    void reset() { line.reset(); for (StretchedAllpass& s : ap) s.reset(); lp = 0.0f; }
+    float process(float in, float a, float lpCoef, float modDepth)
+    {
+        modPhase = advance(modPhase, modInc);
+        float v = line.readLinear(length + modDepth * (1.0f + sine01(modPhase)));
+        for (StretchedAllpass& s : ap) v = s.process(v, a);
+        lp += lpCoef * (v - lp);
+        line.write(in + g * lp);
+        return lp * norm;
+    }
+    // The same spring as a Schroeder allpass, (A - g) / (1 - g A) with A = delay + dispersion: flat magnitude, so
+    // inside the feedback loop it smears each repeat without changing the loop's gain at any frequency.
+    float processAllpass(float in, float a, float modDepth)
+    {
+        modPhase = advance(modPhase, modInc);
+        float d = line.readLinear(length + modDepth * (1.0f + sine01(modPhase)));
+        for (StretchedAllpass& s : ap) d = s.process(d, a);
+        const float w = in + g * d;
+        line.write(w);
+        return d - g * w;
+    }
+};
+
 // Everything one channel needs inside the loop.
 struct LoopChannel
 {
@@ -222,7 +305,13 @@ struct LoopChannel
     DelayLine pitchBuf;          // granular pitch shifter
     Hilbert hilbert;             // frequency shifter
     DelayLine reverseBuf;        // reverser (wet only)
+    Spring springs[kSpringsPerChannel];
+    OnePoleHP springHp;          // springs do not do bass
+    float springTone = 0.0f;     // In Loop: tone low-pass on the spring part
     float loopOut = 0.0f;        // this channel's processed repeat, fed back into the delay
+    OnePoleLP tapeHf, bbdLp1, bbdLp2;   // delay character
+    OnePoleHP tapeLf;
+    float bbdHeld = 0.0f, bbdPhase = 1.0f;
 
     void clearFx()
     {
@@ -234,6 +323,22 @@ struct LoopChannel
         tone.reset();
     }
     void clearPitch() { pitchBuf.reset(); hilbert.reset(); }
+    void clearSprings() { for (Spring& sp : springs) sp.reset(); springHp.reset(); springTone = 0.0f; }
+    float spring(float in, float a, float lpCoef, float modDepth)
+    {
+        const float x = springHp.process(in);
+        float sum = 0.0f;
+        for (Spring& sp : springs) sum += sp.process(x, a, lpCoef, modDepth);
+        return sum;
+    }
+    // In Loop: the spring as an allpass, then the tone low-pass (gain <= 1 everywhere).
+    float springInLoop(float in, float a, float lpCoef, float modDepth)
+    {
+        float y = in;
+        for (Spring& sp : springs) y = sp.processAllpass(y, a, modDepth);
+        springTone += lpCoef * (y - springTone);
+        return springTone;
+    }
     void clear()
     {
         delay.reset();
@@ -241,6 +346,8 @@ struct LoopChannel
         clearFx();
         clearPitch();
         reverseBuf.reset();
+        clearSprings();
+        tapeHf.reset(); tapeLf.reset(); bbdLp1.reset(); bbdLp2.reset(); bbdHeld = 0.0f; bbdPhase = 1.0f;
         dc.reset();
         loopOut = 0.0f;
     }
@@ -307,6 +414,14 @@ public:
         addParam(floatParam ("envfx",    "Env>FX",    -100.0f, 100.0f, 0.0f,  "", 0));
         addParam(floatParam ("envspeed", "Env Speed", 0.0f, 100.0f,   30.0f,  "%", 0));
         addParam(floatParam ("duck",     "Duck",      0.0f, 100.0f,   0.0f,   "%", 0));
+        addParam(boolParam  ("freeze",   "Freeze",    false));
+        addParam(floatParam ("space",    "Space",     0.0f, 100.0f,   0.0f,   "%", 0));
+        addParam(logParam   ("sdecay",   "Spring Decay", 0.3f, 6.0f,  1.8f,   "s", 1));
+        addParam(floatParam ("stone",    "Spring Tone", 0.0f, 100.0f, 50.0f,  "%", 0));
+        addParam(floatParam ("drip",     "Drip",      0.0f, 100.0f,   50.0f,  "%", 0));
+        addParam(choiceParam("spos",     "Space Position", {"After", "In Loop"}, 0));
+        addParam(choiceParam("char",     "Character", {"Digital", "Tape", "BBD"}, kCharDigital));
+        addParam(floatParam ("age",      "Age",       0.0f, 100.0f,   50.0f,  "%", 0));
         if (numParams() != kNumParams) mpc::log("Undertow: parameter count mismatch");
 
         // Programs. The Time column is given as a division (D(9) = 1/8D) because the programs are synced.
@@ -321,18 +436,31 @@ public:
         auto LR = [](int division) { return lfoSyncPositionHz(division); };
         //                                    Shape Mode Rate   Sprd L>Cut L>Pit L>FX L>Time E>Cut E>FX ESpd Duck
         const std::vector<float> noMod     = { 0,    1,   LR(3),  90,  0,    0,    0,   0,     0,    0,   30,  0 };
-        auto prog = [this](const char* name, std::vector<float> v, const std::vector<float>& mod)
+        // Freeze/Space tail (33..38):      Frz Space Decay Tone Drip Pos
+        const std::vector<float> noSpace = { 0,  0,    1.8f,  50,  50,  0 };
+        // Character tail (39..40):         Char Age   (0..2 = Digital/Tape/BBD)
+        const std::vector<float> digital = { 0,   50 };
+        auto progC = [this](const char* name, std::vector<float> v, const std::vector<float>& mod,
+                            const std::vector<float>& sp, const std::vector<float>& chr)
         {
             v.insert(v.end(), mod.begin(), mod.end());
+            v.insert(v.end(), sp.begin(), sp.end());
+            v.insert(v.end(), chr.begin(), chr.end());
             addProgram(name, std::move(v));
         };
+        auto progS = [&](const char* name, std::vector<float> v, const std::vector<float>& mod, const std::vector<float>& sp)
+        {
+            progC(name, std::move(v), mod, sp, digital);
+        };
+        auto prog = [&](const char* name, std::vector<float> v, const std::vector<float>& mod) { progS(name, std::move(v), mod, noSpace); };
         //                            Out Sync Div Time    Fb   Mix PP Wob Lim  Flt Cut     Res Drv  FX Amt Rate  PMd Pitch    PMix Rev In
         prog("Dub Echo",         { 0, 1,  9, D(9),   60,  35, 1, 15, 30,  1, 1800,   35, 25,  0, 50, 30,  0, 0,        100, 0, 0 }, noMod);
         prog("Siren Sweep",      { 0, 1,  7, D(7),   68,  40, 1, 10, 60,  2, 1200,   75, 40,  0, 50, 30,  0, 0,        100, 0, 0 }, noMod);
         prog("Chorus Wash",      { 0, 1, 10, D(10),  65,  35, 1, 25, 30,  1, 4000,   20, 15,  1, 60, 25,  0, 0,        100, 0, 0 }, noMod);
         prog("Crushed Repeats",  { 0, 1,  6, D(6),   70,  35, 1,  5, 40,  3,  300,   30, 30,  4, 65, 40,  0, 0,        100, 0, 0 }, noMod);
         prog("Flange Spiral",    { 0, 1,  8, D(8),   80,  40, 1, 10, 40,  1, 6000,   40, 20,  2, 70, 20,  0, 0,        100, 0, 0 }, noMod);
-        prog("Lo-Fi Tape",       { 0, 1,  9, D(9),   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60,  0, 0,        100, 0, 0 }, noMod);
+        progC("Lo-Fi Tape",      { 0, 1,  9, D(9),   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60,  0, 0,        100, 0, 0 }, noMod,
+                                 noSpace, { 1, 75 });
         prog("Self-Oscillation", { 0, 1, 12, D(12), 110,  45, 1, 20, 70,  2,  800,   92, 55,  0, 50, 30,  0, 0,        100, 0, 0 }, noMod);
         prog("Octave Climb",     { 0, 1, 10, D(10),  70,  35, 1,  5, 40,  1, 7000,   15, 15,  0, 50, 30,  0, ST(12),    50, 0, 0 }, noMod);
         prog("Down the Well",    { 0, 1,  9, D(9),   72,  40, 1, 10, 40,  1, 3000,   25, 30,  0, 50, 30,  0, ST(-12),  100, 0, 0 }, noMod);
@@ -343,12 +471,20 @@ public:
                                    { 0,    1,   LR(3),  90,  0,    0,    0,   0,     3.0f, 0,   15,  0 });
         prog("Sample & Hold",      { 0, 1,  7, D(7),   65,  40, 1,  5, 40,  2,  900,   65, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 5,    1,   LR(13), 90,  2.5f, 0,    0,   0,     0,    0,   30,  0 });
-        prog("Seasick Tape",       { 0, 1, 10, D(10),  60,  35, 1, 30, 30,  1, 3500,   20, 30,  5, 20, 40,  0, 0,        100, 0, 0 },
-                                   { 6,    1,   LR(2), 120,  0,    0.08f, 0,  40,     0,    0,   30,  0 });
+        progC("Seasick Tape",      { 0, 1, 10, D(10),  60,  35, 1, 30, 30,  1, 3500,   20, 30,  5, 20, 40,  0, 0,        100, 0, 0 },
+                                   { 6,    1,   LR(2), 120,  0,    0.08f, 0,  40,     0,    0,   30,  0 }, noSpace, { 1, 55 });
         prog("Ducked Dub",         { 0, 1,  9, D(9),   72,  50, 1, 15, 35,  1, 2200,   35, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 0,    1,   LR(3),  90,  0,    0,    0,   0,     0,    0,   45, 75 });
         prog("Breathing Flange",   { 0, 1,  8, D(8),   75,  40, 1, 10, 40,  1, 6000,   35, 20,  2, 35, 15,  0, 0,        100, 0, 0 },
                                    { 1,    1,   LR(2),  90,  0,    0,    55,  0,     0,    0,   30,  0 });
+        progS("Spring Dub",        { 0, 1,  9, D(9),   60,  40, 1, 15, 30,  1, 2000,   35, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, { 0, 45, 2.4f, 45, 70, 0 });
+        progS("Washout",           { 0, 1, 10, D(10),  70,  45, 1, 15, 35,  1, 3000,   25, 25,  1, 40, 20,  0, 0,        100, 0, 0 },
+                                   noMod, { 0, 60, 3.0f, 40, 60, 1 });
+        progC("Tape Echo",         { 0, 1,  9, D(9),   65,  35, 1, 20, 30,  1, 5000,   20, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 45 });
+        progC("Bucket Brigade",    { 0, 1, 10, D(10),  70,  40, 1, 10, 35,  0, 1800,   35, 40,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 2, 50 });
     }
 
     void prepare(double sampleRate, int /*maxBlockSize*/) override
@@ -363,6 +499,18 @@ public:
             c.dc.prepare(sampleRate, 10.0f);
             c.pitchBuf.prepare((int)(sampleRate * kPitchWindowSeconds) + 8);
             c.reverseBuf.prepare((int)(sampleRate * (2.0f * kReverseMaxSeconds + 0.05f)) + 8);   // 2 chunks + fade
+            c.springHp.setCutoff(150.0f, sampleRate);
+        }
+        for (int c = 0; c < 2; ++c)
+        {
+            for (int k = 0; k < kSpringsPerChannel; ++k)
+            {
+                Spring& sp = ch_[c].springs[k];
+                sp.line.prepare((int)(sampleRate * kSpringMaxSeconds) + 4);
+                sp.length = kSpringLengthsMs[c][k] * 0.001f * sr_;
+                sp.modInc = (0.6f + 0.23f * (float)k + 0.11f * (float)c) / sr_;
+                sp.modPhase = 0.37f * (float)(2 * c + k);
+            }
         }
         delayTime_.setTime(150.0f, sampleRate);   // tape-style glide
         feedback_.setTime(30.0f, sampleRate);
@@ -379,6 +527,7 @@ public:
         agcFollowSlow_ = 1.0f - std::exp(-1.0f / (0.150f * sr_));
         agcSmoothSlow_ = 1.0f - std::exp(-1.0f / (0.150f * sr_));
         pitchMix_.setTime(25.0f, sampleRate);
+        space_.setTime(30.0f, sampleRate);
         lfoSmooth_ = 1.0f - std::exp(-1.0f / (0.004f * sr_));    // 4 ms: softens steps and saw resets
         duckSmooth_ = 1.0f - std::exp(-1.0f / (0.005f * sr_));
         peakRelease_ = 1.0f - std::exp(-1.0f / (0.030f * sr_));
@@ -405,6 +554,10 @@ public:
         lfoPhase_ = 0.0f;
         for (LfoVoice& v : lfo_) { v = LfoVoice(); v.cur = rng_.nextBipolar(); v.next = rng_.nextBipolar(); }
         env_ = envNorm_ = 0.0f; duckGain_ = duckTarget_ = 1.0f;
+        freezeMix_ = getBool(kFreeze) ? 1.0f : 0.0f;
+        freezeLen_ = (int)clamp(delayTime_.value(), 64.0f, (float)ch_[0].delay.maxDelay() - 2.0f);
+        space_.snap(get(kSpace) * 0.01f);
+        springWasActive_ = false;
         revPos_ = 0; revChunk_ = revPrevChunk_ = (int)clamp(delayTime_.value(), 0.02f * sr_, kReverseMaxSeconds * sr_);
         pitchMix_.snap(pitchMixTarget());
         reverseMix_.snap(getBool(kReverse) ? 1.0f : 0.0f);
@@ -422,7 +575,30 @@ public:
 
         const bool pingPong = getBool(kPingPong);
         const float wobble = get(kWobble) * 0.01f;
-        const float wowDepth = wobble * 0.0040f * sr_;        // up to 4 ms of slow drift
+        // Delay character.
+        const int character = getInt(kCharacter);
+        const float age = get(kAge) * 0.01f;
+        const float tapeSat = 1.0f + 2.0f * age, bbdSat = 1.5f + 1.5f * age;
+        float charNoise = 0.0f, bbdHoldInc = 1.0f;
+        if (character == kCharTape)
+        {
+            for (LoopChannel& c : ch_)
+            {
+                c.tapeHf.setCutoff(12000.0f * std::pow(0.25f, age), sr_);
+                c.tapeLf.setCutoff(30.0f + 50.0f * age, sr_);
+            }
+            charNoise = dbToGain(-84.0f + 12.0f * age);
+        }
+        else if (character == kCharBbd)
+        {
+            const float stages = 4096.0f * std::pow(0.25f, age);
+            const float clock = stages / std::fmax(delayTime_.target() / sr_, 0.001f);   // Hz
+            bbdHoldInc = std::fmin(1.0f, clock / sr_);
+            const float lpHz = clamp(0.35f * clock, 400.0f, 15000.0f);
+            for (LoopChannel& c : ch_) { c.bbdLp1.setCutoff(lpHz, sr_); c.bbdLp2.setCutoff(lpHz, sr_); }
+            charNoise = dbToGain(-80.0f + 10.0f * age);
+        }
+        const float wowDepth = (wobble * 0.0040f + (character == kCharTape ? age * 0.0025f : 0.0f)) * sr_;   // slow drift
         const float flutterDepth = wobble * 0.0006f * sr_;    // up to 0.6 ms of fast flutter
         const float wowInc = 0.5f / sr_, flutterInc = 6.1f / sr_;
 
@@ -500,6 +676,35 @@ public:
         float* outR = ctx.numOutputs > 1 ? ctx.outputs[1] : ctx.outputs[0];
         const float maxDelay = (float)ch_[0].delay.maxDelay() - 2.0f;
 
+        // Freeze: latch the loop length as it starts to engage.
+        const float freezeTarget = getBool(kFreeze) ? 1.0f : 0.0f;
+        if (freezeTarget > 0.0f && freezeMix_ <= 0.0f)
+            freezeLen_ = (int)clamp(std::round(delayTime_.value()), 64.0f, maxDelay);
+        const float freezeStep = 1.0f / (0.020f * sr_);
+
+        // Spring reverb settings.
+        space_.setTarget(get(kSpace) * 0.01f);
+        const bool springActive = space_.target() > 0.0f || space_.value() > 1e-4f;
+        const bool springInLoop = getInt(kSpacePos) == 1;
+        if ((!springActive && springWasActive_) || springInLoop != lastSpringInLoop_)   // the two modes use the
+            for (LoopChannel& c : ch_) c.clearSprings();                                // springs differently
+        springWasActive_ = springActive;
+        lastSpringInLoop_ = springInLoop;
+        // Negative coefficients delay the lows most: the descending "drip" (about 2..16 ms of spread).
+        const float springA = -(0.15f + 0.65f * get(kDrip) * 0.01f);
+        const float springLp = 1.0f - std::exp(-6.2831853f * 1500.0f * std::pow(6.0f, get(kSpringTone) * 0.01f) / sr_);
+        const float springMod = 0.0002f * sr_;
+        if (springActive)
+        {
+            const float decay = get(kSpringDecay);
+            for (LoopChannel& c : ch_)
+                for (Spring& sp : c.springs)
+                {
+                    sp.g = std::pow(10.0f, -3.0f * (sp.length / sr_) / decay);
+                    sp.norm = std::sqrt(1.0f - sp.g * sp.g) * kSpringOutGain;   // After: about unity power
+                }
+        }
+
         // ----- per sample ---------------------------------------------------------------------
         for (int n = 0; n < ctx.numFrames; ++n)
         {
@@ -521,6 +726,8 @@ public:
                 LfoVoice& v = lfo_[c];
                 v.out += lfoSmooth_ * (lfoValue(v, lfoShape, ph) - v.out);
             }
+
+            const float space = space_.process();
 
             // Filter coefficients follow the smoothed cutoff, refreshed every 16 samples.
             const float logCut = logCutoff_.process();
@@ -602,6 +809,18 @@ public:
             {
                 LoopChannel& ch = ch_[c];
                 float x = ch.delay.readLinear(d[c]);
+                if (character == kCharTape)
+                {
+                    x = ch.tapeLf.process(ch.tapeHf.process(x));
+                    x = fastTanh(tapeSat * x) / tapeSat + charNoise * rng_.nextBipolar();
+                }
+                else if (character == kCharBbd)
+                {
+                    ch.bbdPhase += bbdHoldInc;
+                    if (ch.bbdPhase >= 1.0f) { ch.bbdPhase -= 1.0f; ch.bbdHeld = x; }
+                    x = ch.bbdLp2.process(ch.bbdLp1.process(ch.bbdHeld));
+                    x = (fastTanh(bbdSat * x + 0.1f) - 0.0997f) / (bbdSat * 0.990f) + charNoise * rng_.nextBipolar();
+                }
 
                 switch (filterMode)
                 {
@@ -635,6 +854,12 @@ public:
                     x *= agcGain_;
                 }
 
+                if (springActive && springInLoop)   // weights sum to 1 and |spring| <= 1: the loop gain cannot grow
+                {
+                    const float r = ch.springInLoop(x, springA, springLp, springMod);
+                    x += (r - x) * space;
+                }
+
                 x = (fastTanh(driveGain * x + kBias) - tb) * driveNorm;
                 x = ch.dc.process(x);
                 ch.loopOut = x;
@@ -663,18 +888,41 @@ public:
                 wet[c] += (r - wet[c]) * rMix;
             }
 
-            // Feed the repeats back.
+            // Spring after the delay (on the repeats, before the wet limiter).
+            if (springActive && !springInLoop)   // like a spring tank: mono in, a different spring on each side
+            {
+                const float mono = 0.5f * (wet[0] + wet[1]);
+                for (int c = 0; c < 2; ++c) wet[c] += space * ch_[c].spring(mono, springA, springLp, springMod);
+            }
+
+            // Feed the repeats back (or, frozen, recirculate the held loop unprocessed at unity).
             const float fb = feedback_.process();
+            float writeL, writeR;
             if (pingPong)
             {
-                ch_[0].delay.write(0.5f * (sendL + sendR) + ch_[1].loopOut * fb);
-                ch_[1].delay.write(ch_[0].loopOut * fb);
+                writeL = 0.5f * (sendL + sendR) + ch_[1].loopOut * fb;
+                writeR = ch_[0].loopOut * fb;
             }
             else
             {
-                ch_[0].delay.write(sendL + ch_[0].loopOut * fb);
-                ch_[1].delay.write(sendR + ch_[1].loopOut * fb);
+                writeL = sendL + ch_[0].loopOut * fb;
+                writeR = sendR + ch_[1].loopOut * fb;
             }
+            freezeMix_ += clamp(freezeTarget - freezeMix_, -freezeStep, freezeStep);
+            if (freezeMix_ > 0.0f)
+            {
+                const float heldL = (pingPong ? ch_[1] : ch_[0]).delay.readInt(freezeLen_);
+                const float heldR = (pingPong ? ch_[0] : ch_[1]).delay.readInt(freezeLen_);
+                if (freezeMix_ >= 1.0f) { writeL = heldL; writeR = heldR; }          // exactly unity
+                else
+                {
+                    const float gHeld = sine01(freezeMix_ * 0.25f), gNormal = sine01(0.25f + freezeMix_ * 0.25f);
+                    writeL = writeL * gNormal + heldL * gHeld;
+                    writeR = writeR * gNormal + heldR * gHeld;
+                }
+            }
+            ch_[0].delay.write(writeL);
+            ch_[1].delay.write(writeR);
 
             // Wet limiter: stereo-linked, fast attack, then a soft knee for whatever gets past it.
             float wL = wet[0] * limitDrive, wR = wet[1] * limitDrive;
@@ -706,7 +954,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1400;            // 1.4.0.0
+        info.version      = 1600;            // 1.6.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -989,6 +1237,10 @@ private:
     float lfoPhase_ = 0.0f, lfoSmooth_ = 0.01f;
     LfoVoice lfo_[2];
     Xorshift32 rng_{0x51F15EEDu};
+    float freezeMix_ = 0.0f;
+    int freezeLen_ = 1000;
+    Smoother space_;
+    bool springWasActive_ = false, lastSpringInLoop_ = false;
     float env_ = 0.0f, envNorm_ = 0.0f, peakRelease_ = 0.001f, duckGain_ = 1.0f, duckTarget_ = 1.0f, duckSmooth_ = 0.01f;
 };
 

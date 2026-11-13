@@ -9,15 +9,15 @@ Undertow is an original design, inspired by the idea of desktop dub delays with 
 It contains no code from any commercial product.
 
 ```
-in ─┬────────────────────────────────────────────────────────────────────────────┐ dry
-    └► Input ─► delay ─► FILTER ─► [PITCH ─► FX] ─► DRIVE ─┬─► REVERSE ─► WET LIMITER ─► mix ┴─► Output ─► out
-         ▲                 level-matched          │
-         └───────────── x Feedback ◄──────────────┘     (Ping-Pong: left and right swap on every repeat)
+in ─┬──────────────────────────────────────────────────────────────────────────────────────────────┐ dry
+    └► Input ─► delay ─► CHARACTER ─► FILTER ─► [PITCH ─► FX] ─► (SPRING) ─► DRIVE ─┬─► REVERSE ─► (SPRING) ─► WET LIMITER ─► mix ┴─► Output ─► out
+         ▲      (Digital/Tape/BBD)          level-matched    In Loop          │                 After
+         └─────────────────────────────── x Feedback (or Freeze) ◄───────────────┘     (Ping-Pong: left and right swap on every repeat)
 ```
 
 ## The screen
 
-Undertow has its own skin: a black panel with a glowing tube, three pages (**DELAY**, **LOOP** and **MOD**), and three rows
+Undertow has its own skin: a black panel with a glowing tube, four pages (**DELAY**, **LOOP**, **MOD** and **SPACE**), and three rows
 of controls on each page that line up with the Q-Link knobs: the top row is on Q-Links 13–16, the middle row on
 9–12, the bottom row on 5–8. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter)
 for a large edit view. The **FEEDBACK SAFETY** lamp lights when Feedback is at 100% or above, where the loop can
@@ -28,12 +28,14 @@ self-oscillate.
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | Input | −∞, −30…+12 dB | 0 dB | Level into the delay (the dry signal is not affected). Push it to drive the loop harder; pull it to −∞ and back for dub throws. |
-| Drive | 0–100 % | 25 % | Tube-style saturation (slightly asymmetric). Always in the loop; this is what keeps runaway feedback musical. |
+| Age | 0–100 % | 50 % | How worn the Tape or BBD character is (see Character). No effect in Digital. |
 | Dry / Wet (Mix) | 0–100 % | 35 % | Dry stays at full level up to 50% while the repeats fade in; from 50% the dry fades out. |
 | Output | −30…0 dB | 0 dB | Final level. |
 | Delay Time | 10–5000 ms, or 1/64–2/1 | 1/8D | Delay time. In Sync the knob snaps to note divisions of the MPC tempo (with dotted and triplet values); in Free it is in milliseconds. The big display shows it too, and can be dragged. Changing it glides like tape, so turning it warps the repeats' pitch. |
 | Time Mode | Sync / Free | Sync | Sync: Delay Time follows the MPC tempo. Free: milliseconds. |
+| Character | Digital / Tape / BBD | Digital | The delay medium, applied to every repeat, so each one carries more of it. **Digital**: clean. **Tape**: high frequencies roll off more on every pass (12 kHz at Age 0, 3 kHz at 100), a little bass loss, soft tape compression, hiss and extra wow. **BBD**: a bucket-brigade chip of 4096 to 1024 stages (Age), so its bandwidth follows the delay time: short delays are clear, long ones dark and gritty with sample-and-hold grain; harder saturation and a little noise. Tape and BBD lose a little level per repeat, as the real things do. |
 | Straight / Ping-Pong | | Ping-Pong | Ping-Pong: repeats bounce left and right (the input is summed to mono and starts on the left). |
+| Freeze | Off / On | Off | Holds the loop: what is in the delay (one delay time, or two in Ping-Pong) repeats forever at exactly the same level and new input is kept out. Filter, pitch, FX, drive and the MOD page then shape only what you hear, so you can sweep them over a frozen loop without wearing it away. Feedback is ignored while frozen; changing Delay Time warps the frozen loop's pitch. Also on the SPACE page. |
 | Feedback | 0–120 % | 55 % | How much of each repeat comes back. Below 100% repeats die away; above 100% they grow until the drive stage saturates them. High Resonance lowers that point. |
 | Cutoff | 40 Hz–16 kHz | 1.8 kHz | Filter cutoff, smoothed so fast sweeps sound like sweeps. The RESPONSE display follows it. |
 | Filter | Off / LP / BP / HP | LP | Filter inside the loop. Each repeat is filtered again, so they get darker (LP), thinner (HP) or more nasal (BP) as they decay. |
@@ -44,6 +46,7 @@ self-oscillate.
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | Wobble | 0–100 % | 15 % | Tape wow (slow) and flutter (fast) on the delay time. |
+| Drive | 0–100 % | 25 % | Tube-style saturation (slightly asymmetric). Always in the loop; this is what keeps runaway feedback musical. (On DELAY before 1.6.) |
 | Limit | 0–100 % | 30 % | How hard the repeats are pushed into the limiter (0 to +18 dB). Higher values give denser, more slammed repeats. |
 | Dry / Wet, Output | | | The same controls as on DELAY. |
 | FX Amount | 0–100 % | 50 % | How much of the effect. |
@@ -74,6 +77,19 @@ works in both directions. The knobs show where you set them, not where the modul
 | LFO › FX | ±100 % | 0 | Added to FX Amount: the chorus breathes, the crush pumps. |
 | LFO › Time | ±100 % | 0 | 100% = ±20% of the delay time: a slow, deep tape warp (Wobble is the small, fast one). |
 
+### Page 4: SPACE
+
+A spring reverb, plus Freeze and the filter again so you can freeze a loop and sweep it from one page.
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Drip | 0–100 % | 50 % | How much the spring "chirps": the lows arrive later than the highs, the drip of a real spring tank. |
+| Tone | 0–100 % | 50 % | Darker to brighter (a 1.5–9 kHz low-pass inside the spring). |
+| Space | 0–100 % | 0 % | How much spring. 0 switches it off (and saves the CPU). |
+| Position | After / In Loop | After | **After**: the spring sits on the repeats, like a tank on the echo's output. **In Loop**: inside the feedback loop, so every repeat is smeared a little more, into a wash. In Loop the spring is built so it cannot add gain at any frequency: the trail lasts longer, but Feedback still decides whether it dies away. |
+| Decay | 0.3–6 s | 1.8 s | Spring decay time. |
+| Freeze, Cutoff, Filter, Resonance | | | The same controls as on DELAY. |
+
 ### FX types
 
 | FX Type | FX Amount | FX Rate |
@@ -99,7 +115,7 @@ how long they last: Feedback still decides that (see "Level matching" below).
 | Chorus Wash | Quarter-note repeats that widen and smear |
 | Crushed Repeats | High-passed, bit-crushed dotted-sixteenths |
 | Flange Spiral | Repeats spiral into a jet flange |
-| Lo-Fi Tape | Heavy wobble and downsampling |
+| Lo-Fi Tape | Heavy wobble and downsampling on worn tape |
 | Self-Oscillation | 110% feedback into a ringing band-pass: play Cutoff like an instrument |
 | Octave Climb | Each repeat adds an octave above (50% Pitch Mix) |
 | Down the Well | Each repeat drops an octave |
@@ -111,6 +127,10 @@ how long they last: Feedback still decides that (see "Level matching" below).
 | Seasick Tape | Drifting pitch and time, light downsampling |
 | Ducked Dub | Dub echo that ducks out of the way while you play |
 | Breathing Flange | Flanger depth swelling over 2 bars |
+| Spring Dub | Dub echo into a drippy spring |
+| Washout | Chorused repeats smeared by a spring inside the loop |
+| Tape Echo | Dotted-eighth tape echo, darkening and wobbling |
+| Bucket Brigade | Quarter-note analog-style repeats, no filter: the BBD does the darkening |
 
 ## Tips
 
@@ -142,7 +162,7 @@ not limited, so quiet repeats sound natural and only loud ones are clamped. Noth
 
 ## Not implemented yet
 
-- Freeze / hold
+- A second tap, and a variable glide time
 
 ## CPU
 
@@ -150,7 +170,8 @@ Per sample: one delay read per channel, a state-variable filter, the pitch stage
 8-section allpass Hilbert transformer), the selected effect, two saturators, the reverser and the limiter.
 Filter, phaser, level-match and modulation updates (cutoff, FX Amount, pitch) run every 16 samples; the LFO, envelope
 follower, ducking and time modulation run per sample with no transcendental functions.
-Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
+The spring reverb costs about three times the rest of the plugin while Space is above 0 (36 allpass stages per side);
+at 0 it is skipped. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
 
 ## Skin
 
