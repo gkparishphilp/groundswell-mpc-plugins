@@ -12,6 +12,6 @@
   "file64": "VST/galactic-arm64.so",
   "description": "Huge, dark, shimmering ambient reverb. A port of Airwindows Galactic by Chris Johnson (MIT).",
   "author": "Groundswell",
-  "url": "",
+  "url": "https://github.com/gkparishphilp/groundswell-mpc-plugins/tree/main/Galactic",
   "license": "MIT"
 }
