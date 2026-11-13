@@ -3,20 +3,15 @@
   "pages": [
     { "name": "DELAY",
       "controls": [
-        { "param": "Time",      "widget": "knob", "visibleWhen": { "param": "Sync", "choice": "Off" } },
-        { "param": "Division",  "widget": "slider", "overlay": "menu", "visibleWhen": { "param": "Sync", "choice": "On" } },
+        { "param": "Time",      "widget": "knob" },
         { "param": "Feedback",  "widget": "knob" },
+        { "param": "Wobble",    "widget": "knob" },
         { "param": "Mix",       "widget": "fader" },
 
-        { "param": "Sync",      "widget": "switch" },
+        { "param": "Time Mode", "widget": "switch" },
         { "param": "Ping-Pong", "widget": "switch" },
-        { "param": "Wobble",    "widget": "knob" },
-        "empty",
-
         { "param": "Limit",     "widget": "knob" },
-        { "param": "Output",    "widget": "fader" },
-        "empty",
-        "empty"
+        { "param": "Output",    "widget": "fader" }
       ] },
     { "name": "LOOP",
       "controls": [

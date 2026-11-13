@@ -19,10 +19,10 @@ in ─┬───────────────────────�
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
-| Time / Division | 10–5000 ms / 1/64–2/1 | 375 ms / 1/8D | Delay time. With Sync on, Division follows the MPC tempo. Changing it glides like tape, so turning it warps the repeats' pitch. |
+| Time | 10–5000 ms, or 1/64–2/1 | 1/8D | Delay time. In Sync mode the knob snaps to note divisions of the MPC tempo (1/64 up to 2/1, with dotted and triplet values) and shows the division; in Free mode it is in milliseconds. Changing it glides like tape, so turning it warps the repeats' pitch. |
 | Feedback | 0–120 % | 55 % | How much of each repeat comes back. Below 100% repeats die away; above 100% they grow until the drive stage saturates them. High Resonance lowers that point (see below). |
 | Mix | 0–100 % | 35 % | Dry stays at full level up to 50% while the repeats fade in; from 50% the dry fades out. |
-| Sync | Off / On | On | Division (tempo-synced) or Time (free). |
+| Time Mode | Free / Sync | Sync | Sync: Time follows the MPC tempo in note divisions. Free: Time in milliseconds. |
 | Ping-Pong | Off / On | On | Repeats bounce left and right. The input is summed to mono and starts on the left. |
 | Wobble | 0–100 % | 15 % | Tape wow (slow) and flutter (fast) on the delay time. |
 | Limit | 0–100 % | 30 % | How hard the repeats are pushed into the limiter (0 to +18 dB). Higher values give denser, more slammed repeats. |
@@ -72,7 +72,7 @@ still decides that.
 
 - **Dub throws:** leave Mix at 0 and push it up for a beat to throw a single hit into the delay, then pull it back down.
 - **Self-oscillation:** Feedback above 100%, or Resonance near full with Feedback above ~75%, then ride Cutoff. Drive and Limit shape how it sounds when it takes off; Feedback back below 100% lets it die away.
-- **Pitch warps:** with Sync off, sweep Time while repeats are playing.
+- **Pitch warps:** in Free mode, sweep Time while repeats are playing.
 - Changing FX Type restarts the effect from silence, so the switch is clean but the old effect's tail is cut.
 
 ## How the limiting works

@@ -22,14 +22,15 @@
 // wet limiter then pins the repeats under -3 dBFS (Limit pushes them into it, from 0 to +18 dB), and
 // a soft knee on the final output catches anything above -1 dBFS. The dry signal is not limited.
 //
-// Delay time glides (about 150 ms) when you change it, so turning Time or Division warps the pitch of
+// Delay time glides (about 150 ms) when you change it, so turning Time warps the pitch of
 // the repeats like tape. Wobble adds wow (~0.5 Hz) and flutter (~6 Hz) to the delay time.
 //
 // Parameters (ids are permanent once released - never rename or reorder; append new ones at the end):
 //    0 Output     dB  -30..0       0      level after everything (the host nudges parameter 0 on load)
-//    1 Sync       Off/On           On     tempo-synced Division, or free Time
-//    2 Division   1/64..2/1        1/8D   delay time when synced to the MPC tempo
-//    3 Time       ms  10..5000     375    delay time when not synced
+//    1 Time Mode  Free/Sync        Sync   Sync: Time snaps to note divisions of the MPC tempo; Free: milliseconds
+//    2 Division   (legacy, unused since 1.1: kept so parameter numbers stay put; hidden, not automatable)
+//    3 Time       10..5000 ms      375    one control for both modes. In Sync mode its position picks one of
+//                 or 1/64..2/1     1/8D   17 divisions (1/64 .. 2/1) and the display shows the division name
 //    4 Feedback   %   0..120       55     above 100% the loop runs away into the drive stage
 //    5 Mix        %   0..100       35     dry stays at full level up to 50%, wet reaches full level at 50%
 //    6 Ping-Pong  Off/On           On     repeats bounce between left and right
@@ -155,9 +156,11 @@ public:
     {
         using namespace mpc;
         addParam(floatParam ("output",   "Output",    -30.0f, 0.0f,    0.0f,  "dB", 1));
-        addParam(choiceParam("sync",     "Sync",      {"Off", "On"}, 1));
-        addParam(choiceParam("div",      "Division",  divisionNames(), 9));   // 1/8D
-        addParam(logParam   ("time",     "Time",      10.0f, 5000.0f, 375.0f, "ms", 0));
+        addParam(choiceParam("sync",     "Time Mode", {"Free", "Sync"}, 1));
+        Param legacyDiv = choiceParam("div", "Division", divisionNames(), 9);   // unused since 1.1, see header
+        legacyDiv.automatable = false;
+        addParam(legacyDiv);
+        addParam(logParam   ("time",     "Time",      10.0f, 5000.0f, 375.0f, "", 0));   // unit added by formatValue
         addParam(floatParam ("feedback", "Feedback",  0.0f, 120.0f,   55.0f,  "%", 0));
         addParam(floatParam ("mix",      "Mix",       0.0f, 100.0f,   35.0f,  "%", 0));
         addParam(boolParam  ("pingpong", "Ping-Pong", true));
@@ -173,16 +176,18 @@ public:
         addParam(floatParam ("fxrate",   "FX Rate",   0.0f, 100.0f,   30.0f,  "%", 0));
         if (numParams() != kNumParams) mpc::log("Undertow: parameter count mismatch");
 
-        // Programs. Division indexes: 6=1/16D 7=1/8 8=1/4T 9=1/8D 10=1/4 12=1/4D. Filter 0..3 = Off/LP/BP/HP.
+        // Programs. The Time column is given as a division (D(9) = 1/8D) because the programs are synced.
+        // Divisions: 6=1/16D 7=1/8 8=1/4T 9=1/8D 10=1/4 12=1/4D. Filter 0..3 = Off/LP/BP/HP.
         // FX 0..7 = Off/Chorus/Flanger/Phaser/Bitcrush/Downsample/Ring Mod/Fuzz.
-        //                            Out Sync Div Time   Fb   Mix PP Wob Lim  Flt Cut     Res Drv  FX Amt Rate
-        addProgram("Dub Echo",         { 0, 1,  9, 375,   60,  35, 1, 15, 30,  1, 1800,   35, 25,  0, 50, 30 });
-        addProgram("Siren Sweep",      { 0, 1,  7, 375,   68,  40, 1, 10, 60,  2, 1200,   75, 40,  0, 50, 30 });
-        addProgram("Chorus Wash",      { 0, 1, 10, 500,   65,  35, 1, 25, 30,  1, 4000,   20, 15,  1, 60, 25 });
-        addProgram("Crushed Repeats",  { 0, 1,  6, 375,   70,  35, 1,  5, 40,  3,  300,   30, 30,  4, 65, 40 });
-        addProgram("Flange Spiral",    { 0, 1,  8, 375,   80,  40, 1, 10, 40,  1, 6000,   40, 20,  2, 70, 20 });
-        addProgram("Lo-Fi Tape",       { 0, 1,  9, 375,   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60 });
-        addProgram("Self-Oscillation", { 0, 1, 12, 375,  110,  45, 1, 20, 70,  2,  800,   92, 55,  0, 50, 30 });
+        auto D = [](int division) { return syncTimeMs(division); };
+        //                            Out Sync Div Time    Fb   Mix PP Wob Lim  Flt Cut     Res Drv  FX Amt Rate
+        addProgram("Dub Echo",         { 0, 1,  9, D(9),   60,  35, 1, 15, 30,  1, 1800,   35, 25,  0, 50, 30 });
+        addProgram("Siren Sweep",      { 0, 1,  7, D(7),   68,  40, 1, 10, 60,  2, 1200,   75, 40,  0, 50, 30 });
+        addProgram("Chorus Wash",      { 0, 1, 10, D(10),  65,  35, 1, 25, 30,  1, 4000,   20, 15,  1, 60, 25 });
+        addProgram("Crushed Repeats",  { 0, 1,  6, D(6),   70,  35, 1,  5, 40,  3,  300,   30, 30,  4, 65, 40 });
+        addProgram("Flange Spiral",    { 0, 1,  8, D(8),   80,  40, 1, 10, 40,  1, 6000,   40, 20,  2, 70, 20 });
+        addProgram("Lo-Fi Tape",       { 0, 1,  9, D(9),   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60 });
+        addProgram("Self-Oscillation", { 0, 1, 12, D(12), 110,  45, 1, 20, 70,  2,  800,   92, 55,  0, 50, 30 });
     }
 
     void prepare(double sampleRate, int /*maxBlockSize*/) override
@@ -362,7 +367,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1000;            // 1.0.0.0
+        info.version      = 1100;            // 1.1.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -372,11 +377,33 @@ private:
 
     static constexpr char kUid[5] = "GGxC";
 
+    // Time's range is 10..5000 ms on a log scale. In Sync mode its 0..1 position is split into the
+    // 17 divisions, so the same knob picks a division and shows its name.
+    static constexpr float kTimeMinMs = 10.0f, kTimeMaxMs = 5000.0f;
+    static int divisionFromPosition(float norm) { return clamp((int)std::lround(norm * (kNumDivisions - 1)), 0, kNumDivisions - 1); }
+    static float syncTimeMs(int division) { return kTimeMinMs * std::pow(kTimeMaxMs / kTimeMinMs, (float)division / (kNumDivisions - 1)); }
+
     float targetDelaySamples(double bpm) const
     {
-        const float seconds = getInt(kSync) == 1 ? beatsToSeconds(divisionBeats(getInt(kDivision)), bpm)
-                                                 : get(kTime) * 0.001f;
+        const float seconds = getInt(kSync) == 1
+            ? beatsToSeconds(divisionBeats(divisionFromPosition(getNormalised(kTime))), bpm)
+            : get(kTime) * 0.001f;
         return clamp(seconds, 0.001f, kMaxDelaySeconds) * sr_;
+    }
+
+    bool formatValue(int index, float plainValue, std::string& out) override
+    {
+        if (index != kTime) return false;
+        if (getInt(kSync) == 1)
+        {
+            out = divisionName(divisionFromPosition(param(kTime).toNormalised(plainValue)));
+            return true;
+        }
+        char buf[32];
+        if (plainValue >= 1000.0f) std::snprintf(buf, sizeof(buf), "%.2f s", (double)(plainValue * 0.001f));
+        else std::snprintf(buf, sizeof(buf), "%.0f ms", (double)plainValue);
+        out = buf;
+        return true;
     }
 
     // Turn FX Amount / FX Rate into the numbers each effect needs (once per block).
