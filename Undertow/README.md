@@ -259,3 +259,21 @@ MIT. See the repository's LICENSE. Uses the MPC Plugin SDK framework (MIT).
 python tools/build.py plugins/Undertow
 python tools/package.py plugins/Undertow
 ```
+
+### On the computer
+
+```
+python tools/build.py plugins/Undertow --target desktop
+```
+
+builds `build/desktop/Undertow.vst`, a universal (arm64 + x86_64) ad-hoc-signed VST2 bundle. Copy it to
+`~/Library/Audio/Plug-Ins/VST/` and rescan in a VST2 host — FL Studio, Reaper, MPC Software. Logic will not
+load it: Logic takes Audio Units only, and there is no AU build.
+
+The DSP is identical to the MPC build; what is missing is the panel. The skin is drawn by the MPC itself from
+`Plugin Skins/`, not by the plugin, so on the computer the host draws its own parameter list instead. The 65
+display parameters (Level and Echo 1–64) are reported as not automatable, so a well-behaved host keeps them out
+of its automation lists; they will still appear in a plain parameter list.
+
+Sync mode reads the host's tempo. If a host does not report one, Undertow falls back to 120 BPM rather than
+failing, so a Sync patch that sounds like it is at the wrong tempo means the host is not sending it.
