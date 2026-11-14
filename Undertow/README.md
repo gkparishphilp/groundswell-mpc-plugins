@@ -266,9 +266,27 @@ python tools/package.py plugins/Undertow
 python tools/build.py plugins/Undertow --target desktop
 ```
 
-builds `build/desktop/Undertow.vst`, a universal (arm64 + x86_64) ad-hoc-signed VST2 bundle. Copy it to
-`~/Library/Audio/Plug-Ins/VST/` and rescan in a VST2 host — FL Studio, Reaper, MPC Software. Logic will not
-load it: Logic takes Audio Units only, and there is no AU build.
+builds `build/desktop/Undertow.vst`, a universal (arm64 + x86_64) ad-hoc-signed VST2 bundle, for a VST2 host
+— FL Studio, Reaper, MPC Software. Logic will not load it: Logic takes Audio Units only, and there is no AU
+build.
+
+Where to put it is the part that catches people out. The two standard macOS VST2 folders are
+`/Library/Audio/Plug-Ins/VST/` (all users, needs `sudo` to write) and `~/Library/Audio/Plug-Ins/VST/` (just
+you). **Hosts do not necessarily search both.** FL Studio 2026, for instance, searches the system folder and
+its own, but not the user one, even though it does search the user VST3 folder — so a plugin dropped in
+`~/Library/Audio/Plug-Ins/VST/` is simply never looked at, and the rescan reports nothing rather than an error.
+Either install system-wide:
+
+```
+sudo cp -R plugins/Undertow/build/desktop/Undertow.vst /Library/Audio/Plug-Ins/VST/
+```
+
+or add `~/Library/Audio/Plug-Ins/VST` to the host's plugin search paths (in FL Studio: Options → Manage
+plugins → Plugin search paths), which needs no password and lets later rebuilds be a plain `cp`.
+
+If a host does not list the plugin after a rescan, check its scan log before suspecting the build. FL Studio
+writes one per run to `~/Documents/Image-Line/FL Studio/Support/Logs/`, and the `search path:` lines in it say
+exactly which folders were looked at.
 
 The DSP is identical to the MPC build; what is missing is the panel. The skin is drawn by the MPC itself from
 `Plugin Skins/`, not by the plugin, so on the computer the host draws its own parameter list instead. The 65
