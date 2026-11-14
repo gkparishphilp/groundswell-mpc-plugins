@@ -88,12 +88,24 @@ enum ParamIndex
     kListen, kGap, kAnswer, kReply, kInterval, kScale, kRoot, kTrade, kSpread,
     kHold, kInput,
     kLevel, kState,          // meters: the plugin writes these, nobody automates them
+    kKeyMode, kHeard,        // appended: pitch tracking
     kNumParams
 };
 
 enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles };
 enum Listen { kListenOff = 0, kListenAuto, kListenHold };
 enum Answer { kAnswerNow = 0, kAnswerBeat, kAnswerBar };
+enum KeyMode { kKeyFixed = 0, kKeyFollow };
+
+// Pitch detection. The phrase is analysed once, when it ends, so the cost lands in one block an
+// answer or two apart rather than on every sample. Decimating by four first is what makes that
+// affordable: pitch lives below 1.5 kHz, so 11 kHz is plenty, and the search shrinks sixteenfold.
+constexpr int   kDecim = 4;
+constexpr int   kYinWindow = 512;          // 46 ms at 11 kHz: three periods of the lowest note
+constexpr int   kYinMinLag = 9;            // about 1225 Hz
+constexpr int   kYinMaxLag = 140;          // about 79 Hz
+constexpr float kYinGood = 0.22f;          // below this the estimate is trusted
+constexpr float kYinUsable = 0.45f;        // above this the phrase is called unpitched
 
 constexpr float kCaptureSeconds = 8.0f;    // how far back the buffer remembers
 constexpr int   kMaxGrains = 16;
@@ -248,6 +260,14 @@ public:
         state.automatable = false; state.saved = false;
         addParam(state);
 
+        // Appended after the meters, so nothing above moves.
+        addParam(mpc::choiceParam("keymode", "Key", { "Fixed", "Follow" }, kKeyFixed));
+        mpc::Param heard = mpc::choiceParam("heard", "Heard",
+                                            { "-", "C", "C#", "D", "D#", "E", "F",
+                                              "F#", "G", "G#", "A", "A#", "B" }, 0);
+        heard.automatable = false; heard.saved = false;
+        addParam(heard);
+
         addPrograms();
     }
 
@@ -261,6 +281,14 @@ public:
         while (size < (int)(kCaptureSeconds * sr_)) size <<= 1;
         bufMask_ = size - 1;
         for (int c = 0; c < 2; ++c) buf_[c].assign((size_t)size, 0.0f);
+
+        // A mono copy at a quarter of the rate, only ever read by the pitch detector.
+        decBuf_.assign((size_t)(size / kDecim), 0.0f);
+        decMask_ = size / kDecim - 1;
+        // Anti-alias before throwing samples away: two poles at 3.5 kHz, which is well above any
+        // fundamental we look for and well below the decimated Nyquist.
+        decLp_.setCutoff(3500.0f, sr_);
+        decLp2_.setCutoff(3500.0f, sr_);
 
         if (window_.empty())
         {
@@ -289,6 +317,12 @@ public:
 
     void reset() override
     {
+        std::fill(decBuf_.begin(), decBuf_.end(), 0.0f);
+        decLp_.reset(); decLp2_.reset();
+        heardMidi_ = -1.0f;
+        heardClass_ = -1;
+        lastHeardSent_ = -1.0f;
+        analyse_ = false;
         for (int c = 0; c < 2; ++c)
         {
             std::fill(buf_[c].begin(), buf_[c].end(), 0.0f);
@@ -369,8 +403,7 @@ public:
                                          0.0f, 0.999f);
         for (int c = 0; c < 2; ++c) fdn_[c].setDamping(clampf(toneHz, 500.0f, 12000.0f));
 
-        const float interval = get(kInterval);
-        const double baseRate = (double)semitonesToRatio(interval);
+        const double baseRate = answerRatio();
 
         // The envelope thresholds that decide "you are playing" and "you have stopped".
         constexpr float kOpen = 0.004f;    // about -48 dBFS
@@ -398,6 +431,9 @@ public:
                 const int i = (int)(writePos_ & (int64_t)bufMask_);
                 buf_[0][(size_t)i] = capL;
                 buf_[1][(size_t)i] = capR;
+                const float mono = decLp2_.process(decLp_.process(0.5f * (capL + capR)));
+                if ((writePos_ & (kDecim - 1)) == 0)
+                    decBuf_[(size_t)((writePos_ >> 2) & (int64_t)decMask_)] = mono;
                 ++writePos_;
             }
 
@@ -422,7 +458,13 @@ public:
                         phraseEnd_ = writePos_ - gapCount_;
                         int64_t len = phraseEnd_ - phraseStart_;
                         if (len > maxPhrase) phraseStart_ = phraseEnd_ - maxPhrase;
-                        if (len >= minPhrase) scheduleAnswer(answerAt, ctx, beatSamples, n);
+                        if (len >= minPhrase)
+                        {
+                            // Analysing here would put 66k multiply-adds inside one sample slot.
+                            // Flag it instead and do it once, at the end of the block.
+                            analyse_ = true;
+                            scheduleAnswer(answerAt, ctx, beatSamples, n);
+                        }
                     }
                 }
             }
@@ -539,6 +581,12 @@ public:
             meter_ += (o > meter_ ? 0.5f : meterFall_) * (o - meter_);
         }
 
+        if (analyse_)
+        {
+            analyse_ = false;
+            detectPitch();
+        }
+
         // Keep the grain sum near unity however many are sounding.
         wetTrim_.setTarget(1.0f / std::sqrt((float)countActive() + 1.0f) * 1.6f);
 
@@ -636,25 +684,161 @@ private:
         return (int)clampf(sr_ / density, 16.0f, sr_);
     }
 
-    // Snap a frequency to the chosen scale, so Bubbles sparkles in key instead of at random.
-    float snapToScale(float hz) const
+    // What the scale is built on. Fixed means the Root knob, which is the key of the music and is
+    // almost always what you want: the detected pitch then says where the note you played sits in
+    // that key, which is how "+4" can come back as the third the key actually has. Follow takes
+    // the root from the phrase instead, which lands right only if you started on the tonic.
+    int scaleRoot() const
+    {
+        if (getInt(kKeyMode) == kKeyFollow && heardClass_ >= 0) return heardClass_;
+        return clampi(getInt(kRoot), 0, 11);
+    }
+
+    float snapMidiToScale(float midi) const
     {
         const int scaleIndex = clampi(getInt(kScale), 0, kNumScales - 1);
-        if (scaleIndex == 0) return hz;
+        if (scaleIndex == 0) return midi;
         const ScaleDef& sc = kScales[scaleIndex];
-        const int root = clampi(getInt(kRoot), 0, 11);
-        const float midi = hzToMidi(clampf(hz, 20.0f, 18000.0f));
+        const int root = scaleRoot();
         const float rel = midi - (float)root;
         const float octave = std::floor(rel / 12.0f);
         const float within = rel - octave * 12.0f;
-        float best = (float)sc.notes[0];
-        float bestD = 99.0f;
+        float best = (float)sc.notes[0], bestD = 99.0f;
         for (int i = 0; i < sc.count; ++i)
         {
             const float d = std::fabs(within - (float)sc.notes[i]);
-            if (d < bestD) { bestD = d; best = (float)sc.notes[i]; }
+            if (d < bestD) { bestD = d; best = (float)sc.notes[i]; }   // ties resolve downward
         }
-        return midiToHz((float)root + octave * 12.0f + best);
+        return (float)root + octave * 12.0f + best;
+    }
+
+    // Snap a frequency to the chosen scale, so Bubbles sparkles in key instead of at random.
+    float snapToScale(float hz) const
+    {
+        if (clampi(getInt(kScale), 0, kNumScales - 1) == 0) return hz;
+        return midiToHz(snapMidiToScale(hzToMidi(clampf(hz, 20.0f, 18000.0f))));
+    }
+
+    // Which degree of the scale a root-relative offset is nearest to.
+    static int degreeOf(const ScaleDef& sc, float withinOctave)
+    {
+        int best = 0;
+        float bestD = 99.0f;
+        for (int i = 0; i < sc.count; ++i)
+        {
+            const float d = std::fabs(withinOctave - (float)sc.notes[i]);
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        return best;
+    }
+
+    // How much the answer is transposed.
+    //
+    // Without a scale, Interval is plain semitones. With one, it becomes a DIATONIC interval: the
+    // knob is read as a number of scale steps, and the answer moves that many degrees from
+    // wherever the note you played sits in the key. So "+4" is a third, and it comes back major
+    // from the first degree and minor from the second, the way a third does.
+    //
+    // Doing it by steps rather than by snapping the shifted note matters. Snapping leaves the
+    // tritone ambiguous - F# in C major is one semitone from both F and G - so a note detected a
+    // hundredth of a semitone sharp would answer a fourth up where a flat one answered a third.
+    // Counting degrees has no such edge: the source is quantised once, and the step count is exact.
+    double answerRatio() const
+    {
+        const float interval = get(kInterval);
+        const int si = clampi(getInt(kScale), 0, kNumScales - 1);
+        if (si == 0 || heardMidi_ < 0.0f) return (double)semitonesToRatio(interval);
+        const ScaleDef& sc = kScales[si];
+        const int root = scaleRoot();
+
+        // Where the phrase sits in the key.
+        const float rel = heardMidi_ - (float)root;
+        const float oct = std::floor(rel / 12.0f);
+        const int srcDeg = degreeOf(sc, rel - oct * 12.0f);
+
+        // How many degrees the knob is asking for.
+        const float ask = std::fabs(interval);
+        const float askOct = std::floor(ask / 12.0f);
+        int steps = (int)askOct * sc.count + degreeOf(sc, ask - askOct * 12.0f);
+        if (interval < 0.0f) steps = -steps;
+
+        // Move that many degrees, carrying octaves.
+        const int deg = srcDeg + steps;
+        const int shift = (int)std::floor((float)deg / (float)sc.count);
+        const int within = deg - shift * sc.count;
+        const float target = (float)root + (oct + (float)shift) * 12.0f + (float)sc.notes[within];
+        const float source = (float)root + oct * 12.0f + (float)sc.notes[srcDeg];
+        return (double)semitonesToRatio(target - source);
+    }
+
+    // YIN, on the decimated copy: the squared difference between the phrase and itself delayed by
+    // tau, normalised by its own running mean so that a flat, quiet passage cannot look periodic.
+    // Runs once per phrase.
+    void detectPitch()
+    {
+        const int64_t len = ansEndCandidate() - phraseStart_;
+        const int need = (kYinWindow + kYinMaxLag) * kDecim;
+        if (len < need) { setHeard(-1.0f); return; }
+
+        // A third of the way in: past the attack transient, before the note has decayed away.
+        const int64_t from = phraseStart_ + (len - need) / 3;
+        const int64_t base = from >> 2;
+
+        auto at = [this, base](int i) { return decBuf_[(size_t)((base + i) & (int64_t)decMask_)]; };
+
+        // Too quiet to have a pitch at all.
+        float energy = 0.0f;
+        for (int j = 0; j < kYinWindow; ++j) energy += at(j) * at(j);
+        if (energy / kYinWindow < 1.0e-7f) { setHeard(-1.0f); return; }
+
+        float runningSum = 0.0f;
+        int bestLag = -1;
+        float bestVal = 1.0e9f;
+        for (int tau = 1; tau <= kYinMaxLag; ++tau)
+        {
+            float d = 0.0f;
+            for (int j = 0; j < kYinWindow; ++j)
+            {
+                const float diff = at(j) - at(j + tau);
+                d += diff * diff;
+            }
+            runningSum += d;
+            yin_[tau] = runningSum > 0.0f ? d * (float)tau / runningSum : 1.0f;
+            if (tau < kYinMinLag) continue;
+            if (yin_[tau] < bestVal) { bestVal = yin_[tau]; bestLag = tau; }
+            // The first dip under the threshold wins, which is what stops YIN picking an octave
+            // too low: a deeper minimum usually sits at twice the true period.
+            if (tau > kYinMinLag && yin_[tau - 1] < kYinGood && yin_[tau] > yin_[tau - 1])
+            {
+                bestLag = tau - 1;
+                bestVal = yin_[tau - 1];
+                break;
+            }
+        }
+        if (bestLag < kYinMinLag || bestVal > kYinUsable) { setHeard(-1.0f); return; }
+
+        // Parabolic interpolation around the dip, so the estimate is not quantised to whole lags.
+        float lag = (float)bestLag;
+        if (bestLag > 1 && bestLag < kYinMaxLag)
+        {
+            const float a = yin_[bestLag - 1], b = yin_[bestLag], c = yin_[bestLag + 1];
+            const float denom = a - 2.0f * b + c;
+            if (std::fabs(denom) > 1.0e-9f) lag += 0.5f * (a - c) / denom;
+        }
+        const float hz = (sr_ / (float)kDecim) / clampf(lag, 2.0f, (float)kYinMaxLag);
+        setHeard(hzToMidi(clampf(hz, 20.0f, 4000.0f)));
+    }
+
+    // The phrase end as it stands when the detector runs (the answer may not have copied it yet).
+    int64_t ansEndCandidate() const { return phraseEnd_; }
+
+    void setHeard(float midi)
+    {
+        heardMidi_ = midi;
+        if (midi < 0.0f) { heardClass_ = -1; return; }
+        int cls = (int)std::lround(midi) % 12;
+        if (cls < 0) cls += 12;
+        heardClass_ = cls;
     }
 
     uint32_t patternRand()
@@ -791,6 +975,13 @@ private:
             setNormalised(kLevel, lvl);
             notifyHostParameterChanged(kLevel);
         }
+        const float hv = (float)(heardClass_ >= 0 ? heardClass_ + 1 : 0);
+        if (hv != lastHeardSent_)
+        {
+            lastHeardSent_ = hv;
+            set(kHeard, hv);
+            notifyHostParameterChanged(kHeard);
+        }
         const float st = (float)(answering_ ? 3 : (pending_ ? 2 : (listening_ ? 1 : 0)));
         if (st != lastStateSent_)
         {
@@ -806,7 +997,11 @@ private:
         // Out Mix Mode Act Shp Sct Mot Sync Time Rep Tone Spc Dec Lsn Gap Ans Rep Int Scl Rt Trd Spr Hld In
         auto prog = [this](const char* name, std::vector<float> v)
         {
-            v.resize((size_t)kNumParams, 0.0f);
+            // Anything a program does not list keeps the parameter's own default, so appending a
+            // parameter later does not silently set every program's copy of it to zero.
+            const size_t given = v.size();
+            v.resize((size_t)kNumParams);
+            for (size_t i = given; i < v.size(); ++i) v[i] = param((int)i).def;
             addProgram(name, std::move(v));
         };
         const float T8 = timeFor(kDivisionEighth), T16 = timeFor(kDivisionSixteenth),
@@ -856,6 +1051,16 @@ private:
     std::vector<float> buf_[2];
     int       bufMask_ = 0;
     int64_t   writePos_ = 0;
+
+    // pitch tracking
+    std::vector<float> decBuf_;        // mono, decimated by kDecim
+    int        decMask_ = 0;
+    OnePoleLP  decLp_, decLp2_;
+    bool       analyse_ = false;
+    float      heardMidi_ = -1.0f;     // the phrase's pitch, or -1 when it had none
+    int        heardClass_ = -1;       // ...as a pitch class 0..11
+    float      lastHeardSent_ = -1.0f;
+    float      yin_[kYinMaxLag + 1] = {};
 
     // listening
     float   env_ = 0.0f, envAttack_ = 0.1f, envRelease_ = 0.01f;

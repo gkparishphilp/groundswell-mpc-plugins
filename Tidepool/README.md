@@ -80,14 +80,30 @@ The call-and-response layer. This is the page that makes Tidepool what it is.
 | Tone | 200 Hz–16 kHz | 9 kHz | Low-pass on the grains, before the reverb. Also damps the reverb tail. |
 | Space | 0–100 % | 30 % | A four-line feedback delay network on the grains only — dense and smooth rather than springy, which suits a cloud. The dry path never goes through it. |
 | Decay | 0.3–12 s | 3 s | Reverb tail length. |
-| Interval | −12…+12 st | 0 st | Transposes the answer. Plain semitones, not snapped to the scale — see the note below. |
-| Scale | Off / Major / Minor / Penta Maj / Penta Min / Dorian / Whole Tone | Off | Snaps **Bubbles'** filter frequencies to a scale. This is the one that turns bubbling into music. |
-| Root | C … B | C | The root the scale is built on. |
+| Interval | −12…+12 st | 0 st | Transposes the answer. With Scale off it is plain semitones. With a scale it becomes a **diatonic** interval — see below. |
+| Scale | Off / Major / Minor / Penta Maj / Penta Min / Dorian / Whole Tone | Off | The key. It snaps Bubbles' filter frequencies, and turns Interval into a diatonic interval. |
+| Root | C … B | C | The note the scale is built on: the key of your music. |
+| Key | Fixed / Follow | Fixed | Where the root comes from. **Fixed** uses the Root knob, which is almost always what you want. **Follow** takes it from the phrase instead, which only lands right if you tend to start phrases on the tonic. |
+| Heard | – / C … B | – | Not a control: what the pitch detector made of the last phrase, or a dash if it found no pitch. |
 
-**Why Scale only affects Bubbles.** Snapping a *transposition* to a scale needs to know what pitch you played,
-which means pitch tracking, which Tidepool does not do. Bubbles is different: it chooses filter frequencies
-outright, so those can be snapped to a scale without knowing anything about the input. Interval is therefore an
-honest semitone shift, and Scale does the musical work where it actually can.
+### Pitch tracking, and what it buys
+
+When a phrase ends, Tidepool works out what note it was in — once, not continuously. The analysis is a YIN-style
+autocorrelation on a copy of the input decimated to a quarter of the sample rate, which is what makes it cheap:
+about 19 µs, or under 1% of one audio block, once per phrase. Measured against plucked notes it is exact from
+E2 to A5 (errors under 0.02 of a semitone), and it reports *no* pitch for noise and for silence rather than
+inventing one. The **Heard** readout shows what it decided.
+
+That pitch is what lets **Interval become diatonic**. With a scale chosen, the knob is read as a number of scale
+steps rather than semitones, and the answer moves that many degrees from wherever your note sits in the key. Ask
+for +4 in C major and you get a third — a major third from C, F and G, a minor third from D, E and A, because
+that is what a third is on those degrees.
+
+It is done by counting degrees rather than by snapping the shifted note, and that matters: snapping leaves the
+tritone ambiguous, so a note detected a hundredth of a semitone sharp would answer a fourth up where a flat one
+answered a third. Counting has no such edge.
+
+With Scale off, Interval is an honest semitone shift and no pitch is needed.
 
 ## Programs
 
@@ -133,7 +149,7 @@ busy a new grain steals the one furthest through its life.
 
 - A looper. The MPC has one, and a proper looper needs a footswitch idiom that does not translate to a
   touchscreen. Hold covers most of the same ground.
-- Pitch tracking, which would let Interval snap to a scale and let the answer harmonise what you played.
+- Chords. The detector finds one pitch, so a chord is read as whichever note dominates.
 - A level meter on screen. The plugin already reports one; only the state lamp is drawn so far.
 - Feeding the answer back into the capture buffer, so repeats degrade as well as fade.
 

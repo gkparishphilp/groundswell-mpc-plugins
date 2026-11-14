@@ -116,6 +116,15 @@
           "param": "Root",
           "widget": "slider",
           "overlay": "menu"
+        },
+        {
+          "param": "Key",
+          "widget": "switch"
+        },
+        {
+          "param": "Heard",
+          "widget": "slider",
+          "overlay": "menu"
         }
       ]
     }
