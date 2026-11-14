@@ -34,6 +34,8 @@ in ─┬───────────────────────�
 | **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
 | **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. The bend is a *rate* — an octave a second at full Motion — so a short grain slides a little and a long one slides a lot, rather than every grain racing through the whole interval. Small amounts are tape wobble; large ones walk off somewhere else. |
 | **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
+| **Roll** | Takes one short fragment and drills it, at a tempo-locked rate that tightens as the answer runs — a quarter-second apart at the start, down to about an eighth of that by the end. Blocks reorders whole slices; this one picks a fragment and repeats it. |
+| **Ebb** | The whole answer in reverse. The playhead walks from the end of the phrase back to its start and every grain reads backwards, so notes swell into their attacks instead of decaying away from them. Motion lets the tide run out, slowing the playback by up to half across the pass. |
 | **Chord** | Answers a note with a voicing. Each grain is joined by two to four more at the thirds above it — and because Tidepools knows both what you played and what key you are in, those are the thirds the key actually has: major on the first, fourth and fifth degrees, minor on the second, third and sixth, diminished on the seventh. One finger in, a chord out. Without a scale it stacks a plain major seventh instead, so it still does something on a drum loop. |
 
 Two knobs mean something slightly different in each engine. **Scatter** is about position and order; **Motion**
@@ -68,11 +70,11 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
-| Mode | Cloud / Blocks / Glide / Bubbles / Chord | Cloud | Which engine answers (see above). |
+| Mode | Cloud / Blocks / Glide / Bubbles / Chord / Roll / Ebb | Cloud | Which engine answers (see above). |
 | Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90 — or to about 42 in Bubbles, which is deliberately thinner. A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them one by one and the same number reads as far busier. In Blocks it has no effect: slices arrive on the beat. |
 | Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
-| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Chord** (*Strum*): how far apart in time the notes of the voicing arrive — 0 is a block chord, full is a strum across about 120 ms. **Bubbles**: unused. |
-| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Cloud**: unused. |
+| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Chord** (*Strum*): how far apart in time the notes of the voicing arrive — 0 is a block chord, full is a strum across about 120 ms. **Roll** (*Jump*): how readily it moves to a different fragment. **Ebb**: how far grains wander. **Bubbles**: unused. |
+| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Roll** (*Speed*): how far the roll tightens — at 0 it holds its rate, at full it ends eight times faster than it started. **Ebb** (*Slow*): how much the playback slows across the pass, down to half speed. **Cloud**: unused. |
 
 **The panel renames those two for you.** Both knobs mean something different in each engine, so their
 headings are bound to Mode: Scatter reads SHUFFLE in Blocks, Motion reads REVERSE, BEND or RANGE as you switch,
@@ -126,6 +128,8 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 | Texture (no reply) | Listen off: a continuous granular wash, no conversation |
 | Freeze and Play | Listen on Hold with Hold engaged: a frozen moment to play over |
 | One Finger Chords | Chord in C major, answering on the bar — play single notes and get triads back |
+| Tightening Roll | A fragment drilled on eighths, accelerating through each answer |
+| Ebb Tide | The phrase backwards and slowing, long Gap, answering on the bar |
 
 ## Tips
 
@@ -145,6 +149,14 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
   rearranges the part.
 - **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes
   and you can play over it.
+
+## How a phrase is found
+
+Two envelope followers watch the input. The slow one (2 ms attack, 60 ms release) drives Trade and the grain
+gate, where a smooth envelope is what you want. A faster one (22 ms release) decides where a phrase *ends*,
+because the slow follower takes about a third of a second to fall quiet after an abrupt stop — which put that
+much dead air on the end of every phrase. It never showed until Ebb started reading from that end and found
+nothing there.
 
 ## CPU
 

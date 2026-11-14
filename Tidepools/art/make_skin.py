@@ -46,7 +46,8 @@ P = dict(out=0, mix=1, mode=2, activity=3, shape=4, scatter=5, motion=6, sync=7,
          tone=10, space=11, decay=12, listen=13, gap=14, answer=15, reply=16, interval=17, scale=18,
          root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27,
          gapsync=28)
-CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble", "Chord"], 7: ["Free", "Sync"],
+CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble", "Chord", "Roll", "Ebb"],
+           7: ["Free", "Sync"],
            13: ["Off", "Auto", "Hold"], 15: ["Now", "Beat", "Bar"],
            18: ["Off", "Major", "Minor", "Penta Maj", "Penta Min", "Dorian", "Whole Tone"],
            19: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
@@ -376,9 +377,9 @@ def page_grains():
     mx, my = COL_X[0] + 62 + 77, (ROW2_Y[1] + ROW2_Y[1] + BOX_H) // 2 - HEADING_H // 2 - 10
     statics = dict(headings=[], boxes=[box(c, t) for t in ROW2_Y for c in range(4)],
                    graph=False, waveform=False,
-                   images=[dict(file="head_scatter.png", frames=5, param=P["mode"],
+                   images=[dict(file="head_scatter.png", frames=7, param=P["mode"],
                                 box=(sx, sy, HEADING_W, HEADING_H)),
-                           dict(file="head_motion.png", frames=5, param=P["mode"],
+                           dict(file="head_motion.png", frames=7, param=P["mode"],
                                 box=(mx, my, HEADING_W, HEADING_H))])
     qlinks = [[P["mode"], P["activity"], P["shape"], P["scatter"]],
               [P["motion"], P["sync"], P["time"], P["spread"]],
@@ -575,11 +576,13 @@ def build():
     save("knob_small_bi.png", knob_strip(SMALL, bipolar=True))
     save("knob_large.png", knob_strip(LARGE))
     save("curve_lp.png", curve_strip("LP"))
-    # Cloud / Blocks / Glide / Bubbles / Chord, in that order.
+    # Cloud / Blocks / Glide / Bubbles / Chord / Roll / Ebb, in that order.
     save("head_scatter.png",
-         mode_heading_strip(["SCATTER", "SHUFFLE", "SCATTER", "SCATTER", "STRUM"], dim=(3,)))
+         mode_heading_strip(["SCATTER", "SHUFFLE", "SCATTER", "SCATTER", "STRUM", "JUMP",
+                             "SCATTER"], dim=(3,)))
     save("head_motion.png",
-         mode_heading_strip(["MOTION", "REVERSE", "BEND", "RANGE", "VOICING"], dim=(0,)))
+         mode_heading_strip(["MOTION", "REVERSE", "BEND", "RANGE", "VOICING", "SPEED", "SLOW"],
+                            dim=(0,)))
 
     defs = [("knob overlay", G.overlay_component("KnobOverlay", G.knob_overlay_data(False), "ff111111")),
             ("knob overlay bipolar", G.overlay_component("KnobOverlay", G.knob_overlay_data(True), "ff111111")),
@@ -693,7 +696,7 @@ def build():
 # Preview (approximate: Avenir Next stands in for the MPC's Nexa, values at their defaults)
 # ------------------------------------------------------------------------------------------------
 # Where each control stands in the preview pictures: (value, text). Previews only.
-DEFAULTS = {0: (30 / 36, "0.0 dB"), 1: (0.50, "50 %"), 2: (4, None), 3: (0.50, "50 %"),
+DEFAULTS = {0: (30 / 36, "0.0 dB"), 1: (0.50, "50 %"), 2: (5, None), 3: (0.50, "50 %"),
             4: (0.45, "45 %"), 5: (0.35, "35 %"), 6: (0.30, "30 %"), 7: (1, None),
             8: (7 / 16, "1/8"), 9: (0.40, "40 %"), 10: (0.8687, "9000 Hz"), 11: (0.30, "30 %"),
             12: (0.695, "3.9 s"), 13: (1, None), 14: (0.4703, "220 ms"), 15: (1, None),

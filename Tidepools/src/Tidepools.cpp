@@ -93,7 +93,7 @@ enum ParamIndex
     kNumParams
 };
 
-enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles, kChord };
+enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles, kChord, kRoll, kEbb };
 enum Listen { kListenOff = 0, kListenAuto, kListenHold };
 enum Answer { kAnswerNow = 0, kAnswerBeat, kAnswerBar };
 enum KeyMode { kKeyFixed = 0, kKeyFollow };
@@ -233,7 +233,7 @@ public:
         addParam(mpc::floatParam ("out",      "Output",   -30.0f, 6.0f,   0.0f,  "dB", 1));
         addParam(mpc::floatParam ("mix",      "Mix",       0.0f, 100.0f, 50.0f, "%", 0));
         addParam(mpc::choiceParam("mode",     "Mode",     { "Cloud", "Blocks", "Glide", "Bubbles",
-                                                            "Chord" }, kCloud));
+                                                            "Chord", "Roll", "Ebb" }, kCloud));
         addParam(mpc::floatParam ("activity", "Activity",  0.0f, 100.0f, 50.0f, "%", 0));
         addParam(mpc::floatParam ("shape",    "Shape",     0.0f, 100.0f, 45.0f, "%", 0));
         addParam(mpc::floatParam ("scatter",  "Scatter",   0.0f, 100.0f, 35.0f, "%", 0));
@@ -318,6 +318,7 @@ public:
         limRelease_ = 1.0f - std::exp(-1.0f / (0.120f * sr_));   // 120 ms
         envAttack_  = 1.0f - std::exp(-1.0f / (0.002f * sr_));   // 2 ms
         envRelease_ = 1.0f - std::exp(-1.0f / (0.060f * sr_));   // 60 ms
+        envFastRelease_ = 1.0f - std::exp(-1.0f / (0.022f * sr_));   // 22 ms: two cycles at 80 Hz
         meterFall_  = 1.0f - std::exp(-1.0f / (0.150f * sr_));
 
         rng_.reseed(0x51A3C7D9u);
@@ -341,6 +342,7 @@ public:
         for (Grain& g : grain_) { g.active = false; g.band.reset(); }
         writePos_ = 0;
         env_ = 0.0f;
+        envFast_ = 0.0f;
         listening_ = false;
         gapCount_ = 0;
         phraseStart_ = phraseEnd_ = 0;
@@ -353,6 +355,8 @@ public:
         passIndex_ = 0;
         spawnCount_ = 0;
         blockIndex_ = 0;
+        rollPos_ = 0.0;
+        rollHold_ = 0;
         meter_ = 0.0f;
         lastMeterSent_ = -1.0f;
         lastStateSent_ = -1.0f;
@@ -378,7 +382,7 @@ public:
         output_.setTarget(dbToGain(get(kOutput)));
         input_.setTarget(dbToGain(get(kInput)));
 
-        const int   mode     = clampi(getInt(kMode), 0, 4);
+        const int   mode     = clampi(getInt(kMode), 0, 6);
         const int   listen   = clampi(getInt(kListen), 0, 2);
         const int   answerAt = clampi(getInt(kAnswer), 0, 2);
         const float activity = get(kActivity) * 0.01f;
@@ -436,6 +440,7 @@ public:
             // Follower on what is going in. One number drives phrase detection and the ducking.
             const float peak = std::fmax(std::fabs(capL), std::fabs(capR));
             env_ += (peak > env_ ? envAttack_ : envRelease_) * (peak - env_);
+            envFast_ += (peak > envFast_ ? envAttack_ : envFastRelease_) * (peak - envFast_);
 
             // Capture. The buffer always rolls unless something has frozen it, so there is always
             // a phrase to answer with and Trade can hear you come back in.
@@ -454,7 +459,7 @@ public:
             // ---- phrase detection --------------------------------------------------------
             if (listen == kListenAuto)
             {
-                if (!listening_ && env_ > kOpen)
+                if (!listening_ && envFast_ > kOpen)
                 {
                     // A phrase begins. Back-date the start a little so the attack is not clipped.
                     listening_ = true;
@@ -463,7 +468,7 @@ public:
                 }
                 else if (listening_)
                 {
-                    if (env_ > kShut)
+                    if (envFast_ > kShut)
                         gapCount_ = 0;
                     else if (++gapCount_ > (int)gapSamples)
                     {
@@ -515,8 +520,11 @@ public:
                 const int64_t phraseLen = (ansEnd_ - ansStart_) > 0 ? (ansEnd_ - ansStart_) : 1;
                 if (--spawnCount_ <= 0)
                 {
-                    spawnGrain(mode, shape, scatter, motion, spread, baseRate, phraseLen);
-                    spawnCount_ = nextSpawnInterval(mode, activity);
+                    // Roll's grains butt up against each other to make a continuous roll, so the
+                    // grain needs to know how long it has before the next one.
+                    const int gap = nextSpawnInterval(mode, activity);
+                    spawnGrain(mode, shape, scatter, motion, spread, baseRate, phraseLen, gap);
+                    spawnCount_ = gap;
                 }
                 ++answerPos_;
                 if (answerPos_ >= phraseLen)
@@ -697,12 +705,22 @@ private:
         passIndex_ = 0;
         blockIndex_ = 0;
         spawnCount_ = 1;
+        rollHold_ = 0;
         patternSeed_ = rng_.next();
     }
 
     int nextSpawnInterval(int mode, float activity) const
     {
         if (mode == kBlocks) return (int)clampf(sliceSamples_, 64.0f, 4.0f * sr_);
+        if (mode == kRoll)
+        {
+            // A roll that tightens: start at the slice length and subdivide it as the pass runs,
+            // up to eight times faster by the end. Motion is how far it goes.
+            const int64_t len = (ansEnd_ - ansStart_) > 0 ? (ansEnd_ - ansStart_) : 1;
+            const float t = clampf((float)answerPos_ / (float)len, 0.0f, 1.0f);
+            const float divide = 1.0f + get(kMotion) * 0.01f * 7.0f * t;
+            return (int)clampf(sliceSamples_ / divide, 48.0f, 4.0f * sr_);
+        }
         // A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them
         // one by one and the same Activity reads as far busier. Half the density keeps the knob
         // meaning roughly the same thing whichever engine is running.
@@ -880,7 +898,7 @@ private:
 
     // ----- the engines ---------------------------------------------------------------------
     void spawnGrain(int mode, float shape, float scatter, float motion,
-                    float spread, double baseRate, int64_t phraseLen)
+                    float spread, double baseRate, int64_t phraseLen, int gap)
     {
         Grain* g = takeGrain();
 
@@ -946,6 +964,40 @@ private:
                 // should sit with the other engines, not three times above them.
                 g->filtGain = (2.0f - 1.98f * kRes) * 2.6f;
                 filtered = true;
+                break;
+            }
+            case kRoll:
+            {
+                // One short fragment, drilled. Scatter is how readily it jumps to a new one; the
+                // grain fills the gap to the next so the roll is continuous rather than dotted.
+                if (rollHold_ <= 0)
+                {
+                    rollPos_ = (double)ansStart_ + (double)patternFloat() * (double)phraseLen * 0.85;
+                    rollHold_ = 2 + (int)(patternFloat() * 10.0f * (1.0f - jitter));
+                }
+                --rollHold_;
+                start = rollPos_;
+                length = clampi(gap + gap / 8, 48, (int)(0.5f * sr_));
+                break;
+            }
+            case kEbb:
+            {
+                // The whole answer in reverse: the playhead walks from the end of the phrase back
+                // to its start and every grain reads backwards, so a note swells into its attack
+                // instead of decaying away from it. Motion lets the tide run out - the playback
+                // slows by up to half across the pass.
+                length = grainLength(shape);
+                const float t = (float)answerPos_ / (float)(phraseLen > 0 ? phraseLen : 1);
+                // The read position IS the far end of the grain, because the grain runs backwards
+                // from it. Adding the grain length on top pushed the first reads past the end of
+                // the captured phrase, into buffer that had not been written yet - silence. The
+                // walk also stops a grain's length short of the start, so it never reads behind
+                // the phrase either.
+                const double span = (double)phraseLen - (double)length;
+                const double head = (double)ansEnd_ - (span > 0.0 ? span : 0.0) * (double)t;
+                start = head + (double)(patternFloat() - 0.5f) * (double)phraseLen * jitter * 0.4;
+                if (start > (double)ansEnd_) start = (double)ansEnd_;
+                rate = -baseRate * (double)(1.0f - motion * 0.5f * t);
                 break;
             }
             case kChord:
@@ -1119,6 +1171,10 @@ private:
         // Chord wants a scale to be worth anything, so this one arrives with the key already set.
         prog("One Finger Chords", { 0, 55, kChord, 40, 55, 25, 50, 1, T4,  45, 8000, 35, 4.0f,
                                   kListenAuto, 260, kAnswerBar,  30,  0, 1, 0, 55, 70, 0, 0 });
+        prog("Tightening Roll", { 0, 55, kRoll, 50, 30, 30, 70, 1, T8,  35, 9000, 25, 2.0f,
+                                  kListenAuto, 180, kAnswerBeat, 45,  0, 0, 0, 60, 60, 0, 0 });
+        prog("Ebb Tide",        { 0, 55, kEbb,  45, 60, 35, 45, 1, T4,  50, 6000, 55, 6.0f,
+                                  kListenAuto, 300, kAnswerBar,  35,  0, 0, 0, 50, 80, 0, 0 });
     }
 
     float timeFor(int division) const
@@ -1160,6 +1216,7 @@ private:
 
     // listening
     float   env_ = 0.0f, envAttack_ = 0.1f, envRelease_ = 0.01f;
+    float   envFast_ = 0.0f, envFastRelease_ = 0.05f;   // marks where a phrase really stops
     bool    listening_ = false;
     int     gapCount_ = 0;
     int64_t phraseStart_ = 0, phraseEnd_ = 0;    // what the detector is marking up
@@ -1172,6 +1229,8 @@ private:
     float   answerGain_ = 1.0f;
     int     passIndex_ = 0, blockIndex_ = 0;
     int     spawnCount_ = 0;
+    double  rollPos_ = 0.0;        // Roll: the fragment being drilled
+    int     rollHold_ = 0;         // ...and how many more hits before it moves
     uint32_t patternSeed_ = 1u;
     float   sliceSamples_ = 11025.0f;
 
