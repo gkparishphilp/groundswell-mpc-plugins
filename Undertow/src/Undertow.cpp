@@ -180,7 +180,11 @@ constexpr int kEchoFrames = kEchoColours * kEchoBank;
 constexpr int kNoise = kEchoBase + kEchoBars;    // 110
 constexpr int kNoiseType = kNoise + 1;           // 111
 constexpr int kLfoNoise = kNoiseType + 1;        // 112
-constexpr int kNumParams = kLfoNoise + 1;
+// Appended in 2.0, for the same reason.
+constexpr int kMains = kLfoNoise + 1;            // 113
+constexpr int kGlide = kMains + 1;               // 114
+constexpr int kCross = kGlide + 1;               // 115
+constexpr int kNumParams = kCross + 1;
 
 enum FilterMode { kFilterOff = 0, kFilterLP, kFilterBP, kFilterHP };
 enum FxType { kFxOff = 0, kFxChorus, kFxFlanger, kFxPhaser, kFxBitcrush, kFxDownsample, kFxRingMod, kFxFuzz };
@@ -205,7 +209,10 @@ constexpr float kNoiseCeilingDb = -30.0f;   // Noise at 100%, measured in the lo
 constexpr float kNoiseTrim[5] = { 1.0f, 2.5f, 4.2f, 0.8f, 2.2f };
 constexpr float kNoiseGateFloor = 0.0032f;    // about -50 dBFS of activity opens the gate fully...
 constexpr float kNoiseGateCeiling = 0.05f;    // ...and it never charges past here, so the fade is always ~3 s
-constexpr float kHumHz = 50.0f;
+constexpr float kMainsHz[2] = { 60.0f, 50.0f };   // Mains: 60 Hz (the Americas, Japan) or 50 Hz
+constexpr float kHumDrift = 0.0012f;              // how far the mains frequency wanders: +-0.12%
+constexpr float kGlideDefaultMs = 150.0f;         // Glide: the fixed tape-style value every project before 2.0 had
+constexpr float kGlideMaxMs = 2000.0f;
 
 // Head 2's position as a fraction of the delay time.
 constexpr int kNumHeadRatios = 9;
@@ -379,6 +386,7 @@ struct LoopChannel
     PinkNoise pink;              // Noise: Air
     float crackle = 0.0f;        // Noise: Crackle / Rain - the decaying impulse
     float crackleTone = 0.0f;    // ...and its one-pole, subtracted to leave the click
+    float humDc = 0.0f;          // Noise: Hum - running average of the rectifier pulse, subtracted as its DC
 
     void clearFx()
     {
@@ -415,7 +423,7 @@ struct LoopChannel
         reverseBuf.reset();
         clearSprings();
         tapeHf.reset(); tapeLf.reset(); bbdLp1.reset(); bbdLp2.reset(); bbdHeld = 0.0f; bbdPhase = 1.0f;
-        pink.reset(); crackle = 0.0f; crackleTone = 0.0f;
+        pink.reset(); crackle = 0.0f; crackleTone = 0.0f; humDc = 0.0f;
         dc.reset();
         loopOut = 0.0f;
     }
@@ -513,6 +521,10 @@ public:
         addParam(floatParam ("noise",    "Noise",     0.0f, 100.0f,   0.0f,   "%", 0));
         addParam(choiceParam("ntype",    "Noise Type", {"Hiss", "Air", "Crackle", "Hum", "Rain"}, kNoiseHiss));
         addParam(floatParam ("lfonoise", "LFO>Noise", -100.0f, 100.0f, 0.0f,  "", 0));
+        addParam(choiceParam("mains",    "Mains",     {"60 Hz", "50 Hz"}, 0));
+        // Glide is skewed so the first third of the knob covers the short, musical times.
+        addParam(floatParam ("glide",    "Glide",     0.0f, kGlideMaxMs, kGlideDefaultMs, "ms", 0, 0.4f));
+        addParam(floatParam ("cross",    "Cross",     0.0f, 100.0f,   100.0f, "%", 0));
         if (numParams() != kNumParams) mpc::log("Undertow: parameter count mismatch");
 
         // Programs. The Time column is given as a division (D(9) = 1/8D) because the programs are synced.
@@ -533,12 +545,13 @@ public:
         const std::vector<float> digital = { 0,   50 };
         // Head tail (41..45):           H2  Ratio Pan Tube Level
         const std::vector<float> oneHead = { 0,  3,    0,  1,   0 };
-        // Noise tail (110..112):        Amt Type L>Noise   (types 0..4 = Hiss/Air/Crackle/Hum/Rain)
-        const std::vector<float> quiet = { 0,  0,   0 };
+        // Noise tail (110..115):        Amt Type L>Noise Mains Glide Cross
+        //                               (types 0..4 = Hiss/Air/Crackle/Hum/Rain; mains 0 = 60 Hz, 1 = 50 Hz)
+        const std::vector<float> quiet = { 0,  0,   0,      0,    kGlideDefaultMs, 100 };
         // The display parameters (46..109) sit between the head tail and the noise tail; they are always 0.
         auto progH = [this](const char* name, std::vector<float> v, const std::vector<float>& mod,
                             const std::vector<float>& sp, const std::vector<float>& chr, const std::vector<float>& hd,
-                            const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f })
+                            const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f, 0.0f, kGlideDefaultMs, 100.0f })
         {
             for (const std::vector<float>* tail : { &mod, &sp, &chr, &hd }) v.insert(v.end(), tail->begin(), tail->end());
             v.resize((size_t)kEchoBase + (size_t)kEchoBars, 0.0f);
@@ -547,7 +560,7 @@ public:
         };
         auto progC = [&](const char* name, std::vector<float> v, const std::vector<float>& mod,
                          const std::vector<float>& sp, const std::vector<float>& chr,
-                         const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f })
+                         const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f, 0.0f, kGlideDefaultMs, 100.0f })
         {
             progH(name, std::move(v), mod, sp, chr, oneHead, nz);
         };
@@ -563,7 +576,7 @@ public:
         prog("Crushed Repeats",  { 0, 1,  6, D(6),   70,  35, 1,  5, 40,  3,  300,   30, 30,  4, 65, 40,  0, 0,        100, 0, 0 }, noMod);
         prog("Flange Spiral",    { 0, 1,  8, D(8),   80,  40, 1, 10, 40,  1, 6000,   40, 20,  2, 70, 20,  0, 0,        100, 0, 0 }, noMod);
         progC("Lo-Fi Tape",      { 0, 1,  9, D(9),   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60,  0, 0,        100, 0, 0 }, noMod,
-                                 noSpace, { 1, 75 }, { 48, kNoiseHiss, 0 });
+                                 noSpace, { 1, 75 }, { 48, kNoiseHiss, 0, 0, 260, 100 });
         prog("Self-Oscillation", { 0, 1, 12, D(12), 110,  45, 1, 20, 70,  2,  800,   92, 55,  0, 50, 30,  0, 0,        100, 0, 0 }, noMod);
         prog("Octave Climb",     { 0, 1, 10, D(10),  70,  35, 1,  5, 40,  1, 7000,   15, 15,  0, 50, 30,  0, ST(12),    50, 0, 0 }, noMod);
         prog("Down the Well",    { 0, 1,  9, D(9),   72,  40, 1, 10, 40,  1, 3000,   25, 30,  0, 50, 30,  0, ST(-12),  100, 0, 0 }, noMod);
@@ -576,7 +589,7 @@ public:
                                    { 5,    1,   LR(13), 90,  2.5f, 0,    0,   0,     0,    0,   30,  0 });
         progC("Seasick Tape",      { 0, 1, 10, D(10),  60,  35, 1, 30, 30,  1, 3500,   20, 30,  5, 20, 40,  0, 0,        100, 0, 0 },
                                    { 6,    1,   LR(2), 120,  0,    0.08f, 0,  40,     0,    0,   30,  0 }, noSpace, { 1, 55 },
-                                   { 34, kNoiseAir, 0 });
+                                   { 34, kNoiseAir, 0, 0, 520, 100 });
         prog("Ducked Dub",         { 0, 1,  9, D(9),   72,  50, 1, 15, 35,  1, 2200,   35, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 0,    1,   LR(3),  90,  0,    0,    0,   0,     0,    0,   45, 75 });
         prog("Breathing Flange",   { 0, 1,  8, D(8),   75,  40, 1, 10, 40,  1, 6000,   35, 20,  2, 35, 15,  0, 0,        100, 0, 0 },
@@ -586,18 +599,27 @@ public:
         progS("Washout",           { 0, 1, 10, D(10),  70,  45, 1, 15, 35,  1, 3000,   25, 25,  1, 40, 20,  0, 0,        100, 0, 0 },
                                    noMod, { 0, 60, 3.0f, 40, 60, 1 });
         progC("Tape Echo",         { 0, 1,  9, D(9),   65,  35, 1, 20, 30,  1, 5000,   20, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
-                                   noMod, noSpace, { 1, 45 }, { 26, kNoiseHiss, 0 });
+                                   noMod, noSpace, { 1, 45 }, { 26, kNoiseHiss, 0, 0, 220, 100 });
         progC("Bucket Brigade",    { 0, 1, 10, D(10),  70,  40, 1, 10, 35,  0, 1800,   35, 40,  0, 50, 30,  0, 0,        100, 0, 0 },
-                                   noMod, noSpace, { 2, 50 }, { 30, kNoiseHiss, 0 });
+                                   noMod, noSpace, { 2, 50 }, { 30, kNoiseHiss, 0, 0, 150, 100 });
         progH("Twin Heads",        { 0, 1,  9, D(9),   62,  40, 1, 18, 30,  1, 4000,   25, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    noMod, noSpace, { 1, 45 }, { 45, 3, 55, 1, 0 });      // 1/8D + a straight 1/8
         progH("Triplet Machine",   { 0, 1, 10, D(10),  68,  40, 0, 12, 35,  1, 3000,   30, 35,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    noMod, noSpace, { 1, 60 }, { 55, 1, -60, 1, 0 });     // 1/4 + a 1/4 triplet
         progC("Dusty 45",          { 0, 1,  9, D(9),   66,  38, 1, 22, 35,  1, 3200,   25, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
-                                   noMod, noSpace, { 1, 60 }, { 55, kNoiseCrackle, 0 });
+                                   noMod, noSpace, { 1, 60 }, { 55, kNoiseCrackle, 0, 0, 300, 100 });
         progC("Rain on the Roof",  { 0, 1, 10, D(10),  72,  42, 1, 12, 35,  1, 2400,   30, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 0,    1,   LR(1),  90,  0,    0,    0,   0,     0,    0,   30,  0 },
-                                   noSpace, digital, { 42, kNoiseRain, 45 });
+                                   noSpace, digital, { 42, kNoiseRain, 45, 0, 150, 100 });
+        // Glide at 900 ms: the repeats take almost a second to arrive at a new delay time, warping on the way.
+        progC("Slow Tide",         { 0, 1, 11, D(11),  70,  40, 1, 20, 35,  1, 2600,   30, 28,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 55 }, { 22, kNoiseHiss, 0, 0, 900, 100 });
+        // Cross at 55%: the repeats lean across instead of snapping side to side, so the pattern wanders.
+        progC("Half Crossed",      { 0, 1,  9, D(9),   66,  38, 1, 14, 30,  1, 3400,   28, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 40 }, { 18, kNoiseHiss, 0, 0, 150, 55 });
+        // Mains buzz: Age drives how rough it gets, so this one leans on it.
+        progC("Bad Ground",        { 0, 1,  8, D(8),   72,  42, 1, 16, 40,  1, 2000,   40, 35,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 85 }, { 46, kNoiseHum, 0, 0, 150, 100 });
     }
 
     void prepare(double sampleRate, int /*maxBlockSize*/) override
@@ -627,7 +649,9 @@ public:
                 sp.modPhase = 0.37f * (float)(2 * c + k);
             }
         }
-        delayTime_.setTime(150.0f, sampleRate);   // tape-style glide
+        delayTime_.setTime(kGlideDefaultMs, sampleRate);   // Glide; process() re-times it when the knob moves
+        glideMs_ = -1.0f;
+        cross_.setTime(20.0f, sampleRate);
         feedback_.setTime(30.0f, sampleRate);
         mix_.setTime(20.0f, sampleRate);
         output_.setTime(20.0f, sampleRate);
@@ -654,6 +678,7 @@ public:
     {
         for (LoopChannel& c : ch_) c.clear();
         delayTime_.snap(targetDelaySamples(120.0));
+        cross_.snap(getBool(kPingPong) ? clamp(get(kCross) * 0.01f, 0.0f, 1.0f) : 0.0f);
         feedback_.snap(get(kFeedback) * 0.01f);
         mix_.snap(get(kMix) * 0.01f);
         output_.snap(dbToGain(get(kOutput)));
@@ -676,7 +701,7 @@ public:
         meterPeak_ = 0.0f; meterCounter_ = 0; lastMeterFrame_ = -1;
         echoPeak_ = 0.0f; echoTap1_ = 0.0f; echoTap2_ = 0.0f;
         echoPos_ = 0; echoBar_ = 0; echoClearPending_ = true;
-        humPhase_ = 0.0f; noiseGate_ = 0.0f;
+        humPhase_ = 0.0f; noiseGate_ = 0.0f; humDrift_ = 1.0f;
         for (int& f : echoFrame_) f = -1;
         springWasActive_ = false;
         revPos_ = 0; revChunk_ = revPrevChunk_ = (int)clamp(delayTime_.value(), 0.02f * sr_, kReverseMaxSeconds * sr_);
@@ -688,6 +713,10 @@ public:
     {
         // ----- per block: read parameters -----------------------------------------------------
         delayTime_.setTarget(targetDelaySamples(ctx.transport.bpm));
+        // Glide: how long the delay time takes to reach a new setting. At 0 it jumps (and clicks, like a
+        // digital delay); turned up, the tape has to spin up to speed and the repeats warp on the way.
+        const float glideMs = clamp(get(kGlide), 0.0f, kGlideMaxMs);
+        if (glideMs != glideMs_) { glideMs_ = glideMs; delayTime_.setTime(glideMs, sr_); }
         feedback_.setTarget(get(kFeedback) * 0.01f);
         mix_.setTarget(get(kMix) * 0.01f);
         output_.setTarget(dbToGain(get(kOutput)));
@@ -695,6 +724,12 @@ public:
         logCutoff_.setTarget(std::log2(get(kCutoff)));
 
         const bool pingPong = getBool(kPingPong);
+        // Cross: how much of each side's repeat lands on the other. The switch picks the endpoint, so a
+        // project made before Cross existed - Straight, or Ping-Pong with the knob at its 100% default -
+        // behaves exactly as it always did.
+        const float crossTarget = pingPong ? clamp(get(kCross) * 0.01f, 0.0f, 1.0f) : 0.0f;
+        cross_.setTarget(crossTarget);
+        const bool crossSwap = crossTarget >= 0.5f;   // which buffer holds which half of a frozen loop
         const bool tubeOn = getBool(kTube);
         // ECHO display: the window is two delay times wide, so a steady pattern of repeats stands still.
         const int echoSlice = (int)clamp(2.0f * delayTime_.target() / (float)kEchoBars, 0.004f * sr_, 0.1f * sr_);
@@ -742,7 +777,13 @@ public:
         const float fbNow = clamp(feedback_.target(), 0.0f, 0.98f);
         const float noiseInject = std::sqrt(1.0f - fbNow * fbNow)
                                   * dbToGain(kNoiseCeilingDb) * kNoiseTrim[noiseType];
-        const float humInc = kHumHz / sr_;
+        // Mains hum. Real mains wanders a little either side of nominal; letting it drift keeps the hum
+        // from standing perfectly still against the music. One update a block is slow enough to be smooth.
+        humDrift_ += 0.05f * (1.0f + kHumDrift * rng_.nextBipolar() - humDrift_);
+        const float humInc = kMainsHz[clamp(getInt(kMains), 0, 1)] * humDrift_ / sr_;
+        // How rough the mains sounds: worn, badly grounded gear buzzes, clean gear drones. There is always
+        // a little of it, and Age opens it up.
+        const float humBuzz = 0.25f + 0.75f * age;
         const float crackleProb = (noiseType == kNoiseRain ? 1800.0f : 28.0f) / sr_;
         const float crackleDecay = std::exp(-1.0f / ((noiseType == kNoiseRain ? 0.0005f : 0.0018f) * sr_));
         const float noiseGateRelease = 1.0f - std::exp(-1.0f / (0.6f * sr_));
@@ -750,7 +791,10 @@ public:
         // own level is subtracted from what the loop reports: noise can never hold its own gate open, while
         // anything louder than the bed opens it at once.
         const float noiseMax = clamp(noiseSet + std::fabs(lfoNoise), 0.0f, 1.0f);
-        const float noiseBedPeak = 1.5f * dbToGain(kNoiseCeilingDb) * kNoiseTrim[noiseType] * noiseMax * noiseMax;
+        // 3.5x the steady level, not 1.5x: noise that has been round the loop a few times keeps the same
+        // average but grows a longer crest, and anything short of its real peaks lets the bed hold its own
+        // gate open at high Feedback. Repeats loud enough to hear still clear this easily.
+        const float noiseBedPeak = 3.5f * dbToGain(kNoiseCeilingDb) * kNoiseTrim[noiseType] * noiseMax * noiseMax;
         if (!noiseOn) noiseGate_ = 0.0f;
 
         const float wowDepth = (wobble * 0.0040f + (character == kCharTape ? age * 0.0025f : 0.0f)) * sr_;   // slow drift
@@ -880,10 +924,18 @@ public:
                 }
                 case kNoiseHum:
                 {
+                    // Two things at once. The body is the transformer: the mains fundamental and a couple of
+                    // harmonics, which is the part that drones. On top of it sits the rectifier ripple - a
+                    // narrow spike twice per cycle, so 120 Hz on 60 Hz mains - and that is what buzzes. Age
+                    // trades one for the other. A little hiss underneath stops it sounding like a test tone.
                     const float p = c ? advance(humPhase_, 0.33f) : humPhase_;
-                    const float p2 = 2.0f * p, p3 = 3.0f * p;
-                    return 0.80f * sine01(p) + 0.35f * sine01(p2 - std::floor(p2))
-                                             + 0.18f * sine01(p3 - std::floor(p3));
+                    const float p2 = advance(p, p), p3 = advance(p2, p);
+                    const float body = 0.80f * sine01(p) + 0.30f * sine01(p2) + 0.14f * sine01(p3);
+                    float u = 0.5f + 0.5f * sine01(advance(p2, 0.25f));   // 1 at the top of each half cycle
+                    u *= u; u *= u; u *= u;                               // ^8: a narrow, harmonic-rich spike
+                    ch.humDc += 0.0015f * (u - ch.humDc);                 // ...with its own DC taken back off
+                    return body * (1.0f - 0.45f * humBuzz) + (u - ch.humDc) * (3.2f * humBuzz)
+                           + 0.05f * rng_.nextBipolar();
                 }
                 default:
                     return rng_.nextBipolar();
@@ -1117,22 +1169,21 @@ public:
 
             // Feed the repeats back (or, frozen, recirculate the held loop unprocessed at unity).
             const float fb = feedback_.process();
-            float writeL, writeR;
-            if (pingPong)
-            {
-                writeL = 0.5f * (sendL + sendR) + ch_[1].loopOut * fb;
-                writeR = ch_[0].loopOut * fb;
-            }
-            else
-            {
-                writeL = sendL + ch_[0].loopOut * fb;
-                writeR = sendR + ch_[1].loopOut * fb;
-            }
+            // Cross-feed. The two feedback weights always sum to one, so crossing decides where a repeat
+            // lands, not how much of it survives: measured repeat to repeat, the decay is the same -3.3 dB a
+            // pass at every setting. At 0 this is two independent delays; at 1 each repeat swaps sides and
+            // the input is summed to mono and started on the left, exactly the ping-pong it has always been.
+            // (The input routing does change the overall level: mono-summing a one-sided source costs 6 dB
+            // going in. That is ping-pong's own behaviour, not the crossing.)
+            const float xo = cross_.process(), xs = 1.0f - xo;
+            const float monoSend = 0.5f * (sendL + sendR);
+            float writeL = sendL * xs + monoSend * xo + (ch_[0].loopOut * xs + ch_[1].loopOut * xo) * fb;
+            float writeR = sendR * xs                 + (ch_[1].loopOut * xs + ch_[0].loopOut * xo) * fb;
             freezeMix_ += clamp(freezeTarget - freezeMix_, -freezeStep, freezeStep);
             if (freezeMix_ > 0.0f)
             {
-                const float heldL = (pingPong ? ch_[1] : ch_[0]).delay.readInt(freezeLen_);
-                const float heldR = (pingPong ? ch_[0] : ch_[1]).delay.readInt(freezeLen_);
+                const float heldL = (crossSwap ? ch_[1] : ch_[0]).delay.readInt(freezeLen_);
+                const float heldR = (crossSwap ? ch_[0] : ch_[1]).delay.readInt(freezeLen_);
                 if (freezeMix_ >= 1.0f) { writeL = heldL; writeR = heldR; }          // exactly unity
                 else
                 {
@@ -1239,7 +1290,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1900;            // 1.9.0.0
+        info.version      = 2000;            // 2.0.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -1329,6 +1380,19 @@ private:
     {
         if (index == kInput && plainValue <= -29.95f) { out = "-inf dB"; return true; }
         char mb[32];
+        if (index == kGlide)
+        {
+            if (plainValue < 1.0f) out = "Instant";
+            else { std::snprintf(mb, sizeof(mb), "%.0f ms", (double)plainValue); out = mb; }
+            return true;
+        }
+        if (index == kCross)
+        {
+            if (plainValue < 0.5f) out = "Straight";
+            else if (plainValue > 99.5f) out = "Ping-Pong";
+            else { std::snprintf(mb, sizeof(mb), "%.0f %%", (double)plainValue); out = mb; }
+            return true;
+        }
         if (index == kLfoRate)
         {
             if (getInt(kLfoSync) == 1) out = kLfoDivisionNames[lfoDivisionFromPosition(param(kLfoRate).toNormalised(plainValue))];
@@ -1516,7 +1580,7 @@ private:
 
     LoopChannel ch_[2];
     float sr_ = 44100.0f;
-    Smoother delayTime_, feedback_, mix_, output_, input_, logCutoff_;
+    Smoother delayTime_, feedback_, mix_, output_, input_, logCutoff_, cross_;
     float limGain_ = 1.0f, limAttack_ = 0.1f, limRelease_ = 0.001f;
     float wowPhase_ = 0.0f, flutterPhase_ = 0.3f, fxLfoPhase_ = 0.0f, ringPhase_ = 0.0f;
     int coeffCounter_ = 0;
@@ -1538,6 +1602,8 @@ private:
     int meterCounter_ = 0, lastMeterFrame_ = -1;
     float echoPeak_ = 0.0f, echoTap1_ = 0.0f, echoTap2_ = 0.0f;
     float humPhase_ = 0.0f, noiseGate_ = 0.0f;
+    float humDrift_ = 1.0f;          // slow wander of the mains frequency, updated once a block
+    float glideMs_ = -1.0f;          // last Glide applied to delayTime_, so setTime() is not called every block
     int echoPos_ = 0, echoBar_ = 0, echoFrame_[kEchoBars] = {};
     bool echoAdvance_ = false, echoClearPending_ = true;
     bool springWasActive_ = false, lastSpringInLoop_ = false;

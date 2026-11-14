@@ -28,13 +28,13 @@ self-oscillate.
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | Input | −∞, −30…+12 dB | 0 dB | Level into the delay (the dry signal is not affected). Push it to drive the loop harder; pull it to −∞ and back for dub throws. |
-| Age | 0–100 % | 50 % | How worn the Tape or BBD character is (see Character). No effect in Digital. |
+| Glide | Instant–2000 ms | 150 ms | How long the delay time takes to reach a new setting. At Instant it jumps, which clicks, the way a digital delay does; turned up, the tape has to spin up to speed and the repeats warp on the way. 150 ms is what Undertow always did before this control existed, so older projects sound the same. It applies to every way the time changes: the knob, the tempo, a program, automation. (Age has moved to HEADS and TAPE.) |
 | Dry / Wet (Mix) | 0–100 % | 35 % | Dry stays at full level up to 50% while the repeats fade in; from 50% the dry fades out. |
 | Output | −30…0 dB | 0 dB | Final level. |
-| Delay Time | 10–5000 ms, or 1/64–2/1 | 1/8D | Delay time. In Sync the knob snaps to note divisions of the MPC tempo (with dotted and triplet values); in Free it is in milliseconds. The big display shows it too, and can be dragged. Changing it glides like tape, so turning it warps the repeats' pitch. |
+| Delay Time | 10–5000 ms, or 1/64–2/1 | 1/8D | Delay time. In Sync the knob snaps to note divisions of the MPC tempo (with dotted and triplet values); in Free it is in milliseconds. The big display shows it too, and can be dragged. Changing it glides like tape, so turning it warps the repeats' pitch — Glide sets how slowly. |
 | Time Mode | Sync / Free | Sync | Sync: Delay Time follows the MPC tempo. Free: milliseconds. |
 | Character | Digital / Tape / BBD | Digital | The delay medium, applied to every repeat, so each one carries more of it. **Digital**: clean. **Tape**: high frequencies roll off more on every pass (12 kHz at Age 0, 3 kHz at 100), a little bass loss, soft tape compression, hiss and extra wow. **BBD**: a bucket-brigade chip of 4096 to 900 stages (Age), so its bandwidth follows the delay time: short delays are clear, long ones dark and gritty with sample-and-hold grain; harder saturation. Tape loses a little level per repeat, as the real thing does. Neither mode adds noise of its own any more: that is the Noise knob on TAPE, which works in every mode, Digital included. |
-| Straight / Ping-Pong | | Ping-Pong | Ping-Pong: repeats bounce left and right (the input is summed to mono and starts on the left). |
+| Straight / Ping-Pong | | Ping-Pong | Ping-Pong: repeats bounce left and right (the input is summed to mono and starts on the left). How far across they bounce is Cross, on HEADS; Straight ignores it. |
 | Freeze | Off / On | Off | Holds the loop: what is in the delay (one delay time, or two in Ping-Pong) repeats forever at exactly the same level and new input is kept out. Filter, pitch, FX, drive and the MOD page then shape only what you hear, so you can sweep them over a frozen loop without wearing it away. Feedback is ignored while frozen; changing Delay Time warps the frozen loop's pitch. Also on the SPACE page. |
 | Feedback | 0–120 % | 55 % | How much of each repeat comes back. Below 100% repeats die away; above 100% they grow until the drive stage saturates them. High Resonance lowers that point. |
 | Cutoff | 40 Hz–16 kHz | 1.8 kHz | Filter cutoff, smoothed so fast sweeps sound like sweeps. The RESPONSE display follows it. |
@@ -52,6 +52,7 @@ animated display" below).
 | Head 2 | 0–100 % | 0 % | How much of the loop the second head takes over. 0 switches it off; 50 gives two equally loud taps; 100 replaces head 1. Both heads feed the same electronics and the same feedback path, as on a multi-head tape echo, and their levels always add up to one, so a second head never makes the loop louder or less stable. |
 | Head Ratio | 1/4 … 2/1 | 2/3 | Where head 2 sits, as a fraction of the delay time. With a dotted-eighth delay, 2/3 gives a straight eighth against it; 1/2 and 1/3 give even subdivisions; above 1/1 head 2 lands after head 1. |
 | Head 2 Pan | ±100 % | 0 % | Which side head 2 leans to. At full left or right with Head 2 at 100%, one head plays on each side. |
+| Cross | Straight–Ping-Pong | Ping-Pong | How much of each side's repeat lands on the other one. At Ping-Pong (100%) a repeat swaps sides every pass — the classic bounce, and what Undertow has always done. Wind it down and the repeats lean across instead of jumping, so the pattern drifts between the speakers; at Straight the two sides are independent delays. The two shares always add up to one, so the decay is the same at every setting — only where each repeat lands changes. The Straight / Ping-Pong switch on DELAY picks the endpoint: in Straight this knob does nothing. |
 | Display | Off / On | On | Animates the tube and the echo trail from the audio (see "The animated display" below). |
 
 ### Page 3: TAPE
@@ -61,9 +62,10 @@ Everything about how worn the delay sounds: the medium, how far gone it is, and 
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | Noise | 0–100 % | 0 % | A noise bed poured into the loop just after the heads, so it is filtered, aged, driven and repeated exactly like a repeat — each crackle echoes. The knob is square-law, so the bottom half is a whisper and the top is openly lo-fi (about −30 dBFS at 100%). Two things keep it civil: the level that goes in is scaled against Feedback, so the bed sits where you put it instead of building up pass after pass, and it is gated by what is actually going round, so a track that is not playing stays silent (it fades about 3 s after the last sound). |
-| Noise Type | Hiss / Air / Crackle / Hum / Rain | Hiss | **Hiss**: white, the tape-machine floor. **Air**: pink, a softer and wider wash. **Crackle**: sparse clicks, like a worn record — each one echoes with the repeats. **Hum**: 50 Hz and two harmonics, mains buzz. **Rain**: dense fine clicks, a shower behind the music. |
+| Noise Type | Hiss / Air / Crackle / Hum / Rain | Hiss | **Hiss**: white, the tape-machine floor. **Air**: pink, a softer and wider wash. **Crackle**: sparse clicks, like a worn record — each one echoes with the repeats. **Hum**: mains. A transformer drone of the fundamental and two harmonics, with the rectifier ripple — a sharp spike twice a cycle, so 120 Hz on 60 Hz mains — buzzing on top of it. **Age** trades one for the other: low is a clean drone, high is the badly grounded buzz, and there is always a little of it. The frequency wanders slightly, as real mains does, and a little hiss sits underneath so it is not a test tone. **Rain**: dense fine clicks, a shower behind the music. |
 | LFO › Noise | ±100 % | 0 | Added to Noise, so the bed can breathe or arrive in waves. With a slow synced LFO it is the easiest way to make a part sound like it is surfacing out of something. |
-| Character, Age, Wobble, Drive, Limit, Input, Feedback | | | The same controls as on DELAY and LOOP, gathered here. |
+| Mains | 60 Hz / 50 Hz | 60 Hz | Which mains frequency Hum runs at: 60 Hz for the Americas and Japan, 50 Hz for most of the rest of the world. Only Hum uses it. |
+| Character, Age, Wobble, Drive, Limit, Feedback | | | The same controls as on DELAY and LOOP, gathered here. Age does double duty on this page: the wear on the Tape and BBD models, and how rough Hum sounds. |
 
 ### Page 4: LOOP
 
@@ -159,6 +161,9 @@ how long they last: Feedback still decides that (see "Level matching" below).
 | Triplet Machine | A quarter note against its triplet, heads spread across the stereo |
 | Dusty 45 | Worn tape with vinyl crackle echoing along with the repeats |
 | Rain on the Roof | A shower of fine noise behind the echoes, swelling on a four-bar LFO |
+| Slow Tide | A 900 ms glide: move the delay time and the repeats take a second to get there, warping on the way |
+| Half Crossed | Cross at 55%, so the repeats lean across the stereo instead of snapping side to side |
+| Bad Ground | Worn gear with 60 Hz mains buzzing in the loop (turn Age down for a cleaner drone) |
 
 (The programs do not set Display; it stays as you leave it.)
 
@@ -172,6 +177,10 @@ how long they last: Feedback still decides that (see "Level matching" below).
 - **Make it old:** Noise 30–50% with Hiss, Character on Tape, Age 60+, Cutoff down around 2.5 kHz. The bed goes through the filter with the repeats, so closing the filter darkens the hiss too.
 - **Crackle that plays in time:** Noise Type Crackle with Feedback 60%+ — each click lands in the delay and comes back round, so the noise picks up the tempo.
 - **Noise as an effect, not a floor:** LFO › Noise at +60% with a synced LFO on 2 or 4 bars, Noise itself near 0: silence between swells, a wash on top of them.
+- **Tape stop:** Glide up around 1.5 s, then drop Delay Time a long way while repeats are playing. The pitch slides down over a second instead of jumping.
+- **Dub throws that land in time:** Glide at Instant with Time Mode on Sync. Changing division is then a clean cut, not a warp, so a throw stays on the grid.
+- **Stereo that moves:** Cross around 40–60% with Feedback 70%+. Each repeat only half swaps, so the pattern walks across the image over several passes instead of flipping.
+- **Two delays in one:** Cross at Straight with Head 2 up and Head 2 Pan hard over. The sides stop talking to each other, so you get two independent rhythms, one per speaker.
 
 ## The animated display
 
@@ -221,8 +230,8 @@ not limited, so quiet repeats sound natural and only loud ones are clamped. Noth
 
 ## Not implemented yet
 
-- A variable glide time, and a cross-feed control between straight and ping-pong
 - A noise bed with its own filter, independent of the loop filter
+- A VST3 or AU build for desktop DAWs (the code is portable; only the plugin wrapper is MPC-specific)
 
 ## CPU
 
@@ -231,7 +240,7 @@ Per sample: one delay read per channel, a state-variable filter, the pitch stage
 Filter, phaser, level-match and modulation updates (cutoff, FX Amount, pitch) run every 16 samples; the LFO, envelope
 follower, ducking and time modulation run per sample with no transcendental functions.
 The spring reverb costs about three times the rest of the plugin while Space is above 0 (36 allpass stages per side);
-at 0 it is skipped. Head 2 is one extra read per sample, and the display four comparisons, which is nothing. Noise costs 3-10% more than the rest of the plugin put together while it is above 0 (Hum is the dearest), and nothing at 0. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
+at 0 it is skipped. Head 2 is one extra read per sample, and the display four comparisons, which is nothing. Noise costs a few percent more than the rest of the plugin put together while it is above 0, except Hum, which costs about 20% more (four polynomial sines a sample, per channel); all of them are free at 0. Glide and Cross cost nothing measurable - a one-pole re-timing and two multiply-adds a sample. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
 
 ## Skin
 

@@ -42,14 +42,14 @@ P = dict(output=0, sync=1, time=3, feedback=4, mix=5, pingpong=6, wobble=7, limi
          lfoshape=21, lfosync=22, lforate=23, spread=24, lfocut=25, lfopitch=26, lfofx=27, lfotime=28,
          envcut=29, envfx=30, envspeed=31, duck=32, freeze=33, space=34, sdecay=35, stone=36, drip=37, spos=38,
          character=39, age=40, head2=41, hratio=42, h2pan=43, tube=44, level=45, echo=46,
-         noise=110, ntype=111, lfonoise=112)
+         noise=110, ntype=111, lfonoise=112, mains=113, glide=114, cross=115)
 CHOICES = {1: ["Free", "Sync"], 6: ["Off", "On"], 9: ["Off", "LP", "BP", "HP"],
            13: ["Off", "Chorus", "Flanger", "Phaser", "Bitcrush", "Downsample", "Ring Mod", "Fuzz"],
            16: ["Semitones", "Hz"], 19: ["Off", "On"],
            21: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"], 22: ["Free", "Sync"],
            33: ["Off", "On"], 38: ["After", "In Loop"], 39: ["Digital", "Tape", "BBD"],
            42: ["1/4", "1/3", "1/2", "2/3", "3/4", "1/1", "4/3", "3/2", "2/1"], 44: ["Off", "On"],
-           111: ["Hiss", "Air", "Crackle", "Hum", "Rain"]}
+           111: ["Hiss", "Air", "Crackle", "Hum", "Rain"], 113: ["60 Hz", "50 Hz"]}
 HEAD_RATIOS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1.0, 4 / 3, 1.5, 2.0]
 
 # The echo trail in the centre of the HEADS page: 64 bars, each one parameter, drawn from one film strip of
@@ -389,7 +389,7 @@ def page_delay():
     mid = (bx0 + bx1) / 2
     controls = [
         small_knob(P["input"], 150, ROW_A_Y, "INPUT"),
-        small_knob(P["age"], 318, ROW_A_Y, "AGE"),
+        small_knob(P["glide"], 318, ROW_A_Y, "GLIDE"),
         small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
         small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
 
@@ -408,7 +408,7 @@ def page_delay():
     ]
     statics = dict(headings=[("FILTER", (465, 470)), ("RESPONSE", (765, 470))],
                    centre_title="DELAY TIME", dividers_b=(281, 890), waveform=False, graph=True)
-    qlinks = [[P["input"], P["age"], P["mix"], P["output"]],
+    qlinks = [[P["input"], P["glide"], P["mix"], P["output"]],
               [P["time"], P["sync"], P["character"], P["feedback"]],
               [P["cutoff"], P["filter"], P["reso"], -1]]
     return "DELAY", controls, statics, qlinks
@@ -475,7 +475,7 @@ def page_heads():
     for i, name in enumerate(names):
         row, col = (0, i) if i < 5 else (1, i - 5)
         count = 5 if row == 0 else 4
-        x0 = 640 - (count * pw + (count - 1) * gap) / 2
+        x0 = 556 - (count * pw + (count - 1) * gap) / 2
         items.append((i, name, x0 + col * (pw + gap), 488 + row * 46, pw))
     controls = [
         small_knob(P["wobble"], 150, ROW_A_Y, "WOBBLE"),
@@ -489,16 +489,17 @@ def page_heads():
 
         small_knob(P["head2"], 125, ROW_C_Y, "HEAD 2", heading_pos="right"),
         pills(P["hratio"], items),
-        small_knob(P["h2pan"], 1155, ROW_C_Y, "HEAD 2 PAN", bipolar=True, heading_pos="left"),
+        small_knob(P["cross"], 900, ROW_C_Y, "CROSS"),
+        small_knob(P["h2pan"], 1155, ROW_C_Y, "HEAD 2 PAN", bipolar=True),
     ]
-    statics = dict(headings=[("HEAD RATIO", (640, 462))], centre_title=None, dividers_b=(281, 890),
-                   dividers_c=(330, 950), waveform=False, graph=False, echo=True,
+    statics = dict(headings=[("HEAD RATIO", (556, 462))], centre_title=None, dividers_b=(281, 890),
+                   dividers_c=(330, 800, 1030), waveform=False, graph=False, echo=True,
                    images=[dict(file="head_mark.png", frames=len(HEAD_RATIOS), param=P["hratio"], box=MARK_BOX,
                                 invalidating=["NonZero/Parameter %d" % P["head2"],
                                               "IndexedEnabling/1/2/Parameter %d" % P["tube"]])])
     qlinks = [[P["wobble"], P["age"], P["mix"], P["output"]],
               [P["time"], -1, P["tube"], P["feedback"]],
-              [P["head2"], P["hratio"], -1, P["h2pan"]]]
+              [P["head2"], P["hratio"], P["cross"], P["h2pan"]]]
     return "HEADS", controls, statics, qlinks
 
 
@@ -586,13 +587,14 @@ def page_tape():
         small_knob(P["lfonoise"], 125, ROW_C_Y, "LFO > NOISE", bipolar=True, heading_pos="right"),
         small_knob(P["drive"], 430, ROW_C_Y, "DRIVE", heading_pos="right"),
         small_knob(P["limit"], 800, ROW_C_Y, "LIMIT", heading_pos="left"),
-        small_knob(P["input"], 1155, ROW_C_Y, "INPUT", heading_pos="left"),
+        pills(P["mains"], [(0, "60 Hz", 1050, 488, 110), (1, "50 Hz", 1050, 534, 110)]),
     ]
-    statics = dict(headings=[], centre_title="CHARACTER", dividers_b=(281, 890), dividers_c=(330, 600, 930),
+    statics = dict(headings=[("MAINS", (1105, 470))], centre_title="CHARACTER", dividers_b=(281, 890),
+                   dividers_c=(330, 600, 930),
                    waveform=False, graph=False)
     qlinks = [[P["age"], P["wobble"], P["mix"], P["output"]],
               [P["noise"], P["character"], P["ntype"], P["feedback"]],
-              [P["lfonoise"], P["drive"], P["limit"], P["input"]]]
+              [P["lfonoise"], P["drive"], P["limit"], P["mains"]]]
     return "TAPE", controls, statics, qlinks
 
 
@@ -971,7 +973,8 @@ DEFAULTS = {0: (1.0, "0.0 dB"), 1: (1, None), 3: (0.5625, "1/8D"), 4: (55 / 120,
             31: (0.3, "30 %"), 32: (0.4, "40 %"), 33: (1, None), 34: (0.45, "45 %"), 35: (0.57, "2.4 s"),
             36: (0.45, "45 %"), 37: (0.7, "70 %"), 38: (0, None), 39: (1, None), 40: (0.5, "50 %"),
             41: (0.45, "45 %"), 42: (3, None), 43: (0.5 + 0.275, "+55 %"), 44: (1, None), 45: (0.6, None),
-            110: (0.4, "40 %"), 111: (0, None), 112: (0.5 + 0.15, "+30 %")}
+            110: (0.4, "40 %"), 111: (0, None), 112: (0.5 + 0.15, "+30 %"), 113: (0, None),
+            114: ((150 / 2000) ** 0.4, "150 ms"), 115: (0.6, "60 %")}
 
 
 def make_previews(previews, images):

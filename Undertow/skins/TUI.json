@@ -2178,6 +2178,130 @@
                     }
                 },
                 {
+                    "key": "pills 2 11",
+                    "value": {
+                        "version": 2,
+                        "actions": [
+                            {
+                                "version": 1,
+                                "onAction": "Mouse Down",
+                                "handler": "Q-Link",
+                                "handleName": "Data",
+                                "additionalData": ""
+                            },
+                            {
+                                "version": 1,
+                                "onAction": "Enter Pressed",
+                                "handler": "Show Overlay",
+                                "handleName": "Data",
+                                "additionalData": "menu overlay"
+                            }
+                        ],
+                        "backgroundData": {
+                            "version": 1,
+                            "focussed": {
+                                "version": 1,
+                                "colour": "00000000",
+                                "image": ""
+                            },
+                            "unfocussed": {
+                                "version": 1,
+                                "colour": "00000000",
+                                "image": ""
+                            }
+                        },
+                        "ignoreMousePresses": false,
+                        "disableCoarseDataWheel": false,
+                        "componentsData": [
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "focus",
+                                    "type": "Focus",
+                                    "data": {
+                                        "version": 1,
+                                        "backgroundColour": "19ffffff",
+                                        "outlineColour": "ff3fd9e3",
+                                        "backgroundInset": 4.0,
+                                        "outlineThickness": 1.0
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "WhenFocussed",
+                                    "boundsType": "Absolute",
+                                    "bounds": "0 0 128 98"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 0",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_60hz_110.png",
+                                        "offImage": "pill_off_60hz_110.png",
+                                        "buttonId": 0,
+                                        "numButtonsInGroup": 2,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "0 0 128 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 1",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_50hz_110.png",
+                                        "offImage": "pill_off_50hz_110.png",
+                                        "buttonId": 1,
+                                        "numButtonsInGroup": 2,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "0 46 128 52"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
                     "key": "readout 3 6",
                     "value": {
                         "version": 2,
@@ -3863,6 +3987,13 @@
                     "Hum",
                     "Rain"
                 ]
+            },
+            {
+                "key": "Parameter 113",
+                "value": [
+                    "60 Hz",
+                    "50 Hz"
+                ]
             }
         ],
         "info": {
@@ -3965,7 +4096,7 @@
                                 "map": [
                                     {
                                         "key": "Data",
-                                        "value": "Parameter 40"
+                                        "value": "Parameter 114"
                                     }
                                 ]
                             },
@@ -4855,7 +4986,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "419 479 442 98"
+                                "bounds": "335 479 442 98"
                             }
                         },
                         {
@@ -4863,6 +4994,35 @@
                             "componentData": {
                                 "version": 1,
                                 "name": "ctl 9",
+                                "type": "knob small",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 115"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "840 472 120 114"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 10",
                                 "type": "knob small bipolar",
                                 "data": {
                                     "version": 1,
@@ -7679,7 +7839,7 @@
                             "componentData": {
                                 "version": 1,
                                 "name": "ctl 11",
-                                "type": "knob small",
+                                "type": "pills 2 11",
                                 "data": {
                                     "version": 1,
                                     "handleName": "Data"
@@ -7690,7 +7850,7 @@
                                 "map": [
                                     {
                                         "key": "Data",
-                                        "value": "Parameter 20"
+                                        "value": "Parameter 113"
                                     }
                                 ]
                             },
@@ -7700,7 +7860,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "1095 472 120 114"
+                                "bounds": "1041 479 128 98"
                             }
                         },
                         {

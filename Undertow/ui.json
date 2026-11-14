@@ -9,6 +9,10 @@
           "widget": "knob"
         },
         {
+          "param": "Glide",
+          "widget": "knob"
+        },
+        {
           "param": "Feedback",
           "widget": "knob"
         },
@@ -63,6 +67,10 @@
           "overlay": "menu"
         },
         {
+          "param": "Cross",
+          "widget": "knob"
+        },
+        {
           "param": "Head 2 Pan",
           "widget": "knob",
           "polarity": "bipolar"
@@ -84,6 +92,10 @@
           "param": "Noise Type",
           "widget": "slider",
           "overlay": "menu"
+        },
+        {
+          "param": "Mains",
+          "widget": "switch"
         },
         {
           "param": "LFO>Noise",
