@@ -44,13 +44,15 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 # Parameter indices (must match src/Tidepools.cpp).
 P = dict(out=0, mix=1, mode=2, activity=3, shape=4, scatter=5, motion=6, sync=7, time=8, repeats=9,
          tone=10, space=11, decay=12, listen=13, gap=14, answer=15, reply=16, interval=17, scale=18,
-         root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27)
+         root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27,
+         gapsync=28)
 CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble"], 7: ["Free", "Sync"],
            13: ["Off", "Auto", "Hold"], 15: ["Now", "Beat", "Bar"],
            18: ["Off", "Major", "Minor", "Penta Maj", "Penta Min", "Dorian", "Whole Tone"],
            19: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
            22: ["Off", "On"], 25: ["Idle", "Hear", "Wait", "Talk"], 26: ["Fixed", "Follow"],
-           27: ["-", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]}
+           27: ["-", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+           28: ["Free", "Sync"]}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -346,12 +348,13 @@ def page_listen():
         knob_in(P["mix"], 0, ROW3_Y[2], "MIX"),
         knob_in(P["input"], 1, ROW3_Y[2], "INPUT"),
         knob_in(P["out"], 2, ROW3_Y[2], "OUTPUT"),
+        pills_in(P["gapsync"], 3, ROW3_Y[2], "GAP MODE", width=110),
     ]
-    statics = dict(headings=[], boxes=[box(c, t) for t in ROW3_Y for c in range(4)][:11],
+    statics = dict(headings=[], boxes=[box(c, t) for t in ROW3_Y for c in range(4)],
                    graph=False, waveform=False)
     qlinks = [[P["state"], P["listen"], P["gap"], P["answer"]],
               [P["trade"], P["hold"], P["reply"], P["repeats"]],
-              [P["mix"], P["input"], P["out"], -1]]
+              [P["mix"], P["input"], P["out"], P["gapsync"]]]
     return "LISTEN", controls, statics, qlinks
 
 
@@ -694,7 +697,7 @@ DEFAULTS = {0: (30 / 36, "0.0 dB"), 1: (0.50, "50 %"), 2: (3, None), 3: (0.50, "
             12: (0.695, "3.9 s"), 13: (1, None), 14: (0.4703, "220 ms"), 15: (1, None),
             16: (0.35, "35 %"), 17: (1.0, "+12 st"), 18: (0, None), 19: (0, None),
             20: (0.50, "50 %"), 21: (0.70, "70 %"), 22: (0, None), 23: (30 / 42, "0.0 dB"),
-            24: (0.0, None), 25: (0, None), 26: (1, None), 27: (0, "-")}
+            24: (0.0, None), 25: (0, None), 26: (1, None), 27: (0, "-"), 28: (1, None)}
 
 
 def make_previews(previews, images):

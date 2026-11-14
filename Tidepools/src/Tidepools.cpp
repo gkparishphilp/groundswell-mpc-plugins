@@ -89,6 +89,7 @@ enum ParamIndex
     kHold, kInput,
     kLevel, kState,          // meters: the plugin writes these, nobody automates them
     kKeyMode, kHeard,        // appended: pitch tracking
+    kGapSync,                // appended: Gap in note divisions
     kNumParams
 };
 
@@ -111,6 +112,11 @@ constexpr float kCaptureSeconds = 8.0f;    // how far back the buffer remembers
 constexpr int   kMaxGrains = 16;
 constexpr int   kWindowBits = 10;
 constexpr int   kWindowSize = 1 << kWindowBits;    // raised-cosine grain envelope
+// Gap as a note division. The table runs to two bars, which is nonsense for "have they stopped
+// playing yet"; half a note is the longest that means anything. The result is clamped to the
+// knob's own range, so a slow tempo cannot make it wait forever.
+constexpr int   kGapMaxDivision = 13;      // 1/2
+constexpr float kGapMinSeconds = 0.04f, kGapMaxSeconds = 1.5f;
 constexpr float kMinPhraseSeconds = 0.08f;
 constexpr float kMaxPhraseSeconds = 6.0f;
 constexpr float kWetCeiling = 0.7079f;     // -3 dBFS: where the grain limiter holds the wet path
@@ -267,6 +273,7 @@ public:
                                               "F#", "G", "G#", "A", "A#", "B" }, 0);
         heard.automatable = false; heard.saved = false;
         addParam(heard);
+        addParam(mpc::choiceParam("gapsync", "Gap Mode", { "Free", "Sync" }, 0));
 
         addPrograms();
     }
@@ -392,7 +399,12 @@ public:
             : get(kTime) * 0.001f * sr_;
         sliceSamples_ = clampf(sliceSamples_, 0.01f * sr_, 4.0f * sr_);
 
-        const float gapSamples = get(kGap) * 0.001f * sr_;
+        // Gap in milliseconds, or as a note division of the MPC tempo so the listening window
+        // scales with the track the way Time already does.
+        const float gapSamples = getInt(kGapSync) == 1
+            ? clampf(divisionBeats(gapDivisionFromPosition(getNormalised(kGap))) * beatSamples,
+                     kGapMinSeconds * sr_, kGapMaxSeconds * sr_)
+            : get(kGap) * 0.001f * sr_;
         const float toneHz = clampf(get(kTone), 100.0f, 0.45f * sr_);
         for (int c = 0; c < 2; ++c) tone_[c].set(toneHz, 0.1f);
 
@@ -605,6 +617,11 @@ public:
             else { std::snprintf(buf, sizeof(buf), "%.0f ms", (double)plainValue); out = buf; }
             return true;
         }
+        if (index == kGap && getInt(kGapSync) == 1)
+        {
+            out = divisionName(gapDivisionFromPosition(param(kGap).toNormalised(plainValue)));
+            return true;
+        }
         if (index == kInterval)
         {
             const int st = (int)std::lround(plainValue);
@@ -622,6 +639,10 @@ private:
     static int   divisionFromPosition(float norm)
     {
         return clampi((int)std::lround(norm * (kNumDivisions - 1)), 0, kNumDivisions - 1);
+    }
+    static int   gapDivisionFromPosition(float norm)
+    {
+        return clampi((int)std::lround(norm * kGapMaxDivision), 0, kGapMaxDivision);
     }
 
     float readBuffer(int ch, double pos) const
