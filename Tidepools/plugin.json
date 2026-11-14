@@ -1,5 +1,5 @@
 {
-  "name": "Tidepool",
+  "name": "Tidepools",
   "manufacturer": "Groundswell",
   "version": "1.0.0",
   "format": "vst2",
@@ -10,7 +10,7 @@
   "category": "Effect",
   "file32": "VST/tidepool-arm32.so",
   "file64": "VST/tidepool-arm64.so",
-  "description": "Tidepool: a gain / tone / mix effect for the MPC. Describe your plugin here.",
+  "description": "Tidepools: a gain / tone / mix effect for the MPC. Describe your plugin here.",
   "author": "Groundswell",
   "url": "",
   "license": "MIT"

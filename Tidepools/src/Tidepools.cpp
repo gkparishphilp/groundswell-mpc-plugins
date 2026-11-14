@@ -1,4 +1,4 @@
-// Tidepool - a granular call-and-response effect for MPC standalone hardware.
+// Tidepools - a granular call-and-response effect for MPC standalone hardware.
 //
 // SPDX-License-Identifier: MIT
 // (c) Groundswell
@@ -7,13 +7,13 @@
 // WHAT IT IS
 // ============================================================================================
 //
-// Tidepool listens to what you play, waits until you stop, and answers with it.
+// Tidepools listens to what you play, waits until you stop, and answers with it.
 //
 // That is the whole idea, and it is why the plugin is built the way it is. A granular pedal
 // gets a call-and-response feel somewhat by accident: it granulates a rolling window of the
 // last few seconds, and if you happen to stop playing you hear that window on its own. Here it
 // is done on purpose. An envelope follower watches the input and marks where a phrase starts.
-// When you stop, and the silence lasts longer than Gap, Tidepool decides you have finished,
+// When you stop, and the silence lasts longer than Gap, Tidepools decides you have finished,
 // waits for the next beat or bar if you asked it to, and plays the phrase back through one of
 // four grain engines. Come back in and it ducks out of your way, so you can trade phrases.
 //
@@ -217,10 +217,10 @@ private:
 
 // ==========================================================================================
 
-class Tidepool : public mpc::Plugin
+class Tidepools : public mpc::Plugin
 {
 public:
-    Tidepool() : mpc::Plugin(makeInfo())
+    Tidepools() : mpc::Plugin(makeInfo())
     {
         // Parameter 0 is nudged by the host on every load, so it has to be harmless.
         addParam(mpc::floatParam ("out",      "Output",   -30.0f, 6.0f,   0.0f,  "dB", 1));
@@ -1034,7 +1034,7 @@ private:
     static mpc::PluginInfo makeInfo()
     {
         mpc::PluginInfo info;
-        info.name         = "Tidepool";
+        info.name         = "Tidepools";
         info.vendor       = "Groundswell";
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);
         info.version      = 1000;
@@ -1097,4 +1097,4 @@ private:
     float sr_ = 44100.0f;
 };
 
-MPC_PLUGIN_ENTRY(Tidepool)
+MPC_PLUGIN_ENTRY(Tidepools)

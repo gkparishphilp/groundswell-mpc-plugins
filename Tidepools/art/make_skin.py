@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build Tidepool's hand-made skin (plugins/Tidepool/skins/) from the artwork in this folder.
+"""Build Tidepools's hand-made skin (plugins/Tidepools/skins/) from the artwork in this folder.
 
-    python3 plugins/Tidepool/art/make_skin.py            # writes skins/ and build/skin-preview-*.png
+    python3 plugins/Tidepools/art/make_skin.py            # writes skins/ and build/skin-preview-*.png
 
 Source art:
     background-src.png      the panel plate, vessel and title (any size with a 1280:628 aspect)
@@ -41,7 +41,7 @@ FONT_FILE = "/System/Library/Fonts/Avenir Next.ttc"   # build-time only: baked i
 FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir Next.ttc
 
 # Parameter indices (must match src/Undertow.cpp).
-# Parameter indices (must match src/Tidepool.cpp).
+# Parameter indices (must match src/Tidepools.cpp).
 P = dict(out=0, mix=1, mode=2, activity=3, shape=4, scatter=5, motion=6, sync=7, time=8, repeats=9,
          tone=10, space=11, decay=12, listen=13, gap=14, answer=15, reply=16, interval=17, scale=18,
          root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27)

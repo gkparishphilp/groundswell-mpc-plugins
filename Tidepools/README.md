@@ -1,12 +1,12 @@
-# Tidepool
+# Tidepools
 
 A granular call-and-response effect for MPC standalone hardware, by Groundswell.
 
-Tidepool listens to what you play, waits until you stop, and answers with it.
+Tidepools listens to what you play, waits until you stop, and answers with it.
 
 That is the whole idea. A granular pedal gets a call-and-response feel somewhat by accident: it granulates a
 rolling window of the last few seconds, and if you happen to stop playing you hear that window on its own.
-Tidepool does it on purpose. An envelope follower watches the input and marks where a phrase begins. When you
+Tidepools does it on purpose. An envelope follower watches the input and marks where a phrase begins. When you
 stop, and the silence lasts longer than **Gap**, it decides you have finished, waits for the next beat or bar
 if you asked it to, and hands the phrase back through one of four grain engines. Play again and it ducks out of
 your way, so you can trade phrases with it.
@@ -40,26 +40,26 @@ is about pitch and movement. Both are listed per engine below.
 
 ## The screen
 
-Tidepool has its own panel, built from artwork in `art/`: three pages — **LISTEN**, **GRAINS** and **TONE** —
+Tidepools has its own panel, built from artwork in `art/`: three pages — **LISTEN**, **GRAINS** and **TONE** —
 each a row of boxes laid out for the Q-Link knobs, with a knob at the left of its box and the reading beside
 it. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter) for a large edit view.
 
 ### Page 1: LISTEN
 
-The call-and-response layer. This is the page that makes Tidepool what it is.
+The call-and-response layer. This is the page that makes Tidepools what it is.
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | State | Idle / Hear / Wait / Talk | — | Not a control: the lamp. It shows whose turn it is — **Hear** while it is taking your phrase in, **Wait** while it holds for the next beat or bar, **Talk** while it answers. The plugin writes it twenty-five times a second, so tapping it does nothing lasting. Watch it for a minute and the whole plugin explains itself. |
 | Listen | Off / Auto / Hold | Auto | **Auto**: watch for phrases and answer them. **Off**: granulate the last few seconds continuously, the way a pedal does — a texture, not a conversation. **Hold**: the Hold switch freezes the buffer and the grains work that frozen moment until you let go. |
-| Gap | 40–1500 ms | 220 ms | How long a silence has to last before Tidepool decides you have finished. Short and it finishes your sentences; long and it waits until you really mean it. The phrase end is back-dated to where the silence began, so the gap is not baked into the answer. |
+| Gap | 40–1500 ms | 220 ms | How long a silence has to last before Tidepools decides you have finished. Short and it finishes your sentences; long and it waits until you really mean it. The phrase end is back-dated to where the silence began, so the gap is not baked into the answer. |
 | Answer | Now / Beat / Bar | Beat | When the reply starts. **Beat** and **Bar** wait for the next line on the MPC's grid, which is the difference between a reply and a spill. Falls back to Now when the transport is stopped. |
 | Trade | 0–100 % | 50 % | How far the answer ducks out of the way while you are playing. At 100% it goes silent the moment you come back in and returns when you stop, so you genuinely swap phrases. |
 | Hold | Off / On | Off | Freezes the capture buffer. Most useful with Listen on Hold, but it also works during an answer to lock what is being played with. |
 | Reply | 0–100 % | 35 % | How far each successive pass drifts from the last — more scattered, more reversed, more wandering. At 0 the answer repeats itself; turned up it evolves. |
 | Repeats | 0–100 % | 40 % | How many times the phrase comes back and how much it fades each pass. At 0 you get one answer. Around 50% it dies away over several seconds. Above about 90% it sustains until you play again. |
 | Mix | 0–100 % | 50 % | Dry holds full level to half way while the answer fades in; from half way the dry fades out. |
-| Input | −∞, −30…+12 dB | 0 dB | Level into the capture buffer. The dry path is untouched. Raise it if Tidepool is not hearing quiet playing. |
+| Input | −∞, −30…+12 dB | 0 dB | Level into the capture buffer. The dry path is untouched. Raise it if Tidepools is not hearing quiet playing. |
 | Output | −30…+6 dB | 0 dB | Final level. |
 
 ### Page 2: GRAINS
@@ -90,7 +90,7 @@ The call-and-response layer. This is the page that makes Tidepool what it is.
 
 ### Pitch tracking, and what it buys
 
-When a phrase ends, Tidepool works out what note it was in — once, not continuously. The analysis is a YIN-style
+When a phrase ends, Tidepools works out what note it was in — once, not continuously. The analysis is a YIN-style
 autocorrelation on a copy of the input decimated to a quarter of the sample rate, which is what makes it cheap:
 about 19 µs, or under 1% of one audio block, once per phrase. Measured against plucked notes it is exact from
 E2 to A5 (errors under 0.02 of a semitone), and it reports *no* pitch for noise and for silence rather than
@@ -122,7 +122,7 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 
 ## Tips
 
-- **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepool does is easier to
+- **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepools does is easier to
   hear on one note than on a phrase.
 - **Gap is the feel knob.** Short (80–150 ms) and it jumps in almost before you have finished, which is exciting
   and a bit pushy. Long (500 ms+) and it waits politely. It changes the character more than anything else here.
@@ -158,14 +158,14 @@ busy a new grain steals the one furthest through its life.
 ## Build
 
 ```
-python tools/build.py plugins/Tidepool
-python tools/package.py plugins/Tidepool
+python tools/build.py plugins/Tidepools
+python tools/package.py plugins/Tidepools
 ```
 
 For the computer (a VST2 that draws this same panel in FL Studio, Reaper or MPC Software):
 
 ```
-python tools/build.py plugins/Tidepool --target desktop
+python tools/build.py plugins/Tidepools --target desktop
 ```
 
 ## Skin
@@ -174,7 +174,7 @@ python tools/build.py plugins/Tidepool --target desktop
 the parameter list. Run it after changing any control:
 
 ```
-python3 plugins/Tidepool/art/make_skin.py      # writes skins/ and build/skin-preview-*.png
+python3 plugins/Tidepools/art/make_skin.py      # writes skins/ and build/skin-preview-*.png
 ```
 
 It binds to parameter *indices*, so it must be regenerated whenever the parameter list changes. The boxes,
@@ -190,7 +190,7 @@ MIT. No third-party DSP: the grain engine, the phrase detector and the reverb ar
 
 ## Installing on the MPC
 
-Copy `build/Groundswell - VST - Tidepool/` into a folder named `VST2 Plugins` on an MPC drive. The MPC needs
+Copy `build/Groundswell - VST - Tidepools/` into a folder named `VST2 Plugins` on an MPC drive. The MPC needs
 MPC OS 3.10.1 or later, and External plugins must be enabled: Preferences → Enhancements (Beta) → Enable
 Enhancements, then External Plugin Support. The MPC only scans for plugins when its app starts, so restart it
-afterwards; Tidepool then appears under External Plugins.
+afterwards; Tidepools then appears under External Plugins.
