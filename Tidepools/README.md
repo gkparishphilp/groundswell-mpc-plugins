@@ -34,6 +34,7 @@ in ─┬───────────────────────�
 | **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
 | **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. The bend is a *rate* — an octave a second at full Motion — so a short grain slides a little and a long one slides a lot, rather than every grain racing through the whole interval. Small amounts are tape wobble; large ones walk off somewhere else. |
 | **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
+| **Chord** | Answers a note with a voicing. Each grain is joined by two to four more at the thirds above it — and because Tidepools knows both what you played and what key you are in, those are the thirds the key actually has: major on the first, fourth and fifth degrees, minor on the second, third and sixth, diminished on the seventh. One finger in, a chord out. Without a scale it stacks a plain major seventh instead, so it still does something on a drum loop. |
 
 Two knobs mean something slightly different in each engine. **Scatter** is about position and order; **Motion**
 is about pitch and movement. Both are listed per engine below.
@@ -67,11 +68,11 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
-| Mode | Cloud / Blocks / Glide / Bubbles | Cloud | Which engine answers (see above). |
+| Mode | Cloud / Blocks / Glide / Bubbles / Chord | Cloud | Which engine answers (see above). |
 | Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90 — or to about 42 in Bubbles, which is deliberately thinner. A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them one by one and the same number reads as far busier. In Blocks it has no effect: slices arrive on the beat. |
 | Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
-| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Bubbles**: unused. |
-| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Cloud**: unused. |
+| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Chord** (*Strum*): how far apart in time the notes of the voicing arrive — 0 is a block chord, full is a strum across about 120 ms. **Bubbles**: unused. |
+| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Cloud**: unused. |
 
 **The panel renames those two for you.** Both knobs mean something different in each engine, so their
 headings are bound to Mode: Scatter reads SHUFFLE in Blocks, Motion reads REVERSE, BEND or RANGE as you switch,
@@ -124,6 +125,7 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 | Octave Answer | Cloud an octave up, long Gap, answering on the bar |
 | Texture (no reply) | Listen off: a continuous granular wash, no conversation |
 | Freeze and Play | Listen on Hold with Hold engaged: a frozen moment to play over |
+| One Finger Chords | Chord in C major, answering on the bar — play single notes and get triads back |
 
 ## Tips
 
@@ -136,6 +138,9 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
   vanishes the instant you come in.
 - **In Key with one finger.** Bubbles, Scale to the key of your track, Activity high, Interval 0. Hold down a
   single low note and you get an arpeggio that stays in key.
+- **Chord needs a key.** Set Scale and Root to your track before using it, or it falls back to stacking a major
+  seventh on everything, which is right about a third of the time. Strum at 40–60% makes it sound played rather
+  than triggered.
 - **Blocks wants a rhythmic source.** On a pad it sounds like a stutter; on a drum loop or a staccato line it
   rearranges the part.
 - **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes

@@ -93,7 +93,7 @@ enum ParamIndex
     kNumParams
 };
 
-enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles };
+enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles, kChord };
 enum Listen { kListenOff = 0, kListenAuto, kListenHold };
 enum Answer { kAnswerNow = 0, kAnswerBeat, kAnswerBar };
 enum KeyMode { kKeyFixed = 0, kKeyFollow };
@@ -159,6 +159,7 @@ struct Grain
     double rate = 1.0;         // buffer samples consumed per output sample (negative = reverse)
     double rateInc = 0.0;      // added to rate every sample: Glide's bend
     int    age = 0, length = 1;
+    int    wait = 0;           // samples to hold off before sounding: Chord's strum
     float  gainL = 0.5f, gainR = 0.5f;
     float  amp = 1.0f;
     bool   filtered = false;   // Bubbles
@@ -231,7 +232,8 @@ public:
         // Parameter 0 is nudged by the host on every load, so it has to be harmless.
         addParam(mpc::floatParam ("out",      "Output",   -30.0f, 6.0f,   0.0f,  "dB", 1));
         addParam(mpc::floatParam ("mix",      "Mix",       0.0f, 100.0f, 50.0f, "%", 0));
-        addParam(mpc::choiceParam("mode",     "Mode",     { "Cloud", "Blocks", "Glide", "Bubbles" }, kCloud));
+        addParam(mpc::choiceParam("mode",     "Mode",     { "Cloud", "Blocks", "Glide", "Bubbles",
+                                                            "Chord" }, kCloud));
         addParam(mpc::floatParam ("activity", "Activity",  0.0f, 100.0f, 50.0f, "%", 0));
         addParam(mpc::floatParam ("shape",    "Shape",     0.0f, 100.0f, 45.0f, "%", 0));
         addParam(mpc::floatParam ("scatter",  "Scatter",   0.0f, 100.0f, 35.0f, "%", 0));
@@ -376,7 +378,7 @@ public:
         output_.setTarget(dbToGain(get(kOutput)));
         input_.setTarget(dbToGain(get(kInput)));
 
-        const int   mode     = clampi(getInt(kMode), 0, 3);
+        const int   mode     = clampi(getInt(kMode), 0, 4);
         const int   listen   = clampi(getInt(kListen), 0, 2);
         const int   answerAt = clampi(getInt(kAnswer), 0, 2);
         const float activity = get(kActivity) * 0.01f;
@@ -534,6 +536,7 @@ public:
             for (Grain& gr : grain_)
             {
                 if (!gr.active) continue;
+                if (gr.wait > 0) { --gr.wait; continue; }
                 float s = readBuffer(0, gr.pos);
                 float sR = readBuffer(1, gr.pos);
                 if (gr.filtered)
@@ -703,7 +706,9 @@ private:
         // A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them
         // one by one and the same Activity reads as far busier. Half the density keeps the knob
         // meaning roughly the same thing whichever engine is running.
-        const float top = (mode == kBubbles) ? 38.0f : 86.0f;
+        // Bubbles are counted one by one by the ear, and every Chord spawn is two to four grains
+        // at once: both want a lower ceiling than a wash does.
+        const float top = (mode == kBubbles) ? 38.0f : (mode == kChord ? 26.0f : 86.0f);
         // 4 grains a second at the bottom of Activity, about 90 at the top - 42 for Bubbles.
         const float density = 4.0f + activity * activity * top;
         return (int)clampf(sr_ / density, 16.0f, sr_);
@@ -877,14 +882,7 @@ private:
     void spawnGrain(int mode, float shape, float scatter, float motion,
                     float spread, double baseRate, int64_t phraseLen)
     {
-        Grain* g = nullptr;
-        int oldest = -1;
-        for (int i = 0; i < kMaxGrains; ++i)
-        {
-            if (!grain_[i].active) { g = &grain_[i]; break; }
-            if (oldest < 0 || grain_[i].age > grain_[oldest].age) oldest = i;
-        }
-        if (g == nullptr) g = &grain_[oldest];   // steal the one furthest through its life
+        Grain* g = takeGrain();
 
         // Reply nudges the dice every pass, so the next answer is a variation, not a copy.
         const float drift = get(kReply) * 0.01f * (float)passIndex_ * 0.25f;
@@ -950,6 +948,14 @@ private:
                 filtered = true;
                 break;
             }
+            case kChord:
+            {
+                // One slice of the phrase, played as a voicing. Scatter is how far the grain
+                // wanders; the chord itself is built in spawnChordVoices below.
+                length = grainLength(shape);
+                start = (double)ansStart_ + (double)patternFloat() * (double)phraseLen * jitter * 0.6;
+                break;
+            }
             default:   // Cloud
             {
                 length = grainLength(shape);
@@ -979,7 +985,66 @@ private:
         g->gainR = gr;
         g->amp = amp;
         g->filtered = filtered;
+        g->wait = 0;
         if (!filtered) g->filtGain = 1.0f;
+        if (mode == kChord) spawnChordVoices(*g, motion, scatter, spread);
+    }
+
+    Grain* takeGrain()
+    {
+        int oldest = -1;
+        for (int i = 0; i < kMaxGrains; ++i)
+        {
+            if (!grain_[i].active) return &grain_[i];
+            if (oldest < 0 || grain_[i].age > grain_[oldest].age) oldest = i;
+        }
+        return &grain_[oldest];   // steal the one furthest through its life
+    }
+
+    // The ratio for the v-th note of a voicing above whatever the answer is already playing.
+    // With a scale and a detected pitch these are real diatonic thirds - the chord the key has on
+    // that degree, major or minor as it falls. Without either, a plain stacked major seventh, so
+    // the engine still does something musical on a drum loop.
+    double chordVoiceRatio(int v, float motion) const
+    {
+        const int octave = (motion > 0.66f && v >= 2) ? 12 : 0;   // wide voicings open upward
+        const int si = clampi(getInt(kScale), 0, kNumScales - 1);
+        if (si == 0 || heardMidi_ < 0.0f)
+        {
+            constexpr int semis[4] = { 0, 4, 7, 11 };
+            return (double)semitonesToRatio((float)(semis[clampi(v, 0, 3)] + octave));
+        }
+        const ScaleDef& sc = kScales[si];
+        const int root = scaleRoot();
+        const float rel = heardMidi_ - (float)root;
+        const float oct = std::floor(rel / 12.0f);
+        const int srcDeg = degreeOf(sc, rel - oct * 12.0f);
+        const int deg = srcDeg + 2 * v;            // thirds: every other degree of the scale
+        const int shift = (int)std::floor((float)deg / (float)sc.count);
+        const int within = deg - shift * sc.count;
+        const float target = (float)root + (oct + (float)shift) * 12.0f + (float)sc.notes[within];
+        const float source = (float)root + oct * 12.0f + (float)sc.notes[srcDeg];
+        return (double)semitonesToRatio(target - source + (float)octave);
+    }
+
+    // Chord spawns the rest of its voicing alongside the grain just made: same slice of the
+    // phrase, different transpositions, optionally spread in time so the chord is strummed.
+    void spawnChordVoices(const Grain& root, float motion, float scatter, float spread)
+    {
+        const int voices = clampi(2 + (int)std::lround(motion * 2.0f), 2, 4);
+        const int strum = (int)(scatter * 0.12f * sr_);
+        for (int v = 1; v < voices; ++v)
+        {
+            Grain* g = takeGrain();
+            *g = root;
+            g->rate = root.rate * chordVoiceRatio(v, motion);
+            g->rateInc = 0.0;
+            g->wait = strum * v;
+            g->age = 0;
+            const float pan = ((float)v / (float)(voices - 1) - 0.5f) * 2.0f * spread;
+            equalPowerPan(clampf(pan, -1.0f, 1.0f), g->gainL, g->gainR);
+            g->active = true;
+        }
     }
 
     int grainLength(float shape) const
@@ -1051,6 +1116,9 @@ private:
                                   kListenOff,  220, kAnswerNow,  25,  0, 0, 0,  0, 85, 0, 0 });
         prog("Freeze and Play", { 0, 60, kBubbles, 65, 35, 45, 50, 1, T16, 60, 10000, 50, 6.0f,
                                   kListenHold, 220, kAnswerNow,  30,  0, 2, 0,  0, 90, 1, 0 });
+        // Chord wants a scale to be worth anything, so this one arrives with the key already set.
+        prog("One Finger Chords", { 0, 55, kChord, 40, 55, 25, 50, 1, T4,  45, 8000, 35, 4.0f,
+                                  kListenAuto, 260, kAnswerBar,  30,  0, 1, 0, 55, 70, 0, 0 });
     }
 
     float timeFor(int division) const
