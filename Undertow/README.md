@@ -73,7 +73,7 @@ Everything about how worn the delay sounds: the medium, how far gone it is, and 
 |---|---|---|---|
 | Wobble | 0–100 % | 15 % | Tape wow (slow) and flutter (fast) on the delay time. |
 | Drive | 0–100 % | 25 % | Tube-style saturation (slightly asymmetric). Always in the loop; this is what keeps runaway feedback musical. (On DELAY before 1.6.) |
-| Limit | 0–100 % | 30 % | How hard the repeats are pushed into the limiter (0 to +18 dB). Higher values give denser, more slammed repeats. |
+| Limit | 0–100 % | 30 % | **Not a threshold — a drive.** The limiter's ceiling is fixed at −3 dBFS; this knob is how hard the repeats are pushed into it (0 to +18 dB). On quiet repeats it is simply volume. On loud ones it flattens the tail, so the echoes hang instead of dying away. See "How the limiting works". |
 | Dry / Wet, Output | | | The same controls as on DELAY. |
 | FX Amount | 0–100 % | 50 % | How much of the effect. |
 | LOOP FX (FX Type) | see below | Off | The effect inside the loop. Tap a button, or touch the name to choose from a list. |
@@ -227,6 +227,40 @@ The drive stage is always in the loop and its output is bounded, so even at 120%
 without limit. The repeats then pass a stereo-linked limiter (0.3 ms attack, 80 ms release) with a −3 dBFS ceiling
 and a soft knee, and the final output has a soft knee from −1 dBFS that never passes −0.1 dBFS. The dry signal is
 not limited, so quiet repeats sound natural and only loud ones are clamped. Nothing adds latency.
+
+### What the Limit knob actually does
+
+The ceiling never moves. **Limit is the gain going in, not the level coming out** — 0 to +18 dB ahead of a
+limiter that is always set to −3 dBFS. In compressor terms, turning it up lowers the threshold and adds makeup
+gain in the same gesture, which is why it reads as a volume control until the repeats reach the ceiling and then
+turns into a sustain control.
+
+With a quiet source, where nothing comes near −3 dBFS, it is pure gain and the tail decays exactly as it would
+have (250 ms delay, Feedback 65%, peak of each repeat):
+
+| Limit | repeat 1 | repeat 5 | decay |
+|---|---|---|---|
+| 0 % | −22.2 dB | −37.2 dB | 15.0 dB |
+| 30 % | −16.8 dB | −31.8 dB | 15.0 dB |
+| 60 % | −11.4 dB | −26.4 dB | 15.0 dB |
+| 100 % | −4.2 dB | −19.2 dB | 15.0 dB |
+
+With a loud source the ceiling bites, and the same knob flattens the tail instead:
+
+| Limit | repeat 1 | repeat 2 | repeat 3 | repeat 5 |
+|---|---|---|---|---|
+| 0 % | −3.7 dB | −6.9 dB | −10.3 dB | −17.3 dB |
+| 30 % | −3.0 dB | −3.2 dB | −4.9 dB | −11.9 dB |
+| 60 % | −3.0 dB | −3.0 dB | −3.0 dB | −6.5 dB |
+| 100 % | −3.0 dB | −3.0 dB | −3.0 dB | −3.0 dB |
+
+At 100% the first five repeats are all pinned at the ceiling: 13.6 dB of decay flattened to nothing, so the
+echoes hang rather than fade.
+
+Three things worth knowing. It is the safety net above 100% Feedback — the ceiling is what the growing repeats
+run into. It works on the wet signal only, so turning it up shifts the balance against the dry even though you
+have not touched Dry/Wet. And the 80 ms release is slow enough that percussive material at high settings will
+audibly breathe, which is either the point or a reason to back off.
 
 ## Not implemented yet
 
