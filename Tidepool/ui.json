@@ -1,0 +1,44 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "LISTEN",
+      "controls": [
+        { "param": "Listen", "widget": "switch" },
+        { "param": "Gap", "widget": "knob" },
+        { "param": "Answer", "widget": "switch" },
+        { "param": "Trade", "widget": "knob" },
+        { "param": "Hold", "widget": "switch" },
+        { "param": "Reply", "widget": "knob" },
+        { "param": "Repeats", "widget": "knob" },
+        { "param": "Mix", "widget": "knob" },
+        { "param": "Input", "widget": "knob" },
+        { "param": "Output", "widget": "knob" }
+      ]
+    },
+    {
+      "name": "GRAINS",
+      "controls": [
+        { "param": "Mode", "widget": "switch" },
+        { "param": "Activity", "widget": "knob" },
+        { "param": "Shape", "widget": "knob" },
+        { "param": "Scatter", "widget": "knob" },
+        { "param": "Motion", "widget": "knob" },
+        { "param": "Time Mode", "widget": "switch" },
+        { "param": "Time", "widget": "knob" },
+        { "param": "Spread", "widget": "knob" }
+      ]
+    },
+    {
+      "name": "TONE",
+      "controls": [
+        { "param": "Tone", "widget": "knob" },
+        { "param": "Space", "widget": "knob" },
+        { "param": "Decay", "widget": "knob" },
+        { "param": "Interval", "widget": "knob", "polarity": "bipolar" },
+        { "param": "Scale", "widget": "slider", "overlay": "menu" },
+        { "param": "Root", "widget": "slider", "overlay": "menu" }
+      ]
+    }
+  ]
+}

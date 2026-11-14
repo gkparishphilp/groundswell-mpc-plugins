@@ -1,0 +1,162 @@
+# Tidepool
+
+A granular call-and-response effect for MPC standalone hardware, by Groundswell.
+
+Tidepool listens to what you play, waits until you stop, and answers with it.
+
+That is the whole idea. A granular pedal gets a call-and-response feel somewhat by accident: it granulates a
+rolling window of the last few seconds, and if you happen to stop playing you hear that window on its own.
+Tidepool does it on purpose. An envelope follower watches the input and marks where a phrase begins. When you
+stop, and the silence lasts longer than **Gap**, it decides you have finished, waits for the next beat or bar
+if you asked it to, and hands the phrase back through one of four grain engines. Play again and it ducks out of
+your way, so you can trade phrases with it.
+
+```
+in ─┬──────────────────────────────────────────────────────────────> dry ──┬──> out
+    │                                                                      │
+    └─> input gain ─> capture buffer (8 s, always rolling)                 │
+                           │                                              │
+    envelope follower ─────┼──> phrase detector (start, end, Gap)         │
+                           │          │                                   │
+                           │          └──> answer scheduler (Now/Beat/Bar)│
+                           │                     │                        │
+                           └─────────────────────┴──> 16 grain voices ──┐ │
+                                       Cloud / Blocks / Glide / Bubbles │ │
+                                                                        │ │
+                                      tone ─> limiter ─> reverb ─> trade┴─┘
+```
+
+## The four engines
+
+| Mode | What it does |
+|---|---|
+| **Cloud** | Grains scattered through the phrase at the pitch you played. The plain texture: a wash that thickens with Activity and smears with Shape. |
+| **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
+| **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. Small amounts are tape wobble; large ones walk off somewhere else. |
+| **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
+
+Two knobs mean something slightly different in each engine. **Scatter** is about position and order; **Motion**
+is about pitch and movement. Both are listed per engine below.
+
+## The screen
+
+Three pages — **LISTEN**, **GRAINS** and **TONE** — each laid out for the Q-Link knobs.
+
+### Page 1: LISTEN
+
+The call-and-response layer. This is the page that makes Tidepool what it is.
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Listen | Off / Auto / Hold | Auto | **Auto**: watch for phrases and answer them. **Off**: granulate the last few seconds continuously, the way a pedal does — a texture, not a conversation. **Hold**: the Hold switch freezes the buffer and the grains work that frozen moment until you let go. |
+| Gap | 40–1500 ms | 220 ms | How long a silence has to last before Tidepool decides you have finished. Short and it finishes your sentences; long and it waits until you really mean it. The phrase end is back-dated to where the silence began, so the gap is not baked into the answer. |
+| Answer | Now / Beat / Bar | Beat | When the reply starts. **Beat** and **Bar** wait for the next line on the MPC's grid, which is the difference between a reply and a spill. Falls back to Now when the transport is stopped. |
+| Trade | 0–100 % | 50 % | How far the answer ducks out of the way while you are playing. At 100% it goes silent the moment you come back in and returns when you stop, so you genuinely swap phrases. |
+| Hold | Off / On | Off | Freezes the capture buffer. Most useful with Listen on Hold, but it also works during an answer to lock what is being played with. |
+| Reply | 0–100 % | 35 % | How far each successive pass drifts from the last — more scattered, more reversed, more wandering. At 0 the answer repeats itself; turned up it evolves. |
+| Repeats | 0–100 % | 40 % | How many times the phrase comes back and how much it fades each pass. At 0 you get one answer. Around 50% it dies away over several seconds. Above about 90% it sustains until you play again. |
+| Mix | 0–100 % | 50 % | Dry holds full level to half way while the answer fades in; from half way the dry fades out. |
+| Input | −∞, −30…+12 dB | 0 dB | Level into the capture buffer. The dry path is untouched. Raise it if Tidepool is not hearing quiet playing. |
+| Output | −30…+6 dB | 0 dB | Final level. |
+
+### Page 2: GRAINS
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Mode | Cloud / Blocks / Glide / Bubbles | Cloud | Which engine answers (see above). |
+| Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90. In Blocks it has no effect: slices arrive on the beat. |
+| Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
+| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks**: how scrambled the slice order is, and how often a slice is dropped for silence. **Bubbles**: unused — bubbles always scatter. |
+| Motion | 0–100 % | 30 % | **Glide**: how far each grain bends, up to an octave either way. **Blocks**: how often a slice plays backwards. **Bubbles**: how wide the band of filter frequencies is. **Cloud**: unused. |
+| Time Mode | Free / Sync | Sync | Whether Time is a note division of the MPC tempo or milliseconds. |
+| Time | 1/64–2/1, or 30–4000 ms | 1/8 | Slice length in Blocks; elsewhere it caps how long a grain can be. |
+| Spread | 0–100 % | 70 % | How widely grains are panned. At 0 the answer is mono. |
+
+### Page 3: TONE
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Tone | 200 Hz–16 kHz | 9 kHz | Low-pass on the grains, before the reverb. Also damps the reverb tail. |
+| Space | 0–100 % | 30 % | A four-line feedback delay network on the grains only — dense and smooth rather than springy, which suits a cloud. The dry path never goes through it. |
+| Decay | 0.3–12 s | 3 s | Reverb tail length. |
+| Interval | −12…+12 st | 0 st | Transposes the answer. Plain semitones, not snapped to the scale — see the note below. |
+| Scale | Off / Major / Minor / Penta Maj / Penta Min / Dorian / Whole Tone | Off | Snaps **Bubbles'** filter frequencies to a scale. This is the one that turns bubbling into music. |
+| Root | C … B | C | The root the scale is built on. |
+
+**Why Scale only affects Bubbles.** Snapping a *transposition* to a scale needs to know what pitch you played,
+which means pitch tracking, which Tidepool does not do. Bubbles is different: it chooses filter frequencies
+outright, so those can be snapped to a scale without knowing anything about the input. Interval is therefore an
+honest semitone shift, and Scale does the musical work where it actually can.
+
+## Programs
+
+| Name | What it is |
+|---|---|
+| Call and Answer | The plain version: Cloud, answering on the beat. Start here. |
+| Chopped Reply | Blocks on sixteenths, shuffled, with a high Reply so each answer rearranges itself |
+| Bending Back | Glide with a wide bend, so the reply slides away from what you played |
+| Bubble Bath | Bubbles with a wide filter band, unscaled |
+| In Key | Bubbles snapped to A penta minor, answering on the bar — arpeggios out of single notes |
+| Octave Answer | Cloud an octave up, long Gap, answering on the bar |
+| Texture (no reply) | Listen off: a continuous granular wash, no conversation |
+| Freeze and Play | Listen on Hold with Hold engaged: a frozen moment to play over |
+
+## Tips
+
+- **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepool does is easier to
+  hear on one note than on a phrase.
+- **Gap is the feel knob.** Short (80–150 ms) and it jumps in almost before you have finished, which is exciting
+  and a bit pushy. Long (500 ms+) and it waits politely. It changes the character more than anything else here.
+- **Answer on the Bar for solos, on the Beat for stabs.**
+- **Trade at 100% with Repeats at 95%** gives you a partner: it plays continuously while you are quiet and
+  vanishes the instant you come in.
+- **In Key with one finger.** Bubbles, Scale to the key of your track, Activity high, Interval 0. Hold down a
+  single low note and you get an arpeggio that stays in key.
+- **Blocks wants a rhythmic source.** On a pad it sounds like a stutter; on a drum loop or a staccato line it
+  rearranges the part.
+- **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes
+  and you can play over it.
+
+## CPU
+
+About 0.06% of one core per instance on a desktop machine at default settings, measured by the host simulator —
+well inside the MPC's budget, with room for several instances. Sixteen grain voices, each a linear-interpolated
+buffer read, a windowing multiply and (in Bubbles only) one state-variable filter whose coefficients are set
+once when the grain starts, never per sample. The reverb is four delay lines with Hadamard mixing and one
+damping pole each. Memory is about 3 MB per instance, nearly all of it the 8-second stereo capture buffer.
+
+Nothing allocates, locks or does I/O in the audio callback. Grain voices are a fixed pool; when they are all
+busy a new grain steals the one furthest through its life.
+
+## Not implemented yet
+
+- A looper. The MPC has one, and a proper looper needs a footswitch idiom that does not translate to a
+  touchscreen. Hold covers most of the same ground.
+- Pitch tracking, which would let Interval snap to a scale and let the answer harmonise what you played.
+- An animated display. The plugin already reports a level and its own state (idle / listening / waiting /
+  answering) as parameters, so a lamp showing whose turn it is would be a small addition.
+- Feeding the answer back into the capture buffer, so repeats degrade as well as fade.
+
+## Build
+
+```
+python tools/build.py plugins/Tidepool
+python tools/package.py plugins/Tidepool
+```
+
+For the computer (a VST2 that draws this same panel in FL Studio, Reaper or MPC Software):
+
+```
+python tools/build.py plugins/Tidepool --target desktop
+```
+
+## Licence
+
+MIT. No third-party DSP: the grain engine, the phrase detector and the reverb are written for this plugin.
+
+## Installing on the MPC
+
+Copy `build/Groundswell - VST - Tidepool/` into a folder named `VST2 Plugins` on an MPC drive. The MPC needs
+MPC OS 3.10.1 or later, and External plugins must be enabled: Preferences → Enhancements (Beta) → Enable
+Enhancements, then External Plugin Support. The MPC only scans for plugins when its app starts, so restart it
+afterwards; Tidepool then appears under External Plugins.
