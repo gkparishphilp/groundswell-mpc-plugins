@@ -51,6 +51,68 @@
       ]
     },
     {
+      "name": "HEADS",
+      "controls": [
+        {
+          "param": "Head 2",
+          "widget": "knob"
+        },
+        {
+          "param": "Head Ratio",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Head 2 Pan",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Display",
+          "widget": "switch"
+        }
+      ]
+    },
+    {
+      "name": "TAPE",
+      "controls": [
+        {
+          "param": "Noise",
+          "widget": "knob"
+        },
+        {
+          "param": "Noise Type",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO>Noise",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Age",
+          "widget": "knob"
+        },
+        {
+          "param": "Character",
+          "widget": "switch"
+        },
+        {
+          "param": "Wobble",
+          "widget": "knob"
+        },
+        {
+          "param": "Drive",
+          "widget": "knob"
+        },
+        {
+          "param": "Limit",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
       "name": "LOOP",
       "controls": [
         {

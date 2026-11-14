@@ -41,12 +41,23 @@ P = dict(output=0, sync=1, time=3, feedback=4, mix=5, pingpong=6, wobble=7, limi
          reso=11, drive=12, fxtype=13, fxamount=14, fxrate=15, pmode=16, pitch=17, pmix=18, reverse=19, input=20,
          lfoshape=21, lfosync=22, lforate=23, spread=24, lfocut=25, lfopitch=26, lfofx=27, lfotime=28,
          envcut=29, envfx=30, envspeed=31, duck=32, freeze=33, space=34, sdecay=35, stone=36, drip=37, spos=38,
-         character=39, age=40)
+         character=39, age=40, head2=41, hratio=42, h2pan=43, tube=44, level=45, echo=46,
+         noise=110, ntype=111, lfonoise=112)
 CHOICES = {1: ["Free", "Sync"], 6: ["Off", "On"], 9: ["Off", "LP", "BP", "HP"],
            13: ["Off", "Chorus", "Flanger", "Phaser", "Bitcrush", "Downsample", "Ring Mod", "Fuzz"],
            16: ["Semitones", "Hz"], 19: ["Off", "On"],
            21: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"], 22: ["Free", "Sync"],
-           33: ["Off", "On"], 38: ["After", "In Loop"], 39: ["Digital", "Tape", "BBD"]}
+           33: ["Off", "On"], 38: ["After", "In Loop"], 39: ["Digital", "Tape", "BBD"],
+           42: ["1/4", "1/3", "1/2", "2/3", "3/4", "1/1", "4/3", "3/2", "2/1"], 44: ["Off", "On"],
+           111: ["Hiss", "Air", "Crackle", "Hum", "Rain"]}
+HEAD_RATIOS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1.0, 4 / 3, 1.5, 2.0]
+
+# The echo trail in the centre of the HEADS page: 64 bars, each one parameter, drawn from one film strip of
+# 3 colours x (dim, lit) x 16 heights. The colour says which head fed the bar; the plugin picks it.
+ECHO_BARS, ECHO_LEVELS, ECHO_COLOURS = 64, 16, 3
+ECHO_AREA = (306, 272, 568, 96)           # x y w h of the bars themselves
+ECHO_BAR_W = 7
+ECHO_HUES = (CYAN, (255, 176, 92), (178, 214, 190))     # head 1, head 2, both
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -215,6 +226,68 @@ def lamp(state):
     return crop.resize((round(crop.width * s), round(crop.height * s)), Image.LANCZOS)
 
 
+TUBE_BOX = (400, 28, 480, 176)      # x y w h: the tube and its glow, in tab coordinates
+TUBE_FRAMES = 16
+
+
+def tube_strip():
+    import PIL.ImageChops as C
+    """Frame 0 is the panel exactly as painted; later frames add heat to the tube's own glow."""
+    x, y, w, h = TUBE_BOX
+    base = base_plate().crop((x, y, x + w, y + h)).convert("RGB")
+    a = base.split()
+    warm = Image.eval(Image.merge("L", (a[0],)), lambda v: v)     # red channel
+    cold = Image.eval(Image.merge("L", (a[2],)), lambda v: v)     # blue channel
+    mask = C.subtract(warm, cold)                                  # emissive pixels only
+    mask = mask.point(lambda v: min(255, int(v * 2.2)))
+    halo = mask.filter(ImageFilter.GaussianBlur(26))
+    core = mask.filter(ImageFilter.GaussianBlur(5))
+    # Feather towards the edges of the box, so the lit tube blends into the painted panel with no visible seam.
+    feather = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(feather).rectangle([44, 30, w - 45, h - 31], fill=255)
+    feather = feather.filter(ImageFilter.GaussianBlur(22))
+    halo = C.multiply(halo, feather)
+    core = C.multiply(core, feather)
+    strip = Image.new("RGB", (w, h * TUBE_FRAMES))
+    for i in range(TUBE_FRAMES):
+        t = i / (TUBE_FRAMES - 1)
+        frame = base.copy()
+        for layer, tint, amount in ((halo, (255, 112, 30), 0.85), (core, (255, 196, 110), 0.65)):
+            glow = Image.new("RGB", (w, h), tint)
+            frame = C.add(frame, C.multiply(glow, Image.merge("RGB", (layer, layer, layer))
+                                            .point(lambda v, t=t, k=amount: int(v * t * k))))
+        strip.paste(frame, (0, i * h))
+    return strip
+
+
+def echo_bar_strip():
+    """Per colour (head 1, head 2, both): 16 dim heights, then the same 16 lit (the newest bar).
+    A bar keeps its colour as it dims, so the whole trail shows which head each peak came off."""
+    h, w = ECHO_AREA[3], ECHO_BAR_W
+    bank = 2 * ECHO_LEVELS
+    strip = Image.new("RGBA", (w, h * ECHO_COLOURS * bank), (0, 0, 0, 0))
+    for f in range(ECHO_COLOURS * bank):
+        colour, within = divmod(f, bank)
+        level, lit = within % ECHO_LEVELS, within >= ECHO_LEVELS
+        bar_h = max(4, round(level / (ECHO_LEVELS - 1) * h))
+        hue = ECHO_HUES[colour]
+        bright = tuple(min(255, int(c + (255 - c) * 0.55)) for c in hue)
+
+        def paint(d, sc, bar_h=bar_h, lit=lit, level=level, hue=hue, bright=bright):
+            top = (h - bar_h) * sc
+            body = bright if lit else hue
+            alpha = 255 if lit else 190
+            d.rounded_rectangle([1 * sc, top, (w - 1) * sc, h * sc], radius=2 * sc, fill=body + (alpha,))
+            if level > 0:                      # a brighter cap, white-hot when the bar is near the top
+                cap = (255, 248, 236) if level >= ECHO_LEVELS - 2 else bright
+                d.rounded_rectangle([1 * sc, top, (w - 1) * sc, top + 3 * sc], radius=2 * sc, fill=cap + (255,))
+        frame = supersampled((w, h), 3, paint)
+        if lit:
+            frame = Image.alpha_composite(frame.filter(ImageFilter.GaussianBlur(2)), frame)
+        strip.alpha_composite(frame, (0, f * h))
+    return strip
+
+
 def lamp_strip(frames=25):
     """Frame k for Feedback k/(frames-1) of 0..120%: lit from 100% (frame 20 of 25)."""
     on, off = lamp(True), lamp(False)
@@ -372,6 +445,63 @@ def page_loop():
     return "LOOP", controls, statics, qlinks
 
 
+# The head-2 marker sits on the trail: the window is two delay times wide, so head 2 at Head Ratio r
+# stands at r / 2 across it.
+MARK_BOX = (ECHO_AREA[0], ECHO_AREA[1] - 4, ECHO_AREA[2], ECHO_AREA[3] + 28)
+
+
+def head_mark_strip():
+    gw, gh = MARK_BOX[2], MARK_BOX[3]
+    strip = Image.new("RGBA", (gw, gh * len(HEAD_RATIOS)), (0, 0, 0, 0))
+    hue = ECHO_HUES[1]
+    for i, ratio in enumerate(HEAD_RATIOS):
+        def paint(d, sc, ratio=ratio):
+            x = min(gw - 9.0, max(9.0, ratio / 2.0 * gw))
+            for y in range(2, gh - 30, 9):           # a dashed line, so it reads behind the bars
+                d.line([(x * sc, y * sc), (x * sc, (y + 5) * sc)], fill=hue + (150,), width=int(1.4 * sc))
+            top = gh - 15
+            d.rounded_rectangle([(x - 8) * sc, top * sc, (x + 8) * sc, gh * sc], radius=3 * sc,
+                                fill=(12, 12, 12, 225), outline=hue + (255,), width=int(1.2 * sc))
+            d.text((x * sc, (top + 7) * sc), "2", font=font(11 * sc, FONT_DEMI), fill=hue + (255,), anchor="mm")
+        strip.alpha_composite(supersampled((gw, gh), 3, paint), (0, i * gh))
+    return strip
+
+
+def page_heads():
+    bx0, by0, bx1, by1 = CENTRE_BOX
+    pw, gap = 80, 6
+    items = []
+    names = CHOICES[P["hratio"]]
+    for i, name in enumerate(names):
+        row, col = (0, i) if i < 5 else (1, i - 5)
+        count = 5 if row == 0 else 4
+        x0 = 640 - (count * pw + (count - 1) * gap) / 2
+        items.append((i, name, x0 + col * (pw + gap), 488 + row * 46, pw))
+    controls = [
+        small_knob(P["wobble"], 150, ROW_A_Y, "WOBBLE"),
+        small_knob(P["age"], 318, ROW_A_Y, "AGE"),
+        small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
+        small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
+
+        large_knob(P["time"], 168, ROW_B_Y, "DELAY TIME"),
+        pills(P["tube"], [(1, "Display", 566, 400, 148)], toggle=True),
+        large_knob(P["feedback"], 1000, ROW_B_Y, "FEEDBACK"),
+
+        small_knob(P["head2"], 125, ROW_C_Y, "HEAD 2", heading_pos="right"),
+        pills(P["hratio"], items),
+        small_knob(P["h2pan"], 1155, ROW_C_Y, "HEAD 2 PAN", bipolar=True, heading_pos="left"),
+    ]
+    statics = dict(headings=[("HEAD RATIO", (640, 462))], centre_title=None, dividers_b=(281, 890),
+                   dividers_c=(330, 950), waveform=False, graph=False, echo=True,
+                   images=[dict(file="head_mark.png", frames=len(HEAD_RATIOS), param=P["hratio"], box=MARK_BOX,
+                                invalidating=["NonZero/Parameter %d" % P["head2"],
+                                              "IndexedEnabling/1/2/Parameter %d" % P["tube"]])])
+    qlinks = [[P["wobble"], P["age"], P["mix"], P["output"]],
+              [P["time"], -1, P["tube"], P["feedback"]],
+              [P["head2"], P["hratio"], -1, P["h2pan"]]]
+    return "HEADS", controls, statics, qlinks
+
+
 def page_mod():
     bx0, by0, bx1, by1 = CENTRE_BOX
     shapes = ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"]
@@ -431,6 +561,41 @@ def page_space():
     return "SPACE", controls, statics, qlinks
 
 
+def page_tape():
+    bx0, by0, bx1, by1 = CENTRE_BOX
+    mid = (bx0 + bx1) / 2
+    chr_names = CHOICES[P["character"]]
+    cw, cgap = 128, 8
+    cx0 = mid - (len(chr_names) * cw + (len(chr_names) - 1) * cgap) / 2
+    chr_items = [(i, nm, cx0 + i * (cw + cgap), 300, cw) for i, nm in enumerate(chr_names)]
+    nz_names = CHOICES[P["ntype"]]
+    nw, ngap = 88, 6
+    nx0 = mid - (len(nz_names) * nw + (len(nz_names) - 1) * ngap) / 2
+    nz_items = [(i, nm, nx0 + i * (nw + ngap), 364, nw) for i, nm in enumerate(nz_names)]
+    controls = [
+        small_knob(P["age"], 150, ROW_A_Y, "AGE"),
+        small_knob(P["wobble"], 318, ROW_A_Y, "WOBBLE"),
+        small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
+        small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
+
+        large_knob(P["noise"], 168, ROW_B_Y, "NOISE"),
+        pills(P["character"], chr_items),
+        pills(P["ntype"], nz_items, "NOISE", (nx0, 344)),
+        large_knob(P["feedback"], 1000, ROW_B_Y, "FEEDBACK"),
+
+        small_knob(P["lfonoise"], 125, ROW_C_Y, "LFO > NOISE", bipolar=True, heading_pos="right"),
+        small_knob(P["drive"], 430, ROW_C_Y, "DRIVE", heading_pos="right"),
+        small_knob(P["limit"], 800, ROW_C_Y, "LIMIT", heading_pos="left"),
+        small_knob(P["input"], 1155, ROW_C_Y, "INPUT", heading_pos="left"),
+    ]
+    statics = dict(headings=[], centre_title="CHARACTER", dividers_b=(281, 890), dividers_c=(330, 600, 930),
+                   waveform=False, graph=False)
+    qlinks = [[P["age"], P["wobble"], P["mix"], P["output"]],
+              [P["noise"], P["character"], P["ntype"], P["feedback"]],
+              [P["lfonoise"], P["drive"], P["limit"], P["input"]]]
+    return "TAPE", controls, statics, qlinks
+
+
 LAMP_POS = (1118, 284)
 QLINK_RECTS = ["36 46 1208 180", "36 230 1208 216", "46 448 1188 158"]
 
@@ -461,7 +626,7 @@ def draw_background(controls, statics):
     def paint(d, sc):
         line = CREAM + (70,)
         # Boxes and dividers.
-        for box in (CENTRE_BOX, BOTTOM_BOX):
+        for box in statics.get("boxes", (CENTRE_BOX, BOTTOM_BOX)):
             d.rounded_rectangle([v * sc for v in box], radius=14 * sc, outline=line, width=int(1.4 * sc))
         for x in statics.get("dividers_c", C_DIVIDERS):
             d.line([(x * sc, 470 * sc), (x * sc, 586 * sc)], fill=CREAM + (55,), width=int(1.2 * sc))
@@ -472,6 +637,20 @@ def draw_background(controls, statics):
             if ctl["kind"] == "knob":
                 spec = SMALL if ctl["size"] == "small" else LARGE
                 draw_ticks(d, ctl["centre"], spec["ticks"], sc)
+        # The echo trail: baseline, the quarter / half / three-quarter marks of the two-delay window, and
+        # head 1's badge, which never moves - it reads the tape at exactly one delay.
+        if statics.get("echo"):
+            ax, ay, aw, ah = ECHO_AREA
+            d.line([(ax * sc, (ay + ah + 3) * sc), ((ax + aw) * sc, (ay + ah + 3) * sc)], fill=CREAM + (70,), width=sc)
+            for frac in (0.25, 0.5, 0.75):
+                x = ax + frac * aw
+                d.line([(x * sc, (ay - 4) * sc), (x * sc, (ay + ah + 3) * sc)],
+                       fill=CREAM + (70 if frac == 0.5 else 34,), width=sc)
+            hx, hy = ax + 0.5 * aw, ay + ah + 9
+            d.rounded_rectangle([(hx - 8) * sc, hy * sc, (hx + 8) * sc, (hy + 15) * sc], radius=3 * sc,
+                                fill=(12, 12, 12, 225), outline=ECHO_HUES[0] + (255,), width=int(1.2 * sc))
+            d.text((hx * sc, (hy + 7) * sc), "1", font=font(11 * sc, FONT_DEMI), fill=ECHO_HUES[0] + (255,), anchor="mm")
+
         # Graph grid.
         if statics["graph"]:
             gx, gy, gw, gh = GRAPH
@@ -536,8 +715,15 @@ def draw_background(controls, statics):
             draw_spaced(d, ctl["heading_xy"], ctl["heading"], font(12, FONT_DEMI), CREAM + (230,), spacing=1.8)
     for text, xy in statics["headings"]:
         draw_spaced(d, xy, text, mid, CREAM + (235,), spacing=2.0)
-    bx0, by0, bx1, _ = CENTRE_BOX
-    draw_spaced(d, ((bx0 + bx1) / 2, by0 + 18), statics["centre_title"], mid, CREAM + (235,), spacing=2.4)
+    if statics["centre_title"]:
+        bx0, by0, bx1, _ = CENTRE_BOX
+        draw_spaced(d, ((bx0 + bx1) / 2, by0 + 18), statics["centre_title"], mid, CREAM + (235,), spacing=2.4)
+    if statics.get("echo"):
+        ax, ay, aw, ah = ECHO_AREA
+        draw_spaced(d, (ax + 2, ay - 26), "ECHO TRAIL", mid, CREAM + (235,), spacing=2.0, anchor="lm")
+        for frac, text in ((0.25, "half"), (0.5, "one delay"), (0.75, "one and a half")):
+            d.text((ax + frac * aw, ay - 12), text, font=small_f, fill=CREAM + (130,), anchor="mm")
+        d.text((ax + aw, ay - 12), "two", font=small_f, fill=CREAM + (130,), anchor="rm")
     if statics["graph"]:
         gx, gy, gw, gh = GRAPH
         for f_hz, lab in ((100, "100"), (1000, "1k"), (10000, "10k")):
@@ -621,6 +807,12 @@ def build():
     save("knob_small_bi.png", knob_strip(SMALL, bipolar=True))
     save("knob_large.png", knob_strip(LARGE))
     lamp_file = save("lamp.png", lamp_strip())
+    save("head_mark.png", head_mark_strip())
+    echo_file = save("echo_bar.png", echo_bar_strip())
+    tube_file = "tube.png"
+    tube = tube_strip()
+    tube.save(os.path.join(OUT, tube_file), optimize=True)
+    images[tube_file] = tube.convert("RGBA")
     for mode in ("LP", "BP", "HP"):
         save("curve_%s.png" % mode.lower(), curve_strip(mode))
     save("curve_off.png", curve_image("Off", 1000.0))
@@ -638,7 +830,7 @@ def build():
 
     tabs, qlink_entries, previews = [], [], []
     pill_files = {}
-    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_loop(), page_mod(), page_space())):
+    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_heads(), page_tape(), page_loop(), page_mod(), page_space())):
         bg_file = "bg_%s.jpg" % name.lower()
         bg = draw_background(controls, statics)
         bg.save(os.path.join(OUT, bg_file), quality=92)
@@ -667,8 +859,8 @@ def build():
                 for choice, caption, x, y, pw in ctl["items"]:
                     pair = []
                     for state in (True, False):
-                        fname = "pill_%s_%s_%d.png" % ("on" if state else "off",
-                                                        caption.lower().replace(" ", "").replace("-", ""), pw)
+                        slug = "".join(ch for ch in caption.lower() if ch.isalnum())
+                        fname = "pill_%s_%s_%d.png" % ("on" if state else "off", slug, pw)
                         if fname not in pill_files:
                             pill_files[fname] = save(fname, pill(state, caption, pw))
                         pair.append(fname)
@@ -680,11 +872,49 @@ def build():
                                         "%d %d %d %d" % (ox, oy, w, h), "Yes", "Hide", "Always", remap=[("Data", handle)]))
                 previews.append((ti, "pills", ctl, files, None))
 
-        # Feedback lamp (all pages) and, on DELAY, the filter response picture.
+        # Page pictures bound to a parameter (the tape path on HEADS).
+        for spec in statics.get("images", []):
+            ix, iy, iw, ih = spec["box"]
+            children.append(G.entry("picture", "Image",
+                                    obj(("version", 2), ("imageType", "FilmStrip"), ("colour", "0"),
+                                        ("image", spec["file"]), ("numFrames", spec["frames"]),
+                                        ("handleName", "Data")),
+                                    "%d %d %d %d" % (ix, iy, iw, ih), "No", "Hide", "Always",
+                                    remap=[("Data", "Parameter %d" % spec["param"])],
+                                    invalidating=spec.get("invalidating")))
+            previews.append((ti, "image", None, (spec["file"], DEFAULTS[spec["param"]][0], (ix, iy)), None))
+
+        # The ECHO bars: one parameter each, hidden together with the tube when Display is off.
+        if statics.get("echo"):
+            ax, ay, aw, ah = ECHO_AREA
+            pitch = aw / ECHO_BARS
+            for i in range(ECHO_BARS):
+                children.append(G.entry("bar %d" % i, "Image",
+                                        obj(("version", 2), ("imageType", "FilmStrip"), ("colour", "0"),
+                                            ("image", echo_file), ("numFrames", 2 * ECHO_LEVELS * ECHO_COLOURS),
+                                            ("handleName", "Data")),
+                                        "%d %d %d %d" % (round(ax + i * pitch + (pitch - ECHO_BAR_W) / 2), ay,
+                                                         ECHO_BAR_W, ah),
+                                        "No", "Hide", "Always",
+                                        remap=[("Data", "Parameter %d" % (P["echo"] + i))],
+                                        invalidating=["IndexedEnabling/1/2/Parameter %d" % P["tube"]]))
+            previews.append((ti, "echo", None, (echo_file, (ax, ay, aw, ah)), None))
+
+        # The tube, lit by the plugin's level parameter: hidden (so the painted tube shows) when Tube is off.
+        tx, ty, tw, th = TUBE_BOX
+        children.append(G.entry("tube", "Image",
+                                obj(("version", 2), ("imageType", "FilmStrip"), ("colour", "0"), ("image", tube_file),
+                                    ("numFrames", TUBE_FRAMES), ("handleName", "Data")),
+                                "%d %d %d %d" % (tx, ty, tw, th), "No", "Hide", "Always",
+                                remap=[("Data", "Parameter %d" % P["level"])],
+                                invalidating=["IndexedEnabling/1/2/Parameter %d" % P["tube"]]))
+        previews.append((ti, "image", None, (tube_file, 9 if ti == 0 else 3, (tx, ty)), None))
+
+        # Feedback lamp.
         lw, lh = images[lamp_file].width, images[lamp_file].height // 25
         children.append(G.entry("feedback lamp", "Image",
-                                obj(("version", 2), ("imageType", "FilmStrip"), ("colour", "0"), ("image", lamp_file),
-                                    ("numFrames", 25), ("handleName", "Data")),
+                                obj(("version", 2), ("imageType", "FilmStrip"), ("colour", "0"),
+                                    ("image", lamp_file), ("numFrames", 25), ("handleName", "Data")),
                                 "%d %d %d %d" % (LAMP_POS[0], LAMP_POS[1], lw, lh), "No", "Show", "Always",
                                 remap=[("Data", "Parameter %d" % P["feedback"])]))
         if statics["graph"]:
@@ -739,7 +969,9 @@ DEFAULTS = {0: (1.0, "0.0 dB"), 1: (1, None), 3: (0.5625, "1/8D"), 4: (55 / 120,
             21: (5, None), 22: (1, None), 23: (0.2, "1 bar"), 24: (0.5, "90 deg"), 25: (0.5 + 2.5 / 8, "+2.5 oct"),
             26: (0.5, "0 st"), 27: (0.75, "+50 %"), 28: (0.5, "0 %"), 29: (0.5 + 1.5 / 8, "+1.5 oct"), 30: (0.5, "0 %"),
             31: (0.3, "30 %"), 32: (0.4, "40 %"), 33: (1, None), 34: (0.45, "45 %"), 35: (0.57, "2.4 s"),
-            36: (0.45, "45 %"), 37: (0.7, "70 %"), 38: (0, None), 39: (1, None), 40: (0.5, "50 %")}
+            36: (0.45, "45 %"), 37: (0.7, "70 %"), 38: (0, None), 39: (1, None), 40: (0.5, "50 %"),
+            41: (0.45, "45 %"), 42: (3, None), 43: (0.5 + 0.275, "+55 %"), 44: (1, None), 45: (0.6, None),
+            110: (0.4, "40 %"), 111: (0, None), 112: (0.5 + 0.15, "+30 %")}
 
 
 def make_previews(previews, images):
@@ -752,7 +984,31 @@ def make_previews(previews, images):
             continue
         im = pages[ti]
         d = ImageDraw.Draw(im)
-        if kind == "knob":
+        if kind == "echo":
+            file, (ax, ay, aw, ah) = data
+            strip = images[file]
+            pitch = aw / ECHO_BARS
+            import math as _m
+            bank = 2 * ECHO_LEVELS
+            # Head 1 at one delay (0.5 of the window) and head 2 at the default 2/3 ratio (0.333).
+            for i in range(ECHO_BARS):
+                t = i / ECHO_BARS
+                n1 = min(abs(t - 0.015), abs(t - 0.5), abs(t - 0.985))
+                n2 = min(abs(t - 0.333), abs(t - 0.833))
+                a1 = _m.exp(-n1 * 60) * _m.exp(-t * 1.1)
+                a2 = 0.8 * _m.exp(-n2 * 60) * _m.exp(-t * 1.1)
+                level = max(0, round((ECHO_LEVELS - 1) * max(a1, a2)))
+                share = a2 / (a1 + a2) if a1 + a2 > 1e-6 else 0.0
+                colour = 0 if share < 0.35 else (1 if share > 0.65 else 2)
+                frame = colour * bank + level + (ECHO_LEVELS if i == 38 else 0)
+                im.alpha_composite(strip.crop((0, frame * ah, strip.width, (frame + 1) * ah)),
+                                   (round(ax + i * pitch + (pitch - ECHO_BAR_W) / 2), ay))
+        elif kind == "image":
+            file, frame, (x, y) = data
+            strip = images[file]
+            fh = strip.height // (TUBE_FRAMES if file.startswith("tube") else len(HEAD_RATIOS))
+            im.alpha_composite(strip.crop((0, int(frame) * fh, strip.width, (int(frame) + 1) * fh)), (x, y))
+        elif kind == "knob":
             spec = SMALL if ctl["size"] == "small" else LARGE
             strip = images["knob_small_bi.png" if ctl["bipolar"] else
                            ("knob_small.png" if ctl["size"] == "small" else "knob_large.png")]
@@ -773,10 +1029,11 @@ def make_previews(previews, images):
                 pim = images[on if choice == sel else off]
                 im.alpha_composite(pim, (round(x - PILL_MARGIN), round(y - PILL_MARGIN)))
     for ti, im in pages.items():
-        lamp = images["lamp.png"]
-        lh = lamp.height // 25
-        fi = 22 if ti == 0 else 9
-        im.alpha_composite(lamp.crop((0, fi * lh, lamp.width, (fi + 1) * lh)), LAMP_POS)
+        if ti != 5:
+            lamp = images["lamp.png"]
+            lh = lamp.height // 25
+            fi = 22 if ti == 0 else 9
+            im.alpha_composite(lamp.crop((0, fi * lh, lamp.width, (fi + 1) * lh)), LAMP_POS)
         if ti in (0, 3):   # pages with the filter response
             curve = images["curve_lp.png"]
             gx, gy, gw, gh = GRAPH
@@ -787,8 +1044,8 @@ def make_previews(previews, images):
         full.alpha_composite(im, (0, 110))
         fd = ImageDraw.Draw(full)
         fd.text((24, 55), "MPC header (drawn by the MPC)", font=font(18, FONT_MEDIUM), fill=(120, 120, 120), anchor="lm")
-        for k, nm in enumerate(("DELAY", "LOOP", "MOD", "SPACE")):
-            fd.text((80 + k * 213, 770), nm, font=font(18, FONT_DEMI), fill=(200, 200, 200), anchor="mm")
+        for k, nm in enumerate(("DELAY", "HEADS", "TAPE", "LOOP", "MOD", "SPACE")):
+            fd.text((80 + k * 200, 770), nm, font=font(18, FONT_DEMI), fill=(200, 200, 200), anchor="mm")
         os.makedirs(PREVIEW_DIR, exist_ok=True)
         full.convert("RGB").save(os.path.join(PREVIEW_DIR, "skin-preview-%d.png" % (ti + 1)))
 

@@ -17,7 +17,7 @@ in ─┬───────────────────────�
 
 ## The screen
 
-Undertow has its own skin: a black panel with a glowing tube, four pages (**DELAY**, **LOOP**, **MOD** and **SPACE**), and three rows
+Undertow has its own skin: a black panel with a glowing tube, six pages (**DELAY**, **HEADS**, **TAPE**, **LOOP**, **MOD** and **SPACE**), and three rows
 of controls on each page that line up with the Q-Link knobs: the top row is on Q-Links 13–16, the middle row on
 9–12, the bottom row on 5–8. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter)
 for a large edit view. The **FEEDBACK SAFETY** lamp lights when Feedback is at 100% or above, where the loop can
@@ -33,7 +33,7 @@ self-oscillate.
 | Output | −30…0 dB | 0 dB | Final level. |
 | Delay Time | 10–5000 ms, or 1/64–2/1 | 1/8D | Delay time. In Sync the knob snaps to note divisions of the MPC tempo (with dotted and triplet values); in Free it is in milliseconds. The big display shows it too, and can be dragged. Changing it glides like tape, so turning it warps the repeats' pitch. |
 | Time Mode | Sync / Free | Sync | Sync: Delay Time follows the MPC tempo. Free: milliseconds. |
-| Character | Digital / Tape / BBD | Digital | The delay medium, applied to every repeat, so each one carries more of it. **Digital**: clean. **Tape**: high frequencies roll off more on every pass (12 kHz at Age 0, 3 kHz at 100), a little bass loss, soft tape compression, hiss and extra wow. **BBD**: a bucket-brigade chip of 4096 to 1024 stages (Age), so its bandwidth follows the delay time: short delays are clear, long ones dark and gritty with sample-and-hold grain; harder saturation and a little noise. Tape and BBD lose a little level per repeat, as the real things do. |
+| Character | Digital / Tape / BBD | Digital | The delay medium, applied to every repeat, so each one carries more of it. **Digital**: clean. **Tape**: high frequencies roll off more on every pass (12 kHz at Age 0, 3 kHz at 100), a little bass loss, soft tape compression, hiss and extra wow. **BBD**: a bucket-brigade chip of 4096 to 900 stages (Age), so its bandwidth follows the delay time: short delays are clear, long ones dark and gritty with sample-and-hold grain; harder saturation. Tape loses a little level per repeat, as the real thing does. Neither mode adds noise of its own any more: that is the Noise knob on TAPE, which works in every mode, Digital included. |
 | Straight / Ping-Pong | | Ping-Pong | Ping-Pong: repeats bounce left and right (the input is summed to mono and starts on the left). |
 | Freeze | Off / On | Off | Holds the loop: what is in the delay (one delay time, or two in Ping-Pong) repeats forever at exactly the same level and new input is kept out. Filter, pitch, FX, drive and the MOD page then shape only what you hear, so you can sweep them over a frozen loop without wearing it away. Feedback is ignored while frozen; changing Delay Time warps the frozen loop's pitch. Also on the SPACE page. |
 | Feedback | 0–120 % | 55 % | How much of each repeat comes back. Below 100% repeats die away; above 100% they grow until the drive stage saturates them. High Resonance lowers that point. |
@@ -41,7 +41,31 @@ self-oscillate.
 | Filter | Off / LP / BP / HP | LP | Filter inside the loop. Each repeat is filtered again, so they get darker (LP), thinner (HP) or more nasal (BP) as they decay. |
 | Resonance | 0–100 % | 35 % | Makes the repeats ring at the cutoff. At full Resonance the loop self-oscillates from about 67–75% Feedback. (The RESPONSE display is drawn at the default Resonance.) |
 
-### Page 2: LOOP
+### Page 2: HEADS
+
+A second playback head on the same tape, with Delay Time, Feedback, Wobble and Age repeated so a pattern can be
+dialled in from one page. The **echo trail** in the middle shows what the two heads are actually doing (see "The
+animated display" below).
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Head 2 | 0–100 % | 0 % | How much of the loop the second head takes over. 0 switches it off; 50 gives two equally loud taps; 100 replaces head 1. Both heads feed the same electronics and the same feedback path, as on a multi-head tape echo, and their levels always add up to one, so a second head never makes the loop louder or less stable. |
+| Head Ratio | 1/4 … 2/1 | 2/3 | Where head 2 sits, as a fraction of the delay time. With a dotted-eighth delay, 2/3 gives a straight eighth against it; 1/2 and 1/3 give even subdivisions; above 1/1 head 2 lands after head 1. |
+| Head 2 Pan | ±100 % | 0 % | Which side head 2 leans to. At full left or right with Head 2 at 100%, one head plays on each side. |
+| Display | Off / On | On | Animates the tube and the echo trail from the audio (see "The animated display" below). |
+
+### Page 3: TAPE
+
+Everything about how worn the delay sounds: the medium, how far gone it is, and the noise it makes.
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Noise | 0–100 % | 0 % | A noise bed poured into the loop just after the heads, so it is filtered, aged, driven and repeated exactly like a repeat — each crackle echoes. The knob is square-law, so the bottom half is a whisper and the top is openly lo-fi (about −30 dBFS at 100%). Two things keep it civil: the level that goes in is scaled against Feedback, so the bed sits where you put it instead of building up pass after pass, and it is gated by what is actually going round, so a track that is not playing stays silent (it fades about 3 s after the last sound). |
+| Noise Type | Hiss / Air / Crackle / Hum / Rain | Hiss | **Hiss**: white, the tape-machine floor. **Air**: pink, a softer and wider wash. **Crackle**: sparse clicks, like a worn record — each one echoes with the repeats. **Hum**: 50 Hz and two harmonics, mains buzz. **Rain**: dense fine clicks, a shower behind the music. |
+| LFO › Noise | ±100 % | 0 | Added to Noise, so the bed can breathe or arrive in waves. With a slow synced LFO it is the easiest way to make a part sound like it is surfacing out of something. |
+| Character, Age, Wobble, Drive, Limit, Input, Feedback | | | The same controls as on DELAY and LOOP, gathered here. |
+
+### Page 4: LOOP
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
@@ -57,7 +81,7 @@ self-oscillate.
 | Direction | Forward / Reverse | Forward | Reverse plays every repeat backwards, in chunks as long as the delay time (up to 2 s). The loop itself runs forwards, so filter, pitch and FX still compound normally. Expect the first reversed repeat to arrive up to one delay time later. |
 | Pitch Mix | 0–100 % | 100 % | Shifted vs unshifted repeat. Around 50% each repeat keeps its pitch and adds the shifted copy, so intervals stack into chords. |
 
-### Page 3: MOD
+### Page 5: MOD
 
 One LFO and an envelope follower, wired to fixed destinations. Every depth knob is centred on zero (off) and
 works in both directions. The knobs show where you set them, not where the modulation has moved things to.
@@ -77,7 +101,7 @@ works in both directions. The knobs show where you set them, not where the modul
 | LFO › FX | ±100 % | 0 | Added to FX Amount: the chorus breathes, the crush pumps. |
 | LFO › Time | ±100 % | 0 | 100% = ±20% of the delay time: a slow, deep tape warp (Wobble is the small, fast one). |
 
-### Page 4: SPACE
+### Page 6: SPACE
 
 A spring reverb, plus Freeze and the filter again so you can freeze a loop and sweep it from one page.
 
@@ -131,6 +155,12 @@ how long they last: Feedback still decides that (see "Level matching" below).
 | Washout | Chorused repeats smeared by a spring inside the loop |
 | Tape Echo | Dotted-eighth tape echo, darkening and wobbling |
 | Bucket Brigade | Quarter-note analog-style repeats, no filter: the BBD does the darkening |
+| Twin Heads | Two tape heads: a dotted eighth and a straight eighth, head 2 to the right |
+| Triplet Machine | A quarter note against its triplet, heads spread across the stereo |
+| Dusty 45 | Worn tape with vinyl crackle echoing along with the repeats |
+| Rain on the Roof | A shower of fine noise behind the echoes, swelling on a four-bar LFO |
+
+(The programs do not set Display; it stays as you leave it.)
 
 ## Tips
 
@@ -139,6 +169,35 @@ how long they last: Feedback still decides that (see "Level matching" below).
 - **Pitch warps:** in Free mode, sweep Time while repeats are playing.
 - Changing FX Type (or Pitch Mode) restarts that stage from silence, so the switch is clean but its tail is cut.
 - **Shimmer:** Pitch +12, Pitch Mix 40–60%, Feedback 70%+, LP filter around 6–8 kHz to stop the climb at the top.
+- **Make it old:** Noise 30–50% with Hiss, Character on Tape, Age 60+, Cutoff down around 2.5 kHz. The bed goes through the filter with the repeats, so closing the filter darkens the hiss too.
+- **Crackle that plays in time:** Noise Type Crackle with Feedback 60%+ — each click lands in the delay and comes back round, so the noise picks up the tempo.
+- **Noise as an effect, not a floor:** LFO › Noise at +60% with a synced LFO on 2 or 4 bars, Noise itself near 0: silence between swells, a wash on top of them.
+
+## The animated display
+
+Nothing in an MPC skin can animate on its own, so anything that moves with the audio has to arrive as a parameter
+value. Undertow uses 65 parameters for that: "Level" for the tube and "Echo 1".."Echo 64" for the echo trail in
+the middle of the HEADS page. The plugin writes them and tells the host, which is what makes the screen follow
+the sound.
+
+The trail is 64 bars, each the peak level of the repeats over one slice of time. The window is **two delay
+times** wide, so a steady pattern of echoes stands still: head 1's repeat sits at the left edge and at the "one
+delay" mark, head 2's sits wherever Head Ratio puts it, and the whole pattern shrinks in place as the trail
+decays. The brightest bar is the newest one, sweeping round like a scope.
+
+Each bar is also **coloured by which head fed it**: cyan for head 1, amber for head 2, pale green where both
+land together. The two heads' contributions are measured separately as they come off the tape, so turning Head
+Ratio slides the amber peaks between the cyan ones while you watch. The badges under the trail mark where each
+head is reading. Freeze stops the pattern shrinking; Reverse, Wobble and pitch modulation all show up in it. The
+bars show the repeats before Dry/Wet, so you can watch an echo build with the mix down and then throw it in.
+
+Those host calls happen on the audio thread, so they are kept cheap: the tube is sent at most 25 times a second
+and only when its brightness step changes, and the trail sends two bars per slice (the finished one and the
+newly lit one), about 15 to 20 a second. All 65 are marked not automatable and are left out of saved state, so
+they should not reach automation lanes or projects.
+
+The **Display** switch (on HEADS) turns all of it off: no host calls at all, the tube is drawn as painted, and
+the bars are hidden.
 
 ## Level matching
 
@@ -162,7 +221,8 @@ not limited, so quiet repeats sound natural and only loud ones are clamped. Noth
 
 ## Not implemented yet
 
-- A second tap, and a variable glide time
+- A variable glide time, and a cross-feed control between straight and ping-pong
+- A noise bed with its own filter, independent of the loop filter
 
 ## CPU
 
@@ -171,7 +231,7 @@ Per sample: one delay read per channel, a state-variable filter, the pitch stage
 Filter, phaser, level-match and modulation updates (cutoff, FX Amount, pitch) run every 16 samples; the LFO, envelope
 follower, ducking and time modulation run per sample with no transcendental functions.
 The spring reverb costs about three times the rest of the plugin while Space is above 0 (36 allpass stages per side);
-at 0 it is skipped. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
+at 0 it is skipped. Head 2 is one extra read per sample, and the display four comparisons, which is nothing. Noise costs 3-10% more than the rest of the plugin put together while it is above 0 (Hum is the dearest), and nothing at 0. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
 
 ## Skin
 

@@ -83,13 +83,48 @@
 //   39 Character  Digital/Tape/BBD Digital  the delay medium, applied to every repeat as it leaves the delay line
 //   40 Age        %   0..100       50     how worn: Tape = duller, more compression, hiss and wow; BBD = fewer
 //                                         stages (darker, grittier)
+//   41 Head 2     %   0..100       0      second playback head: how much of the loop it replaces (0 = off)
+//   42 Head Ratio 1/4 .. 2/1       2/3    its position as a fraction of the delay time
+//   43 Head 2 Pan %  -100..100     0      which side head 2 leans to
+//   44 Display    Off/On           On     animate the tube and the echo trail from the audio (see below)
+//   45 Level      0..1             0      read-only: the repeat level the tube is drawn from; not automatable
+//   46..109 Echo 1..64             0      read-only: one bar of the echo trail; not automatable, not saved
+//  110 Noise      %   0..100       0      a noise bed poured into the loop (see below)
+//  111 Noise Type Hiss, Air, Crackle, Hum, Rain
+//  112 LFO>Noise  %  -100..100     0      added to Noise
+//
+// Head 2: a second tap on the same tape, at Head Ratio x the delay time, crossfaded into the electronics
+// (weights summing to 1), so two heads never make the loop louder than Feedback says. Both heads therefore go
+// through one set of electronics and feed back together, as on a multi-head tape echo. Pan uses a different
+// crossfade on each side, so head 2 can sit to one side while head 1 stays centred.
+//
+// Animated display: nothing in an MPC skin moves by itself, so the plugin writes what it wants drawn into
+// parameters and tells the host (audioMasterAutomate). The tube takes the level of the repeats, about 25 times a
+// second. The echo trail on the HEADS page takes 64 bars holding the peak of the repeats over one slice each;
+// the window is two delay times wide, so a steady echo pattern stands still while it decays and only the newest
+// two bars are sent each slice (about 40 host calls a second for both together). Each bar also carries a colour:
+// the two heads' contributions are measured separately as they come off the tape, and the bar is drawn in head
+// 1's colour, head 2's, or the blend, so head 2's repeats are visible sliding between head 1's as Head Ratio
+// changes. Display Off stops all of it.
 //
 // Character: Digital is clean. Tape: a one-pole high-frequency loss (12 kHz at Age 0 down to 3 kHz), a little
-// low-frequency loss, soft compression (tanh, unity for quiet signals), hiss, and extra wow. BBD: a bucket-brigade
-// chip of 4096 (Age 0) to 1024 (Age 100) stages clocked to give the delay time, so the clock is stages / time:
-// the signal is sampled and held at that clock and filtered at about 0.35 x clock (two one-poles), so longer
-// delays are darker and grittier, as on a real BBD; harder, slightly asymmetric saturation and a little noise.
-// Every stage has a gain of at most 1, so the modes never make the loop run away.
+// low-frequency loss, soft compression (tanh, unity for quiet signals, a few dB of squash on loud
+// material at Age 100 - so the repeats round off and fade a little faster than Digital) and extra wow. BBD: a bucket-brigade chip of 4096 (Age 0) to 900 (Age 100) stages clocked
+// to give the delay time, so the clock is stages / time: the signal is sampled and held at that clock and
+// filtered at about 0.45 x clock (two one-poles), so longer delays are darker and grittier, as on a real BBD,
+// plus harder, slightly asymmetric saturation. Every stage has a gain of at most 1, so the modes never make the
+// loop run away. Neither mode adds noise of its own: that is the Noise knob, which works in every mode.
+//
+// Noise: one of five beds - Hiss (white), Air (pink, a soft wash), Crackle (sparse clicks, like worn vinyl),
+// Hum (50 Hz and two harmonics) or Rain (dense fine clicks) - mixed into the loop right after the heads, so it
+// is filtered, aged, driven and repeated like anything else: each crackle echoes. Two things keep it civil.
+// Successive noise samples are uncorrelated, so a loop at feedback f settles at inject / sqrt(1 - f^2): the
+// injected level is multiplied by sqrt(1 - Feedback^2), which lands the steady bed on the same level whatever
+// Feedback is doing instead of letting it build up pass after pass; and it is gated by the louder of the input and what is still going
+// round, staying open until about 3 s after the last thing it heard, so a track that is not playing stays
+// silent. The bed's own level is subtracted from what the loop reports, so the noise circulating in the loop
+// can never hold its own gate open while anything louder than the bed always can.
+// LFO>Noise is added to the knob, so the bed can breathe or arrive in waves.
 //
 // Freeze: as it engages, the loop length is latched (the current delay time; twice that in Ping-Pong, where the
 // two lines feed each other) and the delay lines recirculate their own contents unprocessed at exactly unity.
@@ -131,8 +166,21 @@ enum ParamIndex
     kPitchMode, kPitch, kPitchMix, kReverse, kInput,
     kLfoShape, kLfoSync, kLfoRate, kLfoSpread, kLfoCutoff, kLfoPitch, kLfoFx, kLfoTime,
     kEnvCutoff, kEnvFx, kEnvSpeed, kDuck,
-    kFreeze, kSpace, kSpringDecay, kSpringTone, kDrip, kSpacePos, kCharacter, kAge, kNumParams
+    kFreeze, kSpace, kSpringDecay, kSpringTone, kDrip, kSpacePos, kCharacter, kAge,
+    kHead2, kHeadRatio, kHead2Pan, kTube, kLevel, kEchoBase
 };
+constexpr int kEchoBars = 64;              // bars of the echo display, one parameter each
+constexpr int kEchoLevels = 16;            // heights per bar
+constexpr int kEchoColours = 3;            // which head fed the bar: head 1, head 2, or both
+// Film strip: per colour, a bank of dim heights then a bank of lit ones. A bar keeps its colour as it dims,
+// so the whole trail shows which head each peak came off.
+constexpr int kEchoBank = 2 * kEchoLevels;
+constexpr int kEchoFrames = kEchoColours * kEchoBank;
+// Appended in 1.9. Parameter order is permanent, so these sit after the display parameters.
+constexpr int kNoise = kEchoBase + kEchoBars;    // 110
+constexpr int kNoiseType = kNoise + 1;           // 111
+constexpr int kLfoNoise = kNoiseType + 1;        // 112
+constexpr int kNumParams = kLfoNoise + 1;
 
 enum FilterMode { kFilterOff = 0, kFilterLP, kFilterBP, kFilterHP };
 enum FxType { kFxOff = 0, kFxChorus, kFxFlanger, kFxPhaser, kFxBitcrush, kFxDownsample, kFxRingMod, kFxFuzz };
@@ -150,6 +198,22 @@ constexpr int   kMaxSemitones = 24;
 constexpr float kMaxShiftHz = 1000.0f;
 enum PitchMode { kPitchSemitones = 0, kPitchHz };
 enum Character { kCharDigital = 0, kCharTape, kCharBbd };
+enum NoiseType { kNoiseHiss = 0, kNoiseAir, kNoiseCrackle, kNoiseHum, kNoiseRain };
+constexpr float kNoiseCeilingDb = -30.0f;   // Noise at 100%, measured in the loop at Feedback 0
+// Per-type trims so the five sources sound about as loud as each other at the same Noise setting (measured:
+// every shape peaks within 1.5x of the figure below, which is what the gate leans on).
+constexpr float kNoiseTrim[5] = { 1.0f, 2.5f, 4.2f, 0.8f, 2.2f };
+constexpr float kNoiseGateFloor = 0.0032f;    // about -50 dBFS of activity opens the gate fully...
+constexpr float kNoiseGateCeiling = 0.05f;    // ...and it never charges past here, so the fade is always ~3 s
+constexpr float kHumHz = 50.0f;
+
+// Head 2's position as a fraction of the delay time.
+constexpr int kNumHeadRatios = 9;
+constexpr float kHeadRatioValues[kNumHeadRatios] =
+    { 0.25f, 1.0f / 3.0f, 0.5f, 2.0f / 3.0f, 0.75f, 1.0f, 4.0f / 3.0f, 1.5f, 2.0f };
+constexpr int kTubeFrames = 16;          // tube glow film strip
+constexpr float kEchoFloorDb = -48.0f;   // repeat level that fills the first bar step
+constexpr float kTubeFloorDb = -45.0f;   // level that lights the first frame
 
 // Modulation.
 enum LfoShape { kLfoSine = 0, kLfoTriangle, kLfoSawUp, kLfoSawDown, kLfoSquare, kLfoRandom, kLfoDrift };
@@ -312,6 +376,9 @@ struct LoopChannel
     OnePoleLP tapeHf, bbdLp1, bbdLp2;   // delay character
     OnePoleHP tapeLf;
     float bbdHeld = 0.0f, bbdPhase = 1.0f;
+    PinkNoise pink;              // Noise: Air
+    float crackle = 0.0f;        // Noise: Crackle / Rain - the decaying impulse
+    float crackleTone = 0.0f;    // ...and its one-pole, subtracted to leave the click
 
     void clearFx()
     {
@@ -348,6 +415,7 @@ struct LoopChannel
         reverseBuf.reset();
         clearSprings();
         tapeHf.reset(); tapeLf.reset(); bbdLp1.reset(); bbdLp2.reset(); bbdHeld = 0.0f; bbdPhase = 1.0f;
+        pink.reset(); crackle = 0.0f; crackleTone = 0.0f;
         dc.reset();
         loopOut = 0.0f;
     }
@@ -422,6 +490,29 @@ public:
         addParam(choiceParam("spos",     "Space Position", {"After", "In Loop"}, 0));
         addParam(choiceParam("char",     "Character", {"Digital", "Tape", "BBD"}, kCharDigital));
         addParam(floatParam ("age",      "Age",       0.0f, 100.0f,   50.0f,  "%", 0));
+        addParam(floatParam ("head2",    "Head 2",    0.0f, 100.0f,   0.0f,   "%", 0));
+        addParam(choiceParam("hratio",   "Head Ratio", {"1/4", "1/3", "1/2", "2/3", "3/4", "1/1", "4/3", "3/2",
+                                                        "2/1"}, 3));
+        addParam(floatParam ("h2pan",    "Head 2 Pan", -100.0f, 100.0f, 0.0f,  "%", 0));
+        addParam(boolParam  ("tube",     "Display",   true));
+        Param meter = floatParam("level", "Level", 0.0f, 1.0f, 0.0f, "", 2);   // written by the plugin, for the tube
+        meter.automatable = false;
+        meter.saved = false;          // written by the plugin every block; never restored from a project
+        addParam(meter);
+        for (int i = 0; i < kEchoBars; ++i)   // the ECHO display: one parameter per bar, same treatment
+        {
+            char id[12], name[12];
+            std::snprintf(id, sizeof id, "bar%02d", i);
+            std::snprintf(name, sizeof name, "Echo %d", i + 1);
+            Param bar = floatParam(id, name, 0.0f, 1.0f, 0.0f, "", 2);
+            bar.automatable = false;
+            bar.saved = false;
+            addParam(bar);
+        }
+        // 1.9, appended after the display parameters so earlier projects keep their numbering.
+        addParam(floatParam ("noise",    "Noise",     0.0f, 100.0f,   0.0f,   "%", 0));
+        addParam(choiceParam("ntype",    "Noise Type", {"Hiss", "Air", "Crackle", "Hum", "Rain"}, kNoiseHiss));
+        addParam(floatParam ("lfonoise", "LFO>Noise", -100.0f, 100.0f, 0.0f,  "", 0));
         if (numParams() != kNumParams) mpc::log("Undertow: parameter count mismatch");
 
         // Programs. The Time column is given as a division (D(9) = 1/8D) because the programs are synced.
@@ -440,13 +531,25 @@ public:
         const std::vector<float> noSpace = { 0,  0,    1.8f,  50,  50,  0 };
         // Character tail (39..40):         Char Age   (0..2 = Digital/Tape/BBD)
         const std::vector<float> digital = { 0,   50 };
-        auto progC = [this](const char* name, std::vector<float> v, const std::vector<float>& mod,
-                            const std::vector<float>& sp, const std::vector<float>& chr)
+        // Head tail (41..45):           H2  Ratio Pan Tube Level
+        const std::vector<float> oneHead = { 0,  3,    0,  1,   0 };
+        // Noise tail (110..112):        Amt Type L>Noise   (types 0..4 = Hiss/Air/Crackle/Hum/Rain)
+        const std::vector<float> quiet = { 0,  0,   0 };
+        // The display parameters (46..109) sit between the head tail and the noise tail; they are always 0.
+        auto progH = [this](const char* name, std::vector<float> v, const std::vector<float>& mod,
+                            const std::vector<float>& sp, const std::vector<float>& chr, const std::vector<float>& hd,
+                            const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f })
         {
-            v.insert(v.end(), mod.begin(), mod.end());
-            v.insert(v.end(), sp.begin(), sp.end());
-            v.insert(v.end(), chr.begin(), chr.end());
+            for (const std::vector<float>* tail : { &mod, &sp, &chr, &hd }) v.insert(v.end(), tail->begin(), tail->end());
+            v.resize((size_t)kEchoBase + (size_t)kEchoBars, 0.0f);
+            v.insert(v.end(), nz.begin(), nz.end());
             addProgram(name, std::move(v));
+        };
+        auto progC = [&](const char* name, std::vector<float> v, const std::vector<float>& mod,
+                         const std::vector<float>& sp, const std::vector<float>& chr,
+                         const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f })
+        {
+            progH(name, std::move(v), mod, sp, chr, oneHead, nz);
         };
         auto progS = [&](const char* name, std::vector<float> v, const std::vector<float>& mod, const std::vector<float>& sp)
         {
@@ -460,7 +563,7 @@ public:
         prog("Crushed Repeats",  { 0, 1,  6, D(6),   70,  35, 1,  5, 40,  3,  300,   30, 30,  4, 65, 40,  0, 0,        100, 0, 0 }, noMod);
         prog("Flange Spiral",    { 0, 1,  8, D(8),   80,  40, 1, 10, 40,  1, 6000,   40, 20,  2, 70, 20,  0, 0,        100, 0, 0 }, noMod);
         progC("Lo-Fi Tape",      { 0, 1,  9, D(9),   55,  30, 1, 45, 30,  1, 2500,   15, 35,  5, 35, 60,  0, 0,        100, 0, 0 }, noMod,
-                                 noSpace, { 1, 75 });
+                                 noSpace, { 1, 75 }, { 48, kNoiseHiss, 0 });
         prog("Self-Oscillation", { 0, 1, 12, D(12), 110,  45, 1, 20, 70,  2,  800,   92, 55,  0, 50, 30,  0, 0,        100, 0, 0 }, noMod);
         prog("Octave Climb",     { 0, 1, 10, D(10),  70,  35, 1,  5, 40,  1, 7000,   15, 15,  0, 50, 30,  0, ST(12),    50, 0, 0 }, noMod);
         prog("Down the Well",    { 0, 1,  9, D(9),   72,  40, 1, 10, 40,  1, 3000,   25, 30,  0, 50, 30,  0, ST(-12),  100, 0, 0 }, noMod);
@@ -472,7 +575,8 @@ public:
         prog("Sample & Hold",      { 0, 1,  7, D(7),   65,  40, 1,  5, 40,  2,  900,   65, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 5,    1,   LR(13), 90,  2.5f, 0,    0,   0,     0,    0,   30,  0 });
         progC("Seasick Tape",      { 0, 1, 10, D(10),  60,  35, 1, 30, 30,  1, 3500,   20, 30,  5, 20, 40,  0, 0,        100, 0, 0 },
-                                   { 6,    1,   LR(2), 120,  0,    0.08f, 0,  40,     0,    0,   30,  0 }, noSpace, { 1, 55 });
+                                   { 6,    1,   LR(2), 120,  0,    0.08f, 0,  40,     0,    0,   30,  0 }, noSpace, { 1, 55 },
+                                   { 34, kNoiseAir, 0 });
         prog("Ducked Dub",         { 0, 1,  9, D(9),   72,  50, 1, 15, 35,  1, 2200,   35, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    { 0,    1,   LR(3),  90,  0,    0,    0,   0,     0,    0,   45, 75 });
         prog("Breathing Flange",   { 0, 1,  8, D(8),   75,  40, 1, 10, 40,  1, 6000,   35, 20,  2, 35, 15,  0, 0,        100, 0, 0 },
@@ -482,9 +586,18 @@ public:
         progS("Washout",           { 0, 1, 10, D(10),  70,  45, 1, 15, 35,  1, 3000,   25, 25,  1, 40, 20,  0, 0,        100, 0, 0 },
                                    noMod, { 0, 60, 3.0f, 40, 60, 1 });
         progC("Tape Echo",         { 0, 1,  9, D(9),   65,  35, 1, 20, 30,  1, 5000,   20, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
-                                   noMod, noSpace, { 1, 45 });
+                                   noMod, noSpace, { 1, 45 }, { 26, kNoiseHiss, 0 });
         progC("Bucket Brigade",    { 0, 1, 10, D(10),  70,  40, 1, 10, 35,  0, 1800,   35, 40,  0, 50, 30,  0, 0,        100, 0, 0 },
-                                   noMod, noSpace, { 2, 50 });
+                                   noMod, noSpace, { 2, 50 }, { 30, kNoiseHiss, 0 });
+        progH("Twin Heads",        { 0, 1,  9, D(9),   62,  40, 1, 18, 30,  1, 4000,   25, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 45 }, { 45, 3, 55, 1, 0 });      // 1/8D + a straight 1/8
+        progH("Triplet Machine",   { 0, 1, 10, D(10),  68,  40, 0, 12, 35,  1, 3000,   30, 35,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 60 }, { 55, 1, -60, 1, 0 });     // 1/4 + a 1/4 triplet
+        progC("Dusty 45",          { 0, 1,  9, D(9),   66,  38, 1, 22, 35,  1, 3200,   25, 30,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 60 }, { 55, kNoiseCrackle, 0 });
+        progC("Rain on the Roof",  { 0, 1, 10, D(10),  72,  42, 1, 12, 35,  1, 2400,   30, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   { 0,    1,   LR(1),  90,  0,    0,    0,   0,     0,    0,   30,  0 },
+                                   noSpace, digital, { 42, kNoiseRain, 45 });
     }
 
     void prepare(double sampleRate, int /*maxBlockSize*/) override
@@ -501,6 +614,8 @@ public:
             c.reverseBuf.prepare((int)(sampleRate * (2.0f * kReverseMaxSeconds + 0.05f)) + 8);   // 2 chunks + fade
             c.springHp.setCutoff(150.0f, sampleRate);
         }
+        ch_[0].pink.reseed(0x7654321u);        // different seeds so Air is stereo, not a mono wash
+        ch_[1].pink.reseed(0x2BD1E99Du);
         for (int c = 0; c < 2; ++c)
         {
             for (int k = 0; k < kSpringsPerChannel; ++k)
@@ -531,6 +646,7 @@ public:
         lfoSmooth_ = 1.0f - std::exp(-1.0f / (0.004f * sr_));    // 4 ms: softens steps and saw resets
         duckSmooth_ = 1.0f - std::exp(-1.0f / (0.005f * sr_));
         peakRelease_ = 1.0f - std::exp(-1.0f / (0.030f * sr_));
+        meterRelease_ = 1.0f - std::exp(-1.0f / (0.150f * sr_));   // VU-ish fall for the tube
         reverseMix_.setTime(25.0f, sampleRate);
     }
 
@@ -557,6 +673,11 @@ public:
         freezeMix_ = getBool(kFreeze) ? 1.0f : 0.0f;
         freezeLen_ = (int)clamp(delayTime_.value(), 64.0f, (float)ch_[0].delay.maxDelay() - 2.0f);
         space_.snap(get(kSpace) * 0.01f);
+        meterPeak_ = 0.0f; meterCounter_ = 0; lastMeterFrame_ = -1;
+        echoPeak_ = 0.0f; echoTap1_ = 0.0f; echoTap2_ = 0.0f;
+        echoPos_ = 0; echoBar_ = 0; echoClearPending_ = true;
+        humPhase_ = 0.0f; noiseGate_ = 0.0f;
+        for (int& f : echoFrame_) f = -1;
         springWasActive_ = false;
         revPos_ = 0; revChunk_ = revPrevChunk_ = (int)clamp(delayTime_.value(), 0.02f * sr_, kReverseMaxSeconds * sr_);
         pitchMix_.snap(pitchMixTarget());
@@ -574,12 +695,16 @@ public:
         logCutoff_.setTarget(std::log2(get(kCutoff)));
 
         const bool pingPong = getBool(kPingPong);
+        const bool tubeOn = getBool(kTube);
+        // ECHO display: the window is two delay times wide, so a steady pattern of repeats stands still.
+        const int echoSlice = (int)clamp(2.0f * delayTime_.target() / (float)kEchoBars, 0.004f * sr_, 0.1f * sr_);
         const float wobble = get(kWobble) * 0.01f;
         // Delay character.
         const int character = getInt(kCharacter);
         const float age = get(kAge) * 0.01f;
-        const float tapeSat = 1.0f + 2.0f * age, bbdSat = 1.5f + 1.5f * age;
-        float charNoise = 0.0f, bbdHoldInc = 1.0f;
+        // Tape leans on its compression and BBD on its clock; the hiss they used to add is the Noise knob's job.
+        const float tapeSat = 1.0f + 3.5f * age, bbdSat = 1.5f + 1.5f * age;
+        float bbdHoldInc = 1.0f;
         if (character == kCharTape)
         {
             for (LoopChannel& c : ch_)
@@ -587,17 +712,47 @@ public:
                 c.tapeHf.setCutoff(12000.0f * std::pow(0.25f, age), sr_);
                 c.tapeLf.setCutoff(30.0f + 50.0f * age, sr_);
             }
-            charNoise = dbToGain(-84.0f + 12.0f * age);
         }
         else if (character == kCharBbd)
         {
-            const float stages = 4096.0f * std::pow(0.25f, age);
+            const float stages = 4096.0f * std::pow(0.22f, age);
             const float clock = stages / std::fmax(delayTime_.target() / sr_, 0.001f);   // Hz
             bbdHoldInc = std::fmin(1.0f, clock / sr_);
-            const float lpHz = clamp(0.35f * clock, 400.0f, 15000.0f);
+            const float lpHz = clamp(0.45f * clock, 500.0f, 16000.0f);
             for (LoopChannel& c : ch_) { c.bbdLp1.setCutoff(lpHz, sr_); c.bbdLp2.setCutoff(lpHz, sr_); }
-            charNoise = dbToGain(-80.0f + 10.0f * age);
         }
+        // Head 2: a second tap on the same tape, crossfaded in (weights sum to 1, so the loop gain is unchanged).
+        const float head2 = get(kHead2) * 0.01f;
+        const bool head2On = head2 > 0.0f;
+        const float headRatio = kHeadRatioValues[clamp(getInt(kHeadRatio), 0, kNumHeadRatios - 1)];
+        const float h2pan = get(kHead2Pan) * 0.01f;
+        const float headMix[2] = { head2 * (h2pan > 0.0f ? 1.0f - h2pan : 1.0f),
+                                   head2 * (h2pan < 0.0f ? 1.0f + h2pan : 1.0f) };
+
+        // Noise: a hiss, wash, crackle, hum or rain bed poured into the loop just after the heads, so it is
+        // filtered, aged, driven and repeated exactly like a repeat. The injected level is scaled against
+        // Feedback, so the steady noise floor sits where the knob puts it instead of multiplying with each
+        // pass, and the whole thing is gated by what is actually going round, so an idle track stays silent.
+        const int noiseType = clamp(getInt(kNoiseType), 0, 4);
+        const float noiseSet = clamp(get(kNoise) * 0.01f, 0.0f, 1.0f);
+        const float lfoNoise = get(kLfoNoise) * 0.01f;
+        const bool noiseOn = noiseSet > 0.0f || lfoNoise != 0.0f;
+        // Successive noise samples are uncorrelated, so a loop at feedback f settles at inject / sqrt(1 - f^2).
+        // Injecting sqrt(1 - f^2) therefore lands the steady bed on the same level whatever Feedback is doing.
+        const float fbNow = clamp(feedback_.target(), 0.0f, 0.98f);
+        const float noiseInject = std::sqrt(1.0f - fbNow * fbNow)
+                                  * dbToGain(kNoiseCeilingDb) * kNoiseTrim[noiseType];
+        const float humInc = kHumHz / sr_;
+        const float crackleProb = (noiseType == kNoiseRain ? 1800.0f : 28.0f) / sr_;
+        const float crackleDecay = std::exp(-1.0f / ((noiseType == kNoiseRain ? 0.0005f : 0.0018f) * sr_));
+        const float noiseGateRelease = 1.0f - std::exp(-1.0f / (0.6f * sr_));
+        // The gate watches the loop as well as the input, and the loop carries the bed itself, so the bed's
+        // own level is subtracted from what the loop reports: noise can never hold its own gate open, while
+        // anything louder than the bed opens it at once.
+        const float noiseMax = clamp(noiseSet + std::fabs(lfoNoise), 0.0f, 1.0f);
+        const float noiseBedPeak = 1.5f * dbToGain(kNoiseCeilingDb) * kNoiseTrim[noiseType] * noiseMax * noiseMax;
+        if (!noiseOn) noiseGate_ = 0.0f;
+
         const float wowDepth = (wobble * 0.0040f + (character == kCharTape ? age * 0.0025f : 0.0f)) * sr_;   // slow drift
         const float flutterDepth = wobble * 0.0006f * sr_;    // up to 0.6 ms of fast flutter
         const float wowInc = 0.5f / sr_, flutterInc = 6.1f / sr_;
@@ -705,6 +860,36 @@ public:
                 }
         }
 
+        // One sample of the chosen noise source for one channel. The two channels draw from the same
+        // generator in turn, which decorrelates them; Air and the impulses keep their state per channel.
+        auto noiseOf = [&](LoopChannel& ch, int c) -> float
+        {
+            switch (noiseType)
+            {
+                case kNoiseAir:
+                    return ch.pink.process();
+                case kNoiseCrackle:
+                case kNoiseRain:
+                {
+                    if (rng_.nextFloat() < crackleProb)
+                        ch.crackle = rng_.nextBipolar() * (0.35f + 0.65f * rng_.nextFloat());
+                    const float out = ch.crackle;
+                    ch.crackle *= crackleDecay;
+                    ch.crackleTone += 0.45f * (out - ch.crackleTone);   // subtract the body, keep the click
+                    return (out - ch.crackleTone) * 2.2f;
+                }
+                case kNoiseHum:
+                {
+                    const float p = c ? advance(humPhase_, 0.33f) : humPhase_;
+                    const float p2 = 2.0f * p, p3 = 3.0f * p;
+                    return 0.80f * sine01(p) + 0.35f * sine01(p2 - std::floor(p2))
+                                             + 0.18f * sine01(p3 - std::floor(p3));
+                }
+                default:
+                    return rng_.nextBipolar();
+            }
+        };
+
         // ----- per sample ---------------------------------------------------------------------
         for (int n = 0; n < ctx.numFrames; ++n)
         {
@@ -800,26 +985,52 @@ public:
             const float pMix = pitchMix_.process();
             agcGain_ += agcSmooth * (agcTarget_ - agcGain_);
 
+            // Noise bed level, per channel: the knob plus LFO>Noise, squared for a fine bottom end,
+            // then opened by the activity gate.
+            float noiseGain[2] = { 0.0f, 0.0f };
+            if (noiseOn)
+            {
+                humPhase_ = advance(humPhase_, humInc);
+                const float gate = std::fmin(1.0f, noiseGate_ * (1.0f / kNoiseGateFloor));
+                for (int c = 0; c < 2; ++c)
+                {
+                    const float a = clamp(noiseSet + lfoNoise * lfo_[c].out, 0.0f, 1.0f);
+                    noiseGain[c] = a * a * noiseInject * gate;
+                }
+            }
+
             // The loop: read -> filter -> [pitch -> FX, level-matched] -> drive -> DC block.
             float wet[2];
             float powIn = 0.0f, powOut = 0.0f;
+            float tap1Peak = 0.0f, tap2Peak = 0.0f;     // what each head contributed, for the echo display
             const float lfo[2] = { lfoL, lfoR };
             const float d[2] = { dL, dR };
             for (int c = 0; c < 2; ++c)
             {
                 LoopChannel& ch = ch_[c];
-                float x = ch.delay.readLinear(d[c]);
+                const float head1 = ch.delay.readLinear(d[c]);
+                float x = head1;
+                if (head2On)
+                {
+                    const float x2 = ch.delay.readLinear(clamp(d[c] * headRatio, 2.0f, maxDelay));
+                    x += (x2 - x) * headMix[c];
+                    const float t2 = std::fabs(x2) * headMix[c];
+                    if (t2 > tap2Peak) tap2Peak = t2;
+                }
+                const float t1 = std::fabs(head1) * (1.0f - headMix[c]);
+                if (t1 > tap1Peak) tap1Peak = t1;
+                if (noiseOn) x += noiseGain[c] * noiseOf(ch, c);
                 if (character == kCharTape)
                 {
                     x = ch.tapeLf.process(ch.tapeHf.process(x));
-                    x = fastTanh(tapeSat * x) / tapeSat + charNoise * rng_.nextBipolar();
+                    x = fastTanh(tapeSat * x) / tapeSat;
                 }
                 else if (character == kCharBbd)
                 {
                     ch.bbdPhase += bbdHoldInc;
                     if (ch.bbdPhase >= 1.0f) { ch.bbdPhase -= 1.0f; ch.bbdHeld = x; }
                     x = ch.bbdLp2.process(ch.bbdLp1.process(ch.bbdHeld));
-                    x = (fastTanh(bbdSat * x + 0.1f) - 0.0997f) / (bbdSat * 0.990f) + charNoise * rng_.nextBipolar();
+                    x = (fastTanh(bbdSat * x + 0.1f) - 0.0997f) / (bbdSat * 0.990f);
                 }
 
                 switch (filterMode)
@@ -867,6 +1078,15 @@ public:
             }
             agcIn_ += agcFollow * (powIn - agcIn_);
             agcOut_ += agcFollow * (powOut - agcOut_);
+
+            // Noise gate: instant attack on input or anything still going round, then a long release.
+            if (noiseOn)
+            {
+                const float activity = std::fmax(level, std::fmax(tap1Peak, tap2Peak) - noiseBedPeak);
+                noiseGate_ += (activity > noiseGate_ ? 1.0f : noiseGateRelease) * (activity - noiseGate_);
+                // Capped, so the bed always fades in about the same time however loud the last hit was.
+                if (noiseGate_ > kNoiseGateCeiling) noiseGate_ = kNoiseGateCeiling;
+            }
 
             // Reverse (wet only). At position t into a chunk, read 2t+1 samples back: that walks backwards
             // through the previous chunk. For the first 10 ms of a chunk, crossfade from the previous read
@@ -938,8 +1158,73 @@ public:
             duckGain_ += duckSmooth_ * (duckTarget_ - duckGain_);
             const float wetGain = std::fmin(1.0f, 2.0f * mix) * duckGain_;
             const float gain = output_.process();
+            if (tubeOn)
+            {
+                const float peakWet = std::fmax(std::fabs(wL), std::fabs(wR));
+                const float tubeWet = peakWet * wetGain;
+                meterPeak_ = tubeWet > meterPeak_ ? tubeWet : meterPeak_ + meterRelease_ * (tubeWet - meterPeak_);
+                if (peakWet > echoPeak_) echoPeak_ = peakWet;
+                if (tap1Peak > echoTap1_) echoTap1_ = tap1Peak;
+                if (tap2Peak > echoTap2_) echoTap2_ = tap2Peak;
+                if (++echoPos_ >= echoSlice) { echoPos_ = 0; echoAdvance_ = true; }
+            }
+
             outL[n] = softKnee((dryL * dryGain + wL * wetGain) * gain, kOutKnee, kOutCeiling);
             outR[n] = softKnee((dryR * dryGain + wR * wetGain) * gain, kOutKnee, kOutCeiling);
+        }
+
+        // The ECHO bars: the finished bar goes to its measured height and lights up, the one before it dims.
+        if (tubeOn && echoClearPending_)
+        {
+            echoClearPending_ = false;
+            for (int i = 0; i < kEchoBars; ++i) setEchoBar(i, 0);
+        }
+        if (echoAdvance_)
+        {
+            echoAdvance_ = false;
+            const float db = echoPeak_ > 1e-6f ? 20.0f * std::log10(echoPeak_) : -120.0f;
+            const int level = (int)clamp(std::round((db - kEchoFloorDb) / -kEchoFloorDb * (kEchoLevels - 1)),
+                                         0.0f, (float)(kEchoLevels - 1));
+            // Which head fed this slice: mostly head 1, mostly head 2, or both.
+            const float tapSum = echoTap1_ + echoTap2_;
+            int colour = 0;
+            if (tapSum > 1e-9f)
+            {
+                const float share = echoTap2_ / tapSum;
+                colour = share < 0.35f ? 0 : (share > 0.65f ? 1 : 2);
+            }
+            echoPeak_ = 0.0f; echoTap1_ = 0.0f; echoTap2_ = 0.0f;
+            const int previous = echoBar_ > 0 ? echoBar_ - 1 : kEchoBars - 1;
+            setEchoBar(previous, echoFrame_[previous] % kEchoBank >= kEchoLevels
+                                 ? echoFrame_[previous] - kEchoLevels : -1);
+            setEchoBar(echoBar_, colour * kEchoBank + kEchoLevels + level);
+            echoBar_ = echoBar_ + 1 < kEchoBars ? echoBar_ + 1 : 0;
+        }
+
+        // Tube: tell the host the new level, at most 25 times a second and only when the frame changes.
+        if (tubeOn)
+        {
+            meterCounter_ += ctx.numFrames;
+            if (meterCounter_ >= (int)(0.04f * sr_))
+            {
+                meterCounter_ = 0;
+                const float db = meterPeak_ > 1e-6f ? 20.0f * std::log10(meterPeak_) : -120.0f;
+                const int frame = (int)clamp(std::round((db - kTubeFloorDb) / -kTubeFloorDb * (kTubeFrames - 1)),
+                                             0.0f, (float)(kTubeFrames - 1));
+                if (frame != lastMeterFrame_)
+                {
+                    lastMeterFrame_ = frame;
+                    setNormalised(kLevel, (float)frame / (float)(kTubeFrames - 1));
+                    notifyHostParameterChanged(kLevel);
+                }
+            }
+        }
+        else if (lastMeterFrame_ != 0)
+        {
+            lastMeterFrame_ = 0; meterPeak_ = 0.0f;
+            setNormalised(kLevel, 0.0f);
+            notifyHostParameterChanged(kLevel);
+            echoClearPending_ = true;          // refill the bars when the display comes back on
         }
 
         // Keep the frequency-shift oscillator on the unit circle.
@@ -954,7 +1239,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1600;            // 1.6.0.0
+        info.version      = 1900;            // 1.9.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -1028,6 +1313,15 @@ private:
         }
     }
 
+    // One ECHO bar: frame 0..15 is a finished bar, 16..31 the same height lit (the newest). -1 leaves it alone.
+    void setEchoBar(int bar, int frame)
+    {
+        if (frame < 0 || frame == echoFrame_[bar]) return;
+        echoFrame_[bar] = frame;
+        setNormalised(kEchoBase + bar, (float)frame / (float)(kEchoFrames - 1));
+        notifyHostParameterChanged(kEchoBase + bar);
+    }
+
     // Input: -30 dB at the bottom of the knob means off, so a throw can start from silence.
     float inputGain() const { const float db = get(kInput); return db <= -29.95f ? 0.0f : dbToGain(db); }
 
@@ -1047,7 +1341,7 @@ private:
             else { std::snprintf(mb, sizeof(mb), "%+.1f oct", (double)plainValue); out = mb; }
             return true;
         }
-        if (index == kLfoFx || index == kEnvFx || index == kLfoTime)
+        if (index == kLfoFx || index == kEnvFx || index == kLfoTime || index == kLfoNoise)
         {
             if (std::fabs(plainValue) < 0.5f) out = "0 %";
             else { std::snprintf(mb, sizeof(mb), "%+.0f %%", (double)plainValue); out = mb; }
@@ -1240,6 +1534,12 @@ private:
     float freezeMix_ = 0.0f;
     int freezeLen_ = 1000;
     Smoother space_;
+    float meterPeak_ = 0.0f, meterRelease_ = 0.01f;
+    int meterCounter_ = 0, lastMeterFrame_ = -1;
+    float echoPeak_ = 0.0f, echoTap1_ = 0.0f, echoTap2_ = 0.0f;
+    float humPhase_ = 0.0f, noiseGate_ = 0.0f;
+    int echoPos_ = 0, echoBar_ = 0, echoFrame_[kEchoBars] = {};
+    bool echoAdvance_ = false, echoClearPending_ = true;
     bool springWasActive_ = false, lastSpringInLoop_ = false;
     float env_ = 0.0f, envNorm_ = 0.0f, peakRelease_ = 0.001f, duckGain_ = 1.0f, duckTarget_ = 1.0f, duckSmooth_ = 0.01f;
 };
