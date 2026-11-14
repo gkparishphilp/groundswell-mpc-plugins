@@ -679,8 +679,12 @@ private:
     int nextSpawnInterval(int mode, float activity) const
     {
         if (mode == kBlocks) return (int)clampf(sliceSamples_, 64.0f, 4.0f * sr_);
-        // 4 grains a second at the bottom of Activity, about 90 at the top.
-        const float density = 4.0f + activity * activity * 86.0f;
+        // A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them
+        // one by one and the same Activity reads as far busier. Half the density keeps the knob
+        // meaning roughly the same thing whichever engine is running.
+        const float top = (mode == kBubbles) ? 38.0f : 86.0f;
+        // 4 grains a second at the bottom of Activity, about 90 at the top - 42 for Bubbles.
+        const float density = 4.0f + activity * activity * top;
         return (int)clampf(sr_ / density, 16.0f, sr_);
     }
 
@@ -899,8 +903,11 @@ private:
             {
                 length = grainLength(shape);
                 start = (double)ansStart_ + (double)patternFloat() * (double)phraseLen * jitter;
-                // Bend across the grain: up to an octave either way, direction from the dice.
-                const float semis = motion * 12.0f * (patternFloat() < 0.5f ? -1.0f : 1.0f);
+                // The bend is a rate, not an interval: an octave a second at full Motion. Setting
+                // a fixed interval per grain made every grain race through the whole of it, so a
+                // short grain - which is most of them - slid absurdly fast.
+                const float perSecond = motion * 12.0f * (patternFloat() < 0.5f ? -1.0f : 1.0f);
+                const float semis = clampf(perSecond * (float)length / sr_, -12.0f, 12.0f);
                 const double endRate = baseRate * (double)semitonesToRatio(semis);
                 rate = baseRate;
                 rateInc = (endRate - baseRate) / (double)length;

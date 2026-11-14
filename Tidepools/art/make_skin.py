@@ -258,6 +258,24 @@ def curve_strip(mode, frames=48):
     return strip
 
 
+HEADING_W, HEADING_H = 206, 28
+
+
+def mode_heading_strip(words, dim=()):
+    """One frame per Mode: the word that knob means in that engine. Frames listed in `dim` are
+    drawn faint, which is how a knob says it does nothing in the mode you are in."""
+    strip = Image.new("RGBA", (HEADING_W, HEADING_H * len(words)), (0, 0, 0, 0))
+    for i, word in enumerate(words):
+        alpha = 80 if i in dim else 255
+
+        def paint(d, sc, word=word, alpha=alpha):
+            draw_spaced(d, (1 * sc, HEADING_H * sc / 2), word, font(14 * sc, FONT_DEMI),
+                        CREAM + (alpha,), spacing=2.2 * sc, anchor="lm")
+
+        strip.alpha_composite(supersampled((HEADING_W, HEADING_H), 3, paint), (0, i * HEADING_H))
+    return strip
+
+
 # ------------------------------------------------------------------------------------------------
 # Layout (tab coordinates, 1280 x 628).
 #
@@ -299,7 +317,10 @@ def pills_in(param, col, top, heading, captions=None, width=None, rows=1, span=1
         x0 = (bx0 + bx1) / 2 - (count * pw + (count - 1) * 8) / 2
         y = by0 + (BOX_H - rows * PILL_H - (rows - 1) * 6) / 2 + 9 + r * (PILL_H + 6)
         items.append((i, nm, x0 + c * (pw + 8), y, pw))
-    return dict(kind="pills", param=param, items=items, heading=heading,
+    # Two rows of pills fill the box: the glow around each pill needs the margin a heading would
+    # otherwise sit in. Those groups go without one, which costs nothing - a column of note names
+    # or of engine names says what it is.
+    return dict(kind="pills", param=param, items=items, heading=None if rows > 1 else heading,
                 heading_xy=(bx0 + 24, by0 + 21), toggle=False)
 
 
@@ -339,15 +360,23 @@ def page_grains():
         pills_in(P["mode"], 0, ROW2_Y[0], "MODE", rows=2),
         knob_in(P["activity"], 1, ROW2_Y[0], "ACTIVITY"),
         knob_in(P["shape"], 2, ROW2_Y[0], "SHAPE"),
-        knob_in(P["scatter"], 3, ROW2_Y[0], "SCATTER"),
+        knob_in(P["scatter"], 3, ROW2_Y[0], None),
 
-        knob_in(P["motion"], 0, ROW2_Y[1], "MOTION"),
+        knob_in(P["motion"], 0, ROW2_Y[1], None),
         pills_in(P["sync"], 1, ROW2_Y[1], "TIME MODE", width=110),
         knob_in(P["time"], 2, ROW2_Y[1], "TIME"),
         knob_in(P["spread"], 3, ROW2_Y[1], "SPREAD"),
     ]
+    # Both knobs mean something different in each engine, so the panel says which: the heading is a
+    # picture bound to Mode, and it goes faint in the engine where the knob does nothing.
+    sx, sy = COL_X[3] + 62 + 77, (ROW2_Y[0] + ROW2_Y[0] + BOX_H) // 2 - HEADING_H // 2 - 10
+    mx, my = COL_X[0] + 62 + 77, (ROW2_Y[1] + ROW2_Y[1] + BOX_H) // 2 - HEADING_H // 2 - 10
     statics = dict(headings=[], boxes=[box(c, t) for t in ROW2_Y for c in range(4)],
-                   graph=False, waveform=False)
+                   graph=False, waveform=False,
+                   images=[dict(file="head_scatter.png", frames=4, param=P["mode"],
+                                box=(sx, sy, HEADING_W, HEADING_H)),
+                           dict(file="head_motion.png", frames=4, param=P["mode"],
+                                box=(mx, my, HEADING_W, HEADING_H))])
     qlinks = [[P["mode"], P["activity"], P["shape"], P["scatter"]],
               [P["motion"], P["sync"], P["time"], P["spread"]],
               [-1, -1, -1, -1]]
@@ -543,6 +572,9 @@ def build():
     save("knob_small_bi.png", knob_strip(SMALL, bipolar=True))
     save("knob_large.png", knob_strip(LARGE))
     save("curve_lp.png", curve_strip("LP"))
+    # Cloud / Blocks / Glide / Bubbles, in that order.
+    save("head_scatter.png", mode_heading_strip(["SCATTER", "SHUFFLE", "SCATTER", "SCATTER"], dim=(3,)))
+    save("head_motion.png", mode_heading_strip(["MOTION", "REVERSE", "BEND", "RANGE"], dim=(0,)))
 
     defs = [("knob overlay", G.overlay_component("KnobOverlay", G.knob_overlay_data(False), "ff111111")),
             ("knob overlay bipolar", G.overlay_component("KnobOverlay", G.knob_overlay_data(True), "ff111111")),
@@ -609,7 +641,8 @@ def build():
                                     "%d %d %d %d" % (ix, iy, iw, ih), "No", "Hide", "Always",
                                     remap=[("Data", "Parameter %d" % spec["param"])],
                                     invalidating=spec.get("invalidating")))
-            previews.append((ti, "image", None, (spec["file"], DEFAULTS[spec["param"]][0], (ix, iy)), None))
+            previews.append((ti, "image", None,
+                             (spec["file"], DEFAULTS[spec["param"]][0], (ix, iy), spec["frames"]), None))
 
         # The one picture bound to a parameter: the response curve, which follows Tone.
         if statics["graph"]:
@@ -619,7 +652,7 @@ def build():
                                         ("image", "curve_lp.png"), ("numFrames", 48), ("handleName", "Data")),
                                     "%d %d %d %d" % (gx, gy, gw, gh), "No", "Show", "Always",
                                     remap=[("Data", "Parameter %d" % P["tone"])]))
-            previews.append((ti, "image", None, ("curve_lp.png", DEFAULTS[P["tone"]][0], (gx, gy)), None))
+            previews.append((ti, "image", None, ("curve_lp.png", DEFAULTS[P["tone"]][0], (gx, gy), 48), None))
 
         tabs.append(obj(("version", 1), ("tabName", name), ("fnKeyIndex", ti), ("fnKeySubIndex", 0),
                         ("componentDefinition", G.component_definition([], children, "ff000000")),
@@ -675,10 +708,12 @@ def make_previews(previews, images):
         im = pages[ti]
         d = ImageDraw.Draw(im)
         if kind == "image":
-            file, frame, (x, y) = data
+            file, frame, (x, y), frames = data
             strip = images[file]
-            fh = strip.height // 48
-            im.alpha_composite(strip.crop((0, int(frame) * fh, strip.width, (int(frame) + 1) * fh)), (x, y))
+            fh = strip.height // frames
+            fi = int(round(frame * (frames - 1))) if frames > 1 and frame <= 1.0 else int(frame)
+            fi = max(0, min(frames - 1, fi))
+            im.alpha_composite(strip.crop((0, fi * fh, strip.width, (fi + 1) * fh)), (x, y))
         elif kind == "knob":
             spec = SMALL if ctl["size"] == "large" else SMALL
             strip = images["knob_small_bi.png" if ctl["bipolar"] else "knob_small.png"]

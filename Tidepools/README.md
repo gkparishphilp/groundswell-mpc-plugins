@@ -32,7 +32,7 @@ in ─┬───────────────────────�
 |---|---|
 | **Cloud** | Grains scattered through the phrase at the pitch you played. The plain texture: a wash that thickens with Activity and smears with Shape. |
 | **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
-| **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. Small amounts are tape wobble; large ones walk off somewhere else. |
+| **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. The bend is a *rate* — an octave a second at full Motion — so a short grain slides a little and a long one slides a lot, rather than every grain racing through the whole interval. Small amounts are tape wobble; large ones walk off somewhere else. |
 | **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
 
 Two knobs mean something slightly different in each engine. **Scatter** is about position and order; **Motion**
@@ -67,10 +67,14 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 | Control | Range | Default | What it does |
 |---|---|---|---|
 | Mode | Cloud / Blocks / Glide / Bubbles | Cloud | Which engine answers (see above). |
-| Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90. In Blocks it has no effect: slices arrive on the beat. |
+| Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90 — or to about 42 in Bubbles, which is deliberately thinner. A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them one by one and the same number reads as far busier. In Blocks it has no effect: slices arrive on the beat. |
 | Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
-| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks**: how scrambled the slice order is, and how often a slice is dropped for silence. **Bubbles**: unused — bubbles always scatter. |
-| Motion | 0–100 % | 30 % | **Glide**: how far each grain bends, up to an octave either way. **Blocks**: how often a slice plays backwards. **Bubbles**: how wide the band of filter frequencies is. **Cloud**: unused. |
+| Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Bubbles**: unused. |
+| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Cloud**: unused. |
+
+**The panel renames those two for you.** Both knobs mean something different in each engine, so their
+headings are bound to Mode: Scatter reads SHUFFLE in Blocks, Motion reads REVERSE, BEND or RANGE as you switch,
+and the heading goes faint in the engine where the knob does nothing. You should not need this table.
 | Time Mode | Free / Sync | Sync | Whether Time is a note division of the MPC tempo or milliseconds. |
 | Time | 1/64–2/1, or 30–4000 ms | 1/8 | Slice length in Blocks; elsewhere it caps how long a grain can be. |
 | Spread | 0–100 % | 70 % | How widely grains are panned. At 0 the answer is mono. |
