@@ -40,7 +40,9 @@ is about pitch and movement. Both are listed per engine below.
 
 ## The screen
 
-Three pages — **LISTEN**, **GRAINS** and **TONE** — each laid out for the Q-Link knobs.
+Tidepool has its own panel, built from artwork in `art/`: three pages — **LISTEN**, **GRAINS** and **TONE** —
+each a row of boxes laid out for the Q-Link knobs, with a knob at the left of its box and the reading beside
+it. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter) for a large edit view.
 
 ### Page 1: LISTEN
 
@@ -165,6 +167,22 @@ For the computer (a VST2 that draws this same panel in FL Studio, Reaper or MPC 
 ```
 python tools/build.py plugins/Tidepool --target desktop
 ```
+
+## Skin
+
+`art/make_skin.py` builds `skins/` from the panel artwork, the knob and pill sources in the same folder, and
+the parameter list. Run it after changing any control:
+
+```
+python3 plugins/Tidepool/art/make_skin.py      # writes skins/ and build/skin-preview-*.png
+```
+
+It binds to parameter *indices*, so it must be regenerated whenever the parameter list changes. The boxes,
+headings, value arcs, pill captions and the RESPONSE curve are drawn by the script; only the background plate,
+the knobs and the pill shape are source art.
+
+The drawing machinery started as Undertow's generator and is deliberately a copy rather than a shared import:
+Undertow's skin is shipping and verified, and one plugin's artwork should not break because a sibling's did.
 
 ## Licence
 
