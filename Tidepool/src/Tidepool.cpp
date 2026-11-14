@@ -101,7 +101,6 @@ constexpr int   kWindowBits = 10;
 constexpr int   kWindowSize = 1 << kWindowBits;    // raised-cosine grain envelope
 constexpr float kMinPhraseSeconds = 0.08f;
 constexpr float kMaxPhraseSeconds = 6.0f;
-constexpr int   kStateSteps = 4;           // idle / listening / waiting / answering
 constexpr float kWetCeiling = 0.7079f;     // -3 dBFS: where the grain limiter holds the wet path
 
 // Transparent below `knee`, then a tanh curve that never passes `ceiling`.
@@ -244,7 +243,8 @@ public:
         mpc::Param level = mpc::floatParam("level", "Level", 0.0f, 1.0f, 0.0f, "", 2);
         level.automatable = false; level.saved = false;
         addParam(level);
-        mpc::Param state = mpc::floatParam("state", "State", 0.0f, 1.0f, 0.0f, "", 2);
+        mpc::Param state = mpc::choiceParam("state", "State",
+                                            { "Idle", "Hear", "Wait", "Talk" }, 0);
         state.automatable = false; state.saved = false;
         addParam(state);
 
@@ -791,12 +791,11 @@ private:
             setNormalised(kLevel, lvl);
             notifyHostParameterChanged(kLevel);
         }
-        const int st = answering_ ? 3 : (pending_ ? 2 : (listening_ ? 1 : 0));
-        const float sv = (float)st / (float)(kStateSteps - 1);
-        if (sv != lastStateSent_)
+        const float st = (float)(answering_ ? 3 : (pending_ ? 2 : (listening_ ? 1 : 0)));
+        if (st != lastStateSent_)
         {
-            lastStateSent_ = sv;
-            setNormalised(kState, sv);
+            lastStateSent_ = st;
+            set(kState, st);
             notifyHostParameterChanged(kState);
         }
     }

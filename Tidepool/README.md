@@ -48,6 +48,7 @@ The call-and-response layer. This is the page that makes Tidepool what it is.
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
+| State | Idle / Hear / Wait / Talk | — | Not a control: the lamp. It shows whose turn it is — **Hear** while it is taking your phrase in, **Wait** while it holds for the next beat or bar, **Talk** while it answers. The plugin writes it twenty-five times a second, so tapping it does nothing lasting. Watch it for a minute and the whole plugin explains itself. |
 | Listen | Off / Auto / Hold | Auto | **Auto**: watch for phrases and answer them. **Off**: granulate the last few seconds continuously, the way a pedal does — a texture, not a conversation. **Hold**: the Hold switch freezes the buffer and the grains work that frozen moment until you let go. |
 | Gap | 40–1500 ms | 220 ms | How long a silence has to last before Tidepool decides you have finished. Short and it finishes your sentences; long and it waits until you really mean it. The phrase end is back-dated to where the silence began, so the gap is not baked into the answer. |
 | Answer | Now / Beat / Bar | Beat | When the reply starts. **Beat** and **Bar** wait for the next line on the MPC's grid, which is the difference between a reply and a spill. Falls back to Now when the transport is stopped. |
@@ -133,8 +134,7 @@ busy a new grain steals the one furthest through its life.
 - A looper. The MPC has one, and a proper looper needs a footswitch idiom that does not translate to a
   touchscreen. Hold covers most of the same ground.
 - Pitch tracking, which would let Interval snap to a scale and let the answer harmonise what you played.
-- An animated display. The plugin already reports a level and its own state (idle / listening / waiting /
-  answering) as parameters, so a lamp showing whose turn it is would be a small addition.
+- A level meter on screen. The plugin already reports one; only the state lamp is drawn so far.
 - Feeding the answer back into the capture buffer, so repeats degrade as well as fade.
 
 ## Build
