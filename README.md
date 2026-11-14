@@ -8,6 +8,7 @@ the original author and states its licence.
 |---|---|---|---|
 | [Galactic](Galactic/) | Effect: ambient reverb | Airwindows Galactic by Chris Johnson | MIT |
 | [Undertow](Undertow/) | Effect: dub delay with filter, FX, pitch shift, reverse and modulation in the feedback loop; custom skin | Original design | MIT |
+| [Tidepools](Tidepools/) | Effect: granular call-and-response — listens to a phrase, waits for the beat, answers it through one of four grain engines; pitch tracking, custom skin | Original design | MIT |
 
 ## Installing on an MPC
 
