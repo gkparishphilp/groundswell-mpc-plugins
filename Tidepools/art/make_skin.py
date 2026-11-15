@@ -45,7 +45,7 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 P = dict(out=0, mix=1, mode=2, activity=3, shape=4, scatter=5, motion=6, sync=7, time=8, repeats=9,
          tone=10, space=11, decay=12, listen=13, gap=14, answer=15, reply=16, interval=17, scale=18,
          root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27,
-         gapsync=28, sens=29)
+         gapsync=28, sens=29, change=30)
 CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble", "Chord", "Roll", "Ebb"],
            7: ["Free", "Sync"],
            13: ["Off", "Auto", "Hold"], 15: ["Now", "Beat", "Bar"],
@@ -53,7 +53,8 @@ CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble", "Chord", "Roll", "Ebb"],
            19: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
            22: ["Off", "On"], 25: ["Idle", "Hear", "Wait", "Talk"], 26: ["Fixed", "Follow"],
            27: ["-", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
-           28: ["Free", "Sync"]}
+           28: ["Free", "Sync"],
+           30: ["Off", "1 Bar", "2 Bars", "4 Bars"]}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -291,6 +292,7 @@ COL_X = (40, 342, 644, 946)      # left edge of each column
 COL_W = 282
 ROW3_Y = (166, 281, 396)         # box tops when a page has three rows
 ROW2_Y = (196, 346)              # ...and when it has two
+ROW_G3 = 496                     # GRAINS keeps a third row for Change, which only Chord uses
 BOX_H = 100
 TAB_NAMES = ("LISTEN", "GRAINS", "TONE")
 GRAPH = (64, 302, 536, 62)       # the filter curve, inside the wide box on TONE
@@ -388,12 +390,16 @@ def page_grains():
         pills_in(P["sync"], 1, ROW2_Y[1], "TIME MODE", width=110),
         knob_in(P["time"], 2, ROW2_Y[1], "TIME"),
         knob_in(P["spread"], 3, ROW2_Y[1], "SPREAD"),
+
+        # Only Chord uses this, so it sits apart from the knobs every engine shares.
+        pills_in(P["change"], 1, ROW_G3, "CHANGE", span=2),
     ]
     # Both knobs mean something different in each engine, so the panel says which: the heading is a
     # picture bound to Mode, and it goes faint in the engine where the knob does nothing.
     sx, sy = COL_X[3] + 62 + 77, (ROW2_Y[0] + ROW2_Y[0] + BOX_H) // 2 - HEADING_H // 2 - 10
     mx, my = COL_X[0] + 62 + 77, (ROW2_Y[1] + ROW2_Y[1] + BOX_H) // 2 - HEADING_H // 2 - 10
-    statics = dict(headings=[], boxes=[box(c, t) for t in ROW2_Y for c in range(4)],
+    statics = dict(headings=[], boxes=[box(c, t) for t in ROW2_Y for c in range(4)]
+                                     + [box(1, ROW_G3, span=2)],
                    graph=False, waveform=False,
                    images=[dict(file="head_scatter.png", frames=7, param=P["mode"],
                                 box=(sx, sy, HEADING_W, HEADING_H)),
@@ -401,7 +407,7 @@ def page_grains():
                                 box=(mx, my, HEADING_W, HEADING_H))])
     qlinks = [[P["mode"], P["activity"], P["shape"], P["scatter"]],
               [P["motion"], P["sync"], P["time"], P["spread"]],
-              [-1, -1, -1, -1]]
+              [-1, P["change"], -1, -1]]
     return "GRAINS", controls, statics, qlinks
 
 
@@ -722,7 +728,7 @@ DEFAULTS = {0: (30 / 36, "0.0 dB"), 1: (0.50, "50 %"), 2: (5, None), 3: (0.50, "
             16: (0.35, "35 %"), 17: (1.0, "+12 st"), 18: (0, None), 19: (0, None),
             20: (0.50, "50 %"), 21: (0.70, "70 %"), 22: (0, None), 23: (30 / 42, "0.0 dB"),
             24: (0.0, None), 25: (0, None), 26: (1, None), 27: (0, "-"), 28: (1, None),
-            29: (0.50, "50 %")}
+            29: (0.50, "50 %"), 30: (1, None)}
 
 
 def make_previews(previews, images):

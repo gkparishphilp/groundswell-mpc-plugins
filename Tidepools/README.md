@@ -32,11 +32,11 @@ in ─┬───────────────────────�
 |---|---|
 | **Cloud** | Grains scattered through the phrase at the pitch you played. The plain texture: a wash that thickens with Activity and smears with Shape. |
 | **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
-| **Glide** | Grains whose playback rate ramps while they sound, so the reply bends into or away from the pitch you played. The bend is a *rate* — an octave a second at full Motion — so a short grain slides a little and a long one slides a lot, rather than every grain racing through the whole interval. Small amounts are tape wobble; large ones walk off somewhere else. |
+| **Glide** | The whole answer slides. One pitch offset is shared by every grain and depends only on how far through the pass the answer is, so consecutive grains carry the slide on from each other and the reply moves as one piece — down to the full depth over the first pass, back up over the next, and so on. Motion is how far it goes, up to an octave. Small amounts are tape wobble; large ones are a seasick lurch away and home again. |
 | **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
 | **Roll** | Takes one short fragment and drills it, at a tempo-locked rate that tightens as the answer runs — a quarter-second apart at the start, down to about an eighth of that by the end. Blocks reorders whole slices; this one picks a fragment and repeats it. |
 | **Ebb** | The whole answer in reverse. The playhead walks from the end of the phrase back to its start and every grain reads backwards, so notes swell into their attacks instead of decaying away from them. Motion lets the tide run out, slowing the playback by up to half across the pass. |
-| **Chord** | Answers a note with a voicing. Each grain is joined by two to four more at the thirds above it — and because Tidepools knows both what you played and what key you are in, those are the thirds the key actually has: major on the first, fourth and fifth degrees, minor on the second, third and sixth, diminished on the seventh. One finger in, a chord out. Without a scale it stacks a plain major seventh instead, so it still does something on a drum loop. |
+| **Chord** | Answers a note with a voicing, and then moves. Each grain is joined by two to four more at the thirds above it — and because Tidepools knows both what you played and what key you are in, those are the thirds the key actually has: major on the first, fourth and fifth degrees, minor on the second, third and sixth, diminished on the seventh. **Change** then walks the chord every bar or two through I – vi – IV – V, counted from the note you played, re-reading a different part of your phrase each time so a new chord is a new sound as well as a new harmony. One finger in, a progression out. Without a scale it stacks a plain major seventh instead, so it still does something on a drum loop. |
 
 Two knobs mean something slightly different in each engine. **Scatter** is about position and order; **Motion**
 is about pitch and movement. Both are listed per engine below.
@@ -75,7 +75,7 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 | Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90 — or to about 42 in Bubbles, which is deliberately thinner. A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them one by one and the same number reads as far busier. In Blocks it has no effect: slices arrive on the beat. |
 | Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
 | Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Chord** (*Strum*): how far apart in time the notes of the voicing arrive — 0 is a block chord, full is a strum across about 120 ms. **Roll** (*Jump*): how readily it moves to a different fragment. **Ebb**: how far grains wander. **Bubbles**: unused. |
-| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how fast each grain slides, up to an octave a second. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Roll** (*Speed*): how far the roll tightens — at 0 it holds its rate, at full it ends eight times faster than it started. **Ebb** (*Slow*): how much the playback slows across the pass, down to half speed. **Cloud**: unused. |
+| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how far the answer slides over one pass, up to an octave. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Roll** (*Speed*): how far the roll tightens — at 0 it holds its rate, at full it ends eight times faster than it started. **Ebb** (*Slow*): how much the playback slows across the pass, down to half speed. **Cloud**: unused. |
 
 **The panel renames those two for you.** Both knobs mean something different in each engine, so their
 headings are bound to Mode: Scatter reads SHUFFLE in Blocks, Motion reads REVERSE, BEND or RANGE as you switch,
@@ -83,6 +83,7 @@ and the heading goes faint in the engine where the knob does nothing. You should
 | Time Mode | Free / Sync | Sync | Whether Time is a note division of the MPC tempo or milliseconds. |
 | Time | 1/64–2/1, or 30–4000 ms | 1/8 | Slice length in Blocks; elsewhere it caps how long a grain can be. |
 | Spread | 0–100 % | 70 % | How widely grains are panned. At 0 the answer is mono. |
+| Change | Off / 1 Bar / 2 Bars / 4 Bars | 1 Bar | **Chord only.** How often the chord moves on. It walks I – vi – IV – V in degrees of the scale, counted from the note you played, so it lands in the key wherever in the key you happen to be — and each move also picks a different part of your phrase to read, which is what keeps it from sitting still. Off holds one chord for the whole answer. It runs on the MPC's bars, not on the phrase, so it stays with the track; with the transport stopped it falls back to 120 bpm. **Much better with Scale set** — without one every chord is a major seventh and the walk is I – VI – IV – V in plain intervals. |
 
 ### Page 3: TONE
 
@@ -150,6 +151,9 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 - **Chord needs a key.** Set Scale and Root to your track before using it, or it falls back to stacking a major
   seventh on everything, which is right about a third of the time. Strum at 40–60% makes it sound played rather
   than triggered.
+- **Chord with Change on 2 Bars and Repeats near 95%** turns one held note into a backing part that keeps
+  going: four chords round, a different slice of your phrase under each. Answer on the Bar so it starts in the
+  right place, and it will stay with the track from there.
 - **Blocks wants a rhythmic source.** On a pad it sounds like a stutter; on a drum loop or a staccato line it
   rearranges the part.
 - **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes

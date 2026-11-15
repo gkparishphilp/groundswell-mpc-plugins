@@ -91,6 +91,7 @@ enum ParamIndex
     kKeyMode, kHeard,        // appended: pitch tracking
     kGapSync,                // appended: Gap in note divisions
     kSens,                   // appended: how readily the detector decides a phrase is over
+    kChange,                 // appended: how often Chord moves to the next chord
     kNumParams
 };
 
@@ -116,6 +117,13 @@ constexpr int   kWindowSize = 1 << kWindowBits;    // raised-cosine grain envelo
 // Gap as a note division. The table runs to two bars, which is nonsense for "have they stopped
 // playing yet"; half a note is the longest that means anything. The result is clamped to the
 // knob's own range, so a slow tempo cannot make it wait forever.
+// Where Chord goes next, in degrees of the scale, counted from the note you played: its own
+// chord, then the one a sixth above, the fourth, the fifth. I - vi - IV - V, relative to whatever
+// you happened to play, so it lands in the key wherever you are in it.
+constexpr int   kChordWalk[4] = { 0, 5, 3, 4 };
+// A major scale in semitones, for working those moves out when no Scale is set.
+constexpr int   kMajorSteps[7] = { 0, 2, 4, 5, 7, 9, 11 };
+
 constexpr int   kGapMaxDivision = 13;      // 1/2
 constexpr float kGapMinSeconds = 0.04f, kGapMaxSeconds = 1.5f;
 constexpr float kMinPhraseSeconds = 0.08f;
@@ -278,6 +286,7 @@ public:
         addParam(heard);
         addParam(mpc::choiceParam("gapsync", "Gap Mode", { "Free", "Sync" }, 0));
         addParam(mpc::floatParam ("sens",     "Sens",      0.0f, 100.0f, 50.0f, "%", 0));
+        addParam(mpc::choiceParam("change",   "Change",   { "Off", "1 Bar", "2 Bars", "4 Bars" }, 1));
 
         addPrograms();
     }
@@ -428,6 +437,13 @@ public:
                                          0.0f, 0.999f);
         for (int c = 0; c < 2; ++c) fdn_[c].setDamping(clampf(toneHz, 500.0f, 12000.0f));
 
+        // Change: how long one chord holds, in samples. A stopped transport still gives bars,
+        // off the 120 bpm fallback, so Chord keeps moving when the MPC is not running.
+        const int changeSel = clampi(getInt(kChange), 0, 3);
+        const int tsNum = ctx.transport.timeSigNumerator > 0 ? ctx.transport.timeSigNumerator : 4;
+        chordSpan_ = (int64_t)clampf((float)(1 << (changeSel > 0 ? changeSel - 1 : 0))
+                                     * (float)tsNum * beatSamples, 0.25f * sr_, 60.0f * sr_);
+
         const double baseRate = answerRatio();
 
         // The thresholds that decide "you are playing" and "you have stopped", set by Sens.
@@ -562,6 +578,13 @@ public:
                     const int gap = nextSpawnInterval(mode, activity);
                     spawnGrain(mode, shape, scatter, motion, spread, baseRate, phraseLen, gap);
                     spawnCount_ = gap;
+                }
+                // The chord moves on its own clock, not the phrase's, so it lands with the track.
+                if (mode == kChord && changeSel > 0 && --chordCount_ <= 0)
+                {
+                    chordIndex_ = (chordIndex_ + 1) & 3;
+                    chordSlice_ = patternFloat();
+                    chordCount_ = chordSpan_;
                 }
                 ++answerPos_;
                 if (answerPos_ >= phraseLen)
@@ -744,6 +767,9 @@ private:
         blockIndex_ = 0;
         spawnCount_ = 1;
         rollHold_ = 0;
+        chordIndex_ = 0;
+        chordCount_ = chordSpan_;
+        chordSlice_ = 0.0f;
         patternSeed_ = rng_.next();
     }
 
@@ -978,14 +1004,28 @@ private:
             {
                 length = grainLength(shape);
                 start = (double)ansStart_ + (double)patternFloat() * (double)phraseLen * jitter;
-                // The bend is a rate, not an interval: an octave a second at full Motion. Setting
-                // a fixed interval per grain made every grain race through the whole of it, so a
-                // short grain - which is most of them - slid absurdly fast.
-                const float perSecond = motion * 12.0f * (patternFloat() < 0.5f ? -1.0f : 1.0f);
-                const float semis = clampf(perSecond * (float)length / sr_, -12.0f, 12.0f);
-                const double endRate = baseRate * (double)semitonesToRatio(semis);
-                rate = baseRate;
-                rateInc = (endRate - baseRate) / (double)length;
+                // One slide, shared by every grain, instead of a separate bend per grain. Giving
+                // each grain its own random direction made them cancel out into a chorus, and a
+                // short grain - which is most of them - barely moved before it ended, so nothing
+                // actually sounded like it was sliding. Here the offset depends only on how far
+                // through the pass we are, so consecutive grains carry the slide on from each
+                // other and the whole answer moves as one. The grain's own rateInc keeps it going
+                // while the grain sounds, so there is no stepping between them.
+                //
+                // The slide is a triangle across passes, not a sawtooth: the first pass bends
+                // down to the full depth, the next slides back up the way it came. A sawtooth
+                // snapped back to base pitch at every pass boundary, which at full Motion was a
+                // lurch of nearly an octave.
+                const float depth = motion * 12.0f;             // semitones at the far end
+                const float t = (float)answerPos_ / (float)phraseLen;
+                const float frac = (passIndex_ & 1) ? (1.0f - t) : t;
+                const float here = -depth * frac;
+                const double perSample = (double)(((passIndex_ & 1) ? depth : -depth))
+                                       / (double)phraseLen;
+                rate = baseRate * (double)semitonesToRatio(here);
+                const double endRate = baseRate
+                    * (double)semitonesToRatio(here + (float)(perSample * (double)length));
+                rateInc = (endRate - rate) / (double)length;
                 break;
             }
             case kBubbles:
@@ -1042,8 +1082,14 @@ private:
             {
                 // One slice of the phrase, played as a voicing. Scatter is how far the grain
                 // wanders; the chord itself is built in spawnChordVoices below.
+                //
+                // Change moves the chord every bar or two, and when it moves it also moves to a
+                // different part of your phrase - so a new chord is a new sound as well as a new
+                // harmony, which is what stops it sitting still.
                 length = grainLength(shape);
-                start = (double)ansStart_ + (double)patternFloat() * (double)phraseLen * jitter * 0.6;
+                const double centre = (double)ansStart_ + (double)chordSlice_ * (double)phraseLen * 0.7;
+                start = centre + (double)patternFloat() * (double)phraseLen * jitter * 0.3;
+                rate = baseRate * chordDegreeRatio(chordStep(), 0);
                 break;
             }
             default:   // Cloud
@@ -1095,26 +1141,40 @@ private:
     // With a scale and a detected pitch these are real diatonic thirds - the chord the key has on
     // that degree, major or minor as it falls. Without either, a plain stacked major seventh, so
     // the engine still does something musical on a drum loop.
-    double chordVoiceRatio(int v, float motion) const
+    // Where the chord sits right now, as a number of scale degrees above the note you played.
+    int chordStep() const { return kChordWalk[chordIndex_ & 3]; }
+
+    // Move the played note by `steps` degrees of the scale, plus whole octaves. Two steps is a
+    // third, so a chord is steps 0, 2, 4, 6 from wherever the progression has put its root.
+    double chordDegreeRatio(int steps, int octave) const
     {
-        const int octave = (motion > 0.66f && v >= 2) ? 12 : 0;   // wide voicings open upward
         const int si = clampi(getInt(kScale), 0, kNumScales - 1);
         if (si == 0 || heardMidi_ < 0.0f)
         {
-            constexpr int semis[4] = { 0, 4, 7, 11 };
-            return (double)semitonesToRatio((float)(semis[clampi(v, 0, 3)] + octave));
+            // No key to work in, so assume a major scale. Stacking steps 0/2/4/6 on that gives
+            // the major seventh this used to build unconditionally.
+            const int oct = (int)std::floor((float)steps / 7.0f);
+            const int within = steps - oct * 7;
+            return (double)semitonesToRatio((float)(kMajorSteps[clampi(within, 0, 6)]
+                                                    + 12 * oct + octave));
         }
         const ScaleDef& sc = kScales[si];
         const int root = scaleRoot();
         const float rel = heardMidi_ - (float)root;
         const float oct = std::floor(rel / 12.0f);
         const int srcDeg = degreeOf(sc, rel - oct * 12.0f);
-        const int deg = srcDeg + 2 * v;            // thirds: every other degree of the scale
+        const int deg = srcDeg + steps;
         const int shift = (int)std::floor((float)deg / (float)sc.count);
         const int within = deg - shift * sc.count;
         const float target = (float)root + (oct + (float)shift) * 12.0f + (float)sc.notes[within];
         const float source = (float)root + oct * 12.0f + (float)sc.notes[srcDeg];
         return (double)semitonesToRatio(target - source + (float)octave);
+    }
+
+    double chordVoiceRatio(int v, float motion) const
+    {
+        const int octave = (motion > 0.66f && v >= 2) ? 12 : 0;   // wide voicings open upward
+        return chordDegreeRatio(chordStep() + 2 * v, octave);
     }
 
     // Chord spawns the rest of its voicing alongside the grain just made: same slice of the
@@ -1276,6 +1336,10 @@ private:
     int     spawnCount_ = 0;
     double  rollPos_ = 0.0;        // Roll: the fragment being drilled
     int     rollHold_ = 0;         // ...and how many more hits before it moves
+    int     chordIndex_ = 0;       // Chord: where it is in the progression
+    int64_t chordCount_ = 0;       // ...samples until it moves on
+    int64_t chordSpan_ = 44100;    // ...and how many that is, from Change and the tempo
+    float   chordSlice_ = 0.0f;    // ...which part of the phrase this chord is reading
     uint32_t patternSeed_ = 1u;
     float   sliceSamples_ = 11025.0f;
 
