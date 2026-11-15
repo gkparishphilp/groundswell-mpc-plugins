@@ -90,6 +90,7 @@ enum ParamIndex
     kLevel, kState,          // meters: the plugin writes these, nobody automates them
     kKeyMode, kHeard,        // appended: pitch tracking
     kGapSync,                // appended: Gap in note divisions
+    kSens,                   // appended: how readily the detector decides a phrase is over
     kNumParams
 };
 
@@ -276,6 +277,7 @@ public:
         heard.automatable = false; heard.saved = false;
         addParam(heard);
         addParam(mpc::choiceParam("gapsync", "Gap Mode", { "Free", "Sync" }, 0));
+        addParam(mpc::floatParam ("sens",     "Sens",      0.0f, 100.0f, 50.0f, "%", 0));
 
         addPrograms();
     }
@@ -319,6 +321,8 @@ public:
         envAttack_  = 1.0f - std::exp(-1.0f / (0.002f * sr_));   // 2 ms
         envRelease_ = 1.0f - std::exp(-1.0f / (0.060f * sr_));   // 60 ms
         envFastRelease_ = 1.0f - std::exp(-1.0f / (0.022f * sr_));   // 22 ms: two cycles at 80 Hz
+        armFall_ = 1.0f - std::exp(-1.0f / (0.400f * sr_));   // 400 ms: how fast re-arming relaxes
+        answerGainRate_ = 1.0f - std::exp(-1.0f / (0.004f * sr_));   // 4 ms
         meterFall_  = 1.0f - std::exp(-1.0f / (0.150f * sr_));
 
         rng_.reseed(0x51A3C7D9u);
@@ -343,6 +347,9 @@ public:
         writePos_ = 0;
         env_ = 0.0f;
         envFast_ = 0.0f;
+        phrasePeak_ = 0.0f;
+        armLevel_ = 0.0f;
+        answerGainSm_ = 0.0f;
         listening_ = false;
         gapCount_ = 0;
         phraseStart_ = phraseEnd_ = 0;
@@ -423,9 +430,23 @@ public:
 
         const double baseRate = answerRatio();
 
-        // The envelope thresholds that decide "you are playing" and "you have stopped".
-        constexpr float kOpen = 0.004f;    // about -48 dBFS
-        constexpr float kShut = 0.0016f;   // about -56 dBFS, hysteresis so a decay does not flicker
+        // The thresholds that decide "you are playing" and "you have stopped", set by Sens.
+        //
+        // A fixed floor cannot do this job. Ask it to call a note finished at -56 dBFS and a
+        // long-decay patch - a string, a pad, anything with a tail - sits above that for seconds
+        // or for ever, so the phrase never ends and nothing is ever answered. So the shut
+        // threshold is relative: a phrase is over once it has dropped a given distance below its
+        // own loudest point, which is what "stopped playing" actually sounds like. The absolute
+        // floor stays underneath it, for quiet playing that never got loud to begin with.
+        const float sens = clampf(get(kSens) * 0.01f, 0.0f, 1.0f);
+        const float openThresh = dbToGain(-44.0f - 10.0f * sens);     // -44 dBFS .. -54 dBFS
+        const float shutFloor  = openThresh * 0.4f;                   // 8 dB of hysteresis
+        const float shutDrop   = dbToGain(-34.0f + 24.0f * sens);     // -34 dB .. -10 dB of peak
+        // And a phrase that simply never drops - a held drone - has to be cut off somewhere, or
+        // again nothing is answered at all.
+        const int64_t maxListen = (int64_t)(clampf(6.0f - 4.8f * sens,
+                                                   kMinPhraseSeconds * 2.0f,
+                                                   kMaxPhraseSeconds) * sr_);
 
         const int maxPhrase = (int)(kMaxPhraseSeconds * sr_);
         const int minPhrase = (int)(kMinPhraseSeconds * sr_);
@@ -459,22 +480,38 @@ public:
             // ---- phrase detection --------------------------------------------------------
             if (listen == kListenAuto)
             {
-                if (!listening_ && envFast_ > kOpen)
+                // Re-arming. A phrase that ended on its decay leaves the input still well above
+                // the open threshold, so without this the tail of one note would open phrase
+                // after phrase and each new answer would cut off the last. The level the phrase
+                // ended at has to be beaten before anything counts as playing again - either by
+                // a new attack, or by the old note getting out of the way, which is what the
+                // relaxing does.
+                armLevel_ -= armFall_ * armLevel_;
+
+                if (!listening_ && envFast_ > openThresh && envFast_ > armLevel_)
                 {
                     // A phrase begins. Back-date the start a little so the attack is not clipped.
                     listening_ = true;
                     phraseStart_ = writePos_ - (int64_t)(0.01f * sr_);
+                    phrasePeak_ = envFast_;
                     gapCount_ = 0;
                 }
                 else if (listening_)
                 {
-                    if (envFast_ > kShut)
-                        gapCount_ = 0;
-                    else if (++gapCount_ > (int)gapSamples)
+                    if (envFast_ > phrasePeak_) phrasePeak_ = envFast_;
+                    const float shut = std::fmax(shutFloor, phrasePeak_ * shutDrop);
+
+                    if (envFast_ > shut) gapCount_ = 0; else ++gapCount_;
+
+                    const bool wentQuiet = gapCount_ > (int)gapSamples;
+                    const bool ranOn     = (writePos_ - phraseStart_) > maxListen;
+                    if (wentQuiet || ranOn)
                     {
-                        // Long enough a silence: that was the phrase.
+                        // Either a long enough drop, or a phrase that would not end by itself.
                         listening_ = false;
-                        phraseEnd_ = writePos_ - gapCount_;
+                        // Trim the trailing quiet, unless there was none to trim.
+                        phraseEnd_ = wentQuiet ? writePos_ - gapCount_ : writePos_;
+                        armLevel_ = envFast_ * 1.4f;   // ~3 dB above where it left off
                         int64_t len = phraseEnd_ - phraseStart_;
                         if (len > maxPhrase) phraseStart_ = phraseEnd_ - maxPhrase;
                         if (len >= minPhrase)
@@ -563,8 +600,9 @@ public:
 
             // Grains overlap, so the sum grows with density: hold it to roughly unity.
             const float trim = wetTrim_.process();
-            wetL *= trim * answerGain_;
-            wetR *= trim * answerGain_;
+            answerGainSm_ += answerGainRate_ * (answerGain_ - answerGainSm_);
+            wetL *= trim * answerGainSm_;
+            wetR *= trim * answerGainSm_;
 
             // Tone, then the reverb, which is fed from the grains only.
             wetL = tone_[0].process(wetL, SVF::Mode::Lowpass);
@@ -1217,6 +1255,9 @@ private:
     // listening
     float   env_ = 0.0f, envAttack_ = 0.1f, envRelease_ = 0.01f;
     float   envFast_ = 0.0f, envFastRelease_ = 0.05f;   // marks where a phrase really stops
+    float   phrasePeak_ = 0.0f;   // loudest the phrase in progress has been, for the relative shut
+    float   armLevel_ = 0.0f;     // after a phrase ends, what the input must beat to start another
+    float   armFall_ = 0.0f;
     bool    listening_ = false;
     int     gapCount_ = 0;
     int64_t phraseStart_ = 0, phraseEnd_ = 0;    // what the detector is marking up
@@ -1227,6 +1268,10 @@ private:
     int     pendingCount_ = 0;
     int64_t answerPos_ = 0;
     float   answerGain_ = 1.0f;
+    // The gain the audio actually gets. answerGain_ is the logical one, and it steps: down a
+    // notch on every repeat pass, and straight back to 1 whenever an answer restarts. Applying
+    // those steps to grains that are already sounding is a click, so the audio follows this.
+    float   answerGainSm_ = 0.0f, answerGainRate_ = 1.0f;
     int     passIndex_ = 0, blockIndex_ = 0;
     int     spawnCount_ = 0;
     double  rollPos_ = 0.0;        // Roll: the fragment being drilled

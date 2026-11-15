@@ -26,7 +26,7 @@ in ─┬───────────────────────�
                                       tone ─> limiter ─> reverb ─> trade┴─┘
 ```
 
-## The four engines
+## The seven engines
 
 | Mode | What it does |
 |---|---|
@@ -55,6 +55,7 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 |---|---|---|---|
 | State | Idle / Hear / Wait / Talk | — | Not a control: the lamp. It shows whose turn it is — **Hear** while it is taking your phrase in, **Wait** while it holds for the next beat or bar, **Talk** while it answers. The plugin writes it twenty-five times a second, so tapping it does nothing lasting. Watch it for a minute and the whole plugin explains itself. |
 | Listen | Off / Auto / Hold | Auto | **Auto**: watch for phrases and answer them. **Off**: granulate the last few seconds continuously, the way a pedal does — a texture, not a conversation. **Hold**: the Hold switch freezes the buffer and the grains work that frozen moment until you let go. |
+| Sens | 0–100 % | 50 % | How readily it decides you have stopped. A note is treated as finished once it has dropped a set distance below its own loudest point — at 0 that is 34 dB (it waits for near silence), at 100 it is 10 dB (it answers into your decay). Sens also caps how long one phrase may run before it is answered regardless: 6 s at 0, about 3.6 s at 50, 1.2 s at 100. **Turn this up for pads, strings and anything with a long release; turn it down for staccato playing in a noisy room.** |
 | Gap | 40–1500 ms, or 1/64–1/2 | 220 ms | How long a silence has to last before Tidepools decides you have finished. Short and it finishes your sentences; long and it waits until you really mean it. The phrase end is back-dated to where the silence began, so the gap is not baked into the answer. |
 | Gap Mode | Free / Sync | Free | Whether Gap is milliseconds or a note division of the MPC tempo. **Sync** makes the listening window scale with the track, so a patch keeps its feel at any tempo — the same thing Time Mode does for the grains. The divisions stop at 1/2, since nothing longer means anything as "have they stopped playing", and the result is clamped to 1.5 s so a slow tempo cannot leave it waiting forever. |
 | Answer | Now / Beat / Bar | Beat | When the reply starts. **Beat** and **Bar** wait for the next line on the MPC's grid, which is the difference between a reply and a spill. Falls back to Now when the transport is stopped. |
@@ -135,6 +136,10 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 
 - **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepools does is easier to
   hear on one note than on a phrase.
+- **If you hear nothing, it is Sens.** On a patch with a long release — strings, pads, anything with a tail —
+  the input never really goes quiet, so a detector set to wait for silence waits for ever. Turn Sens up to
+  70–100% and it will answer into the decay instead. Watch the State lamp: if it sits on **Hear** and never
+  reaches **Talk**, that is exactly what is happening.
 - **Gap is the feel knob.** Short (80–150 ms) and it jumps in almost before you have finished, which is exciting
   and a bit pushy. Long (500 ms+) and it waits politely. It changes the character more than anything else here.
 - **Answer on the Bar for solos, on the Beat for stabs.**
@@ -157,6 +162,22 @@ gate, where a smooth envelope is what you want. A faster one (22 ms release) dec
 because the slow follower takes about a third of a second to fall quiet after an abrupt stop — which put that
 much dead air on the end of every phrase. It never showed until Ebb started reading from that end and found
 nothing there.
+
+The threshold that follower is compared against is **relative**, not a fixed floor, and that matters more than
+anything else here. A fixed floor cannot tell a held note from a room that has gone quiet. Ask it to call a
+phrase finished at −56 dBFS and a long-decay patch — a string, a pad, a piano with the pedal down — sits above
+that line for seconds, or for ever: the phrase never ends, so nothing is ever answered and the plugin appears
+to be broken. Instead a phrase is over once it has fallen a given distance below *its own* loudest point,
+which is what "they have stopped playing" actually sounds like. Sens sets that distance.
+
+Two things back it up. A phrase that never drops at all — a held drone — is cut off and answered anyway once
+it passes the Sens time limit, so there is no input that produces silence. And after a phrase ends on its own
+decay the input is still well above the threshold, so the level it ended at has to be beaten before anything
+counts as playing again; otherwise one note's tail would open phrase after phrase and each new answer would
+cut off the last. That re-arming relaxes over about 400 ms.
+
+**If you want none of this**, set Listen to **Off**: there is then no detector, no waiting and no decay, and
+Tidepools granulates the last few seconds continuously the way an ordinary pedal does.
 
 ## CPU
 

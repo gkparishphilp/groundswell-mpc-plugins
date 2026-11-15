@@ -45,7 +45,7 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 P = dict(out=0, mix=1, mode=2, activity=3, shape=4, scatter=5, motion=6, sync=7, time=8, repeats=9,
          tone=10, space=11, decay=12, listen=13, gap=14, answer=15, reply=16, interval=17, scale=18,
          root=19, trade=20, spread=21, hold=22, input=23, level=24, state=25, keymode=26, heard=27,
-         gapsync=28)
+         gapsync=28, sens=29)
 CHOICES = {2: ["Cloud", "Blocks", "Glide", "Bubble", "Chord", "Roll", "Ebb"],
            7: ["Free", "Sync"],
            13: ["Off", "Auto", "Hold"], 15: ["Now", "Beat", "Bar"],
@@ -307,6 +307,18 @@ def knob_in(param, col, top, heading, bipolar=False, span=1):
                 heading=heading, bipolar=bipolar, heading_pos="wide")
 
 
+def knob_compact(param, cx, cy):
+    """A knob with its value underneath, for sharing a box with something else."""
+    return dict(kind="knob", size="small", param=param, centre=(cx, cy),
+                heading=None, bipolar=False, heading_pos="above")
+
+
+def switch_at(param, caption, x, y, width=96):
+    """A single lit/unlit pill at an exact spot, for tucking into another control's box."""
+    return dict(kind="pills", param=param, heading=None, heading_xy=(x, y),
+                items=[(1, caption, x, y, width)], toggle=True)
+
+
 def pills_in(param, col, top, heading, captions=None, width=None, rows=1, span=1):
     """A row (or two) of pills filling a box, with the heading above them."""
     names = captions or CHOICES[param]
@@ -335,27 +347,33 @@ def toggle_in(param, col, top, heading, caption):
 
 
 def page_listen():
+    # Top row: everything that decides what counts as a phrase. Sens is the one that matters most
+    # on a patch with a long tail, so it sits up here rather than among the levels. Gap and its
+    # Free/Sync switch are two halves of one idea, so they share the third box.
+    gx0, gy0, gx1, gy1 = box(2, ROW3_Y[0])
     controls = [
         pills_in(P["state"], 0, ROW3_Y[0], "STATE"),
         pills_in(P["listen"], 1, ROW3_Y[0], "LISTEN"),
-        knob_in(P["gap"], 2, ROW3_Y[0], "GAP"),
-        pills_in(P["answer"], 3, ROW3_Y[0], "ANSWER"),
+        knob_compact(P["gap"], gx0 + 112, gy0 + 46),
+        switch_at(P["gapsync"], "Sync", gx1 - 22 - 80, (gy0 + gy1) / 2 - PILL_H / 2, 80),
+        knob_in(P["sens"], 3, ROW3_Y[0], "SENS"),
 
-        knob_in(P["trade"], 0, ROW3_Y[1], "TRADE"),
-        toggle_in(P["hold"], 1, ROW3_Y[1], "HOLD", "Hold"),
-        knob_in(P["reply"], 2, ROW3_Y[1], "REPLY"),
-        knob_in(P["repeats"], 3, ROW3_Y[1], "REPEATS"),
+        pills_in(P["answer"], 0, ROW3_Y[1], "ANSWER"),
+        knob_in(P["trade"], 1, ROW3_Y[1], "TRADE"),
+        toggle_in(P["hold"], 2, ROW3_Y[1], "HOLD", "Hold"),
+        knob_in(P["reply"], 3, ROW3_Y[1], "REPLY"),
 
-        knob_in(P["mix"], 0, ROW3_Y[2], "MIX"),
-        knob_in(P["input"], 1, ROW3_Y[2], "INPUT"),
-        knob_in(P["out"], 2, ROW3_Y[2], "OUTPUT"),
-        pills_in(P["gapsync"], 3, ROW3_Y[2], "GAP MODE", width=110),
+        knob_in(P["repeats"], 0, ROW3_Y[2], "REPEATS"),
+        knob_in(P["mix"], 1, ROW3_Y[2], "MIX"),
+        knob_in(P["input"], 2, ROW3_Y[2], "INPUT"),
+        knob_in(P["out"], 3, ROW3_Y[2], "OUTPUT"),
     ]
-    statics = dict(headings=[], boxes=[box(c, t) for t in ROW3_Y for c in range(4)],
+    statics = dict(headings=[("GAP", (gx0 + 24, gy0 + 21))],
+                   boxes=[box(c, t) for t in ROW3_Y for c in range(4)],
                    graph=False, waveform=False)
-    qlinks = [[P["state"], P["listen"], P["gap"], P["answer"]],
-              [P["trade"], P["hold"], P["reply"], P["repeats"]],
-              [P["mix"], P["input"], P["out"], P["gapsync"]]]
+    qlinks = [[P["state"], P["listen"], P["gap"], P["sens"]],
+              [P["answer"], P["trade"], P["hold"], P["reply"]],
+              [P["repeats"], P["mix"], P["input"], P["out"]]]
     return "LISTEN", controls, statics, qlinks
 
 
@@ -590,6 +608,7 @@ def build():
     knob_defs = {}
     for key, spec, strip, overlay in (("knob wide", SMALL, "knob_small.png", "knob overlay"),
                                       ("knob wide bipolar", SMALL, "knob_small_bi.png", "knob overlay bipolar"),
+                                      ("knob small", SMALL, "knob_small.png", "knob overlay"),
                                       ("knob large", LARGE, "knob_large.png", "knob overlay")):
         comp, geom = knob_component(spec, strip, overlay, wide=key.startswith("knob wide"))
         defs.append((key, comp))
@@ -702,7 +721,8 @@ DEFAULTS = {0: (30 / 36, "0.0 dB"), 1: (0.50, "50 %"), 2: (5, None), 3: (0.50, "
             12: (0.695, "3.9 s"), 13: (1, None), 14: (0.4703, "220 ms"), 15: (1, None),
             16: (0.35, "35 %"), 17: (1.0, "+12 st"), 18: (0, None), 19: (0, None),
             20: (0.50, "50 %"), 21: (0.70, "70 %"), 22: (0, None), 23: (30 / 42, "0.0 dB"),
-            24: (0.0, None), 25: (0, None), 26: (1, None), 27: (0, "-"), 28: (1, None)}
+            24: (0.0, None), 25: (0, None), 26: (1, None), 27: (0, "-"), 28: (1, None),
+            29: (0.50, "50 %")}
 
 
 def make_previews(previews, images):
