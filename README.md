@@ -1,14 +1,13 @@
 # Groundswell MPC plugins
 
 Open-source instrument and effect plugins for Akai MPC standalone hardware (MPC Live, X, One, Key, Force and
-others), built with the MPC Plugin SDK: original designs and ports of existing open-source DSP. Each port's README credits
-the original author and states its licence.
+others), built with the MPC Plugin SDK. Each plugin's README says what it does, what is not implemented, and what
+it costs in CPU; anything borrowed is credited there with its licence.
 
 | Plugin | Kind | Based on | Licence |
 |---|---|---|---|
-| [Galactic](Galactic/) | Effect: ambient reverb | Airwindows Galactic by Chris Johnson | MIT |
 | [Undertow](Undertow/) | Effect: dub delay with filter, FX, pitch shift, reverse and modulation in the feedback loop; custom skin | Original design | MIT |
-| [Tidepools](Tidepools/) | Effect: granular call-and-response — listens to a phrase, waits for the beat, answers it through one of four grain engines; pitch tracking, custom skin | Original design | MIT |
+| [Tidepools](Tidepools/) | Effect: granular call-and-response — listens to a phrase, waits for the beat, answers it through one of seven grain engines; pitch tracking, 21 programs, custom skin | Original design | MIT |
 
 ## Installing on an MPC
 
