@@ -1298,17 +1298,24 @@ private:
     void addPrograms()
     {
         // Out Mix Mode Act Shp Sct Mot Sync Time Rep Tone Spc Dec Lsn Gap Ans Rep Int Scl Rt Trd Spr Hld In
-        auto prog = [this](const char* name, std::vector<float> v)
+        // The list runs in parameter order as far as Input, which is as far as it is worth
+        // counting commas. Anything beyond that - and anything a program wants to change out of
+        // order - goes in `extra` by name. Anything named nowhere keeps the parameter's own
+        // default, so appending a parameter later does not silently set every program's copy of
+        // it to zero.
+        auto prog = [this](const char* name, std::vector<float> v,
+                           std::initializer_list<std::pair<int, float>> extra = {})
         {
-            // Anything a program does not list keeps the parameter's own default, so appending a
-            // parameter later does not silently set every program's copy of it to zero.
             const size_t given = v.size();
             v.resize((size_t)kNumParams);
             for (size_t i = given; i < v.size(); ++i) v[i] = param((int)i).def;
+            for (const auto& e : extra)
+                if (e.first >= 0 && e.first < kNumParams) v[(size_t)e.first] = e.second;
             addProgram(name, std::move(v));
         };
         const float T8 = timeFor(kDivisionEighth), T16 = timeFor(kDivisionSixteenth),
                     T4 = timeFor(kDivisionQuarter);
+        const float G16 = gapFor(kDivisionSixteenth), G8 = gapFor(kDivisionEighth);
 
         prog("Call and Answer", { 0, 50, kCloud,   50, 45, 35, 30, 1, T8,  40, 9000,  30, 3.0f,
                                   kListenAuto, 220, kAnswerBeat, 35,  0, 0, 0, 50, 70, 0, 0 });
@@ -1333,6 +1340,54 @@ private:
                                   kListenAuto, 180, kAnswerBeat, 45,  0, 0, 0, 60, 60, 0, 0 });
         prog("Ebb Tide",        { 0, 55, kEbb,  45, 60, 35, 45, 1, T4,  50, 6000, 55, 6.0f,
                                   kListenAuto, 300, kAnswerBar,  35,  0, 0, 0, 50, 80, 0, 0 });
+
+        // ---- the ones that need Sens up ---------------------------------------------------
+        // A patch with a long release never goes quiet, so the detector has to answer into the
+        // decay instead of waiting for silence. These two are where to start on strings or pads.
+        prog("Long Strings",    { 0, 50, kCloud, 45, 65, 35, 25, 1, T4,  55, 7000, 45, 5.0f,
+                                  kListenAuto, 400, kAnswerBar,  35,  0, 0, 0, 70, 80, 0, 0 },
+                                { { kSens, 85.0f } });
+        prog("Pad Partner",     { 0, 50, kBubbles, 70, 30, 45, 55, 1, T16, 90, 11000, 45, 5.0f,
+                                  kListenAuto, 300, kAnswerBar,  40,  0, 5, 0, 100, 85, 0, 0 },
+                                { { kSens, 90.0f } });
+
+        // ---- the two Glide directions, which Mixed never settles on -------------------------
+        prog("Octave Diver",    { 0, 55, kGlide, 50, 55, 35, 100, 1, T8, 55, 7000, 40, 4.0f,
+                                  kListenAuto, 240, kAnswerBeat, 30,  0, 0, 0, 50, 75, 0, 0 },
+                                { { kGlideDir, (float)kGlideDown } });
+        prog("Rising Tide",     { 0, 55, kGlide, 45, 60, 30, 100, 1, T4, 60, 9000, 55, 6.0f,
+                                  kListenAuto, 300, kAnswerBar,  35,  0, 0, 0, 55, 80, 0, 0 },
+                                { { kGlideDir, (float)kGlideUp } });
+
+        // ---- what the sample and hold is for ------------------------------------------------
+        prog("Riff Machine",    { 0, 60, kBubbles, 85, 25, 55, 50, 1, T16, 50, 12000, 30, 3.0f,
+                                  kListenAuto, 200, kAnswerBeat, 40,  0, 4, 0, 55, 85, 0, 0 });
+        prog("Glass Harmonica", { 0, 55, kBubbles, 60, 55, 75, 90, 1, T8, 65, 13000, 70, 8.0f,
+                                  kListenAuto, 260, kAnswerBar,  45,  0, 1, 0, 50, 95, 0, 0 });
+
+        // ---- chords that move ---------------------------------------------------------------
+        prog("Backing Part",    { 0, 55, kChord, 35, 60, 30, 45, 1, T4,  95, 8000, 45, 5.0f,
+                                  kListenAuto, 280, kAnswerBar,  25,  0, 1, 0, 90, 70, 0, 0 },
+                                { { kChange, 2.0f } });
+        prog("Minor Changes",   { 0, 50, kChord, 30, 70, 50, 70, 1, T4,  85, 6500, 55, 7.0f,
+                                  kListenAuto, 320, kAnswerBar,  30,  0, 2, 9, 60, 80, 0, 0 },
+                                { { kChange, 3.0f } });
+
+        // ---- the rest of the palette ---------------------------------------------------------
+        // Gap on Sync, so the listening window keeps its feel when the tempo changes.
+        prog("Sixteenth Gate",  { 0, 60, kBlocks, 65, 25, 65, 50, 1, T16, 40, 9000, 15, 1.5f,
+                                  kListenAuto, G16, kAnswerBeat, 50,  0, 0, 0, 55, 85, 0, 0 },
+                                { { kGapSync, 1.0f }, { kSens, 70.0f } });
+        prog("Trading Fours",   { 0, 50, kCloud, 50, 50, 40, 30, 1, T4,  95, 8500, 40, 5.0f,
+                                  kListenAuto, G8,  kAnswerBar,  40,  0, 0, 0, 100, 75, 0, 0 },
+                                { { kGapSync, 1.0f } });
+    }
+
+    // The plain Gap whose normalised position selects this division, for programs that want
+    // Gap Mode on Sync. Gap counts divisions on its own, shorter scale than Time does.
+    float gapFor(int division) const
+    {
+        return param(kGap).toPlain(clampf((float)division / (float)kGapMaxDivision, 0.0f, 1.0f));
     }
 
     float timeFor(int division) const

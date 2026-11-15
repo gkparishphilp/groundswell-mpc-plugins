@@ -134,6 +134,42 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 | Tightening Roll | A fragment drilled on eighths, accelerating through each answer |
 | Ebb Tide | The phrase backwards and slowing, long Gap, answering on the bar |
 
+**For sustained sources.** Anything with a long release — strings, pads, a piano with the pedal down —
+needs Sens up, or the detector waits for a silence that never comes. These two arrive that way.
+
+| Name | What it is |
+|---|---|
+| Long Strings | Cloud with Sens at 85% and a 400 ms Gap: answers into the decay instead of waiting it out, and Trade at 70% keeps it out of your way while you play |
+| Pad Partner | Bubbles in Dorian with Sens at 90% and Trade at 100%, so it fills every gap you leave and vanishes the moment you come back |
+
+**The two Glide directions.** Mixed wanders through intervals and never settles; these commit.
+
+| Name | What it is |
+|---|---|
+| Octave Diver | Glide down a full octave over each pass and back, on eighths |
+| Rising Tide | Glide up a full octave over each pass, answering on the bar, with a long reverb behind it |
+
+**What the sample and hold is for.** Bubbles stops being a texture when the filters hold still.
+
+| Name | What it is |
+|---|---|
+| Riff Machine | Bubbles in C penta minor, S&H at 55% and Activity high: groups of seven bubbles to a note, so it writes a part rather than a shimmer |
+| Glass Harmonica | S&H at 75% with Range at 90%, long grains and a lot of Space — slow, pitched and ringing, each note a different sharpness |
+
+**Chords that move.**
+
+| Name | What it is |
+|---|---|
+| Backing Part | Chord in C major changing every 2 bars, Repeats at 95% and Trade at 90%: hold one note and it keeps a progression going underneath you |
+| Minor Changes | Chord in A minor changing every 4 bars, wide voicings, long reverb — slower and more deliberate |
+
+**The rest.**
+
+| Name | What it is |
+|---|---|
+| Sixteenth Gate | Blocks with Gap on Sync at a sixteenth, so the listening window follows the tempo: tight, rhythmic and quick to answer |
+| Trading Fours | Cloud with Trade at 100% and Repeats at 95%, Gap synced to an eighth, answering on the bar — it plays whenever you do not |
+
 ## Tips
 
 - **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepools does is easier to
