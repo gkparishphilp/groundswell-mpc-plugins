@@ -605,8 +605,8 @@ def build():
     save("curve_lp.png", curve_strip("LP"))
     # Cloud / Blocks / Glide / Bubbles / Chord / Roll / Ebb, in that order.
     save("head_scatter.png",
-         mode_heading_strip(["SCATTER", "SHUFFLE", "SCATTER", "SCATTER", "STRUM", "JUMP",
-                             "SCATTER"], dim=(3,)))
+         mode_heading_strip(["SCATTER", "SHUFFLE", "SCATTER", "S&H", "STRUM", "JUMP",
+                             "SCATTER"]))
     save("head_motion.png",
          mode_heading_strip(["MOTION", "REVERSE", "BEND", "RANGE", "VOICING", "SPEED", "SLOW"],
                             dim=(0,)))

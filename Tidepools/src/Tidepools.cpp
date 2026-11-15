@@ -774,6 +774,7 @@ private:
         blockIndex_ = 0;
         spawnCount_ = 1;
         rollHold_ = 0;
+        shCount_ = 0;
         glidePass_ = -1;
         glideFrom_ = glideTo_ = 0.0f;
         chordIndex_ = 0;
@@ -1047,14 +1048,30 @@ private:
                 // Short grains through their own resonant band-pass: each becomes a pitched blip.
                 length = (int)clampf(grainLength(shape) * 0.35f, 0.006f * sr_, 0.12f * sr_);
                 start = (double)ansStart_ + (double)patternFloat() * (double)phraseLen;
-                const float lo = 180.0f, hi = 180.0f + motion * 5200.0f;
-                const float hz = snapToScale(lo + patternFloat() * (hi - lo));
-                constexpr float kRes = 0.84f;
-                g->band.set(clampf(hz, 60.0f, 0.45f * sr_), kRes);
+
+                // Sample and hold. Scatter is how many bubbles share one setting before a new
+                // one is drawn: at 0 every bubble is its own, which is where this started, and
+                // turned up they arrive in groups on one pitch. Holding the value is what turns
+                // a shimmer into a pattern - the ear hears a repeated note rather than noise.
+                // Counting bubbles rather than milliseconds keeps the steps in step with
+                // Activity, so changing the density does not change the rhythm of the pattern.
+                if (--shCount_ <= 0)
+                {
+                    const float lo = 180.0f, hi = 180.0f + motion * 5200.0f;
+                    shHz_ = snapToScale(lo + patternFloat() * (hi - lo));
+                    // Resonance is drawn with it, so Range widens the character as well as the
+                    // pitch: some bubbles ping, others only blip. At Range 0 it stays on the
+                    // one value this always used, so the engine's old sound is still in here.
+                    shRes_ = clampf(0.84f + (patternFloat() - 0.5f) * motion * 0.28f,
+                                    0.60f, 0.97f);
+                    shCount_ = 1 + (int)(scatter * 11.0f + 0.5f);
+                }
+                g->band.set(clampf(shHz_, 60.0f, 0.45f * sr_), shRes_);
                 g->band.reset();
                 // The SVF's band-pass peaks at 1/k, so undo that and add a little back: a bubble
-                // should sit with the other engines, not three times above them.
-                g->filtGain = (2.0f - 1.98f * kRes) * 2.6f;
+                // should sit with the other engines, not three times above them. This has to use
+                // the resonance this bubble actually got, or a varied Q becomes a varied level.
+                g->filtGain = (2.0f - 1.98f * shRes_) * 2.6f;
                 filtered = true;
                 break;
             }
@@ -1379,6 +1396,9 @@ private:
     int     spawnCount_ = 0;
     double  rollPos_ = 0.0;        // Roll: the fragment being drilled
     int     rollHold_ = 0;         // ...and how many more hits before it moves
+    float   shHz_ = 440.0f;        // Bubbles: the held sample-and-hold frequency...
+    float   shRes_ = 0.84f;        // ...its resonance...
+    int     shCount_ = 0;          // ...and how many more bubbles it has to last
     int     glidePass_ = -1;       // Glide: which pass the targets below were picked for
     float   glideFrom_ = 0.0f;     // Glide: semitones at the start of this pass...
     float   glideTo_ = 0.0f;       // ...and where it is heading by the end of it
