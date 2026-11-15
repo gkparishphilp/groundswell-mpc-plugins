@@ -32,7 +32,7 @@ in ─┬───────────────────────�
 |---|---|
 | **Cloud** | Grains scattered through the phrase at the pitch you played. The plain texture: a wash that thickens with Activity and smears with Shape. |
 | **Blocks** | The phrase cut into tempo-locked slices and handed back in a shuffled pattern — some slices repeated, some reversed, some left as silence. The pattern is seeded per answer, so each reply is a different but *coherent* arrangement rather than mush. |
-| **Glide** | The whole answer slides. One pitch offset is shared by every grain and depends only on how far through the pass the answer is, so consecutive grains carry the slide on from each other and the reply moves as one piece — down to the full depth over the first pass, back up over the next, and so on. Motion is how far it goes, up to an octave. Small amounts are tape wobble; large ones are a seasick lurch away and home again. |
+| **Glide** | The whole answer slides. One pitch offset is shared by every grain and depends only on how far through the pass the answer is, so consecutive grains carry the slide on from each other and the reply moves as one piece. Each pass slides from wherever the last one finished to a new target, so the pitch is continuous however far apart those targets are. **Glide** chooses them: *Down* and *Up* are a tide out to Motion's full depth and back, while *Mixed* picks a real interval each pass — a whole tone, a fourth, a fifth or an octave, up or down, and now and then back to the note you played. |
 | **Bubbles** | Short grains, each through its own resonant band-pass, so every one becomes a pitched blip rather than a piece of audio. Their frequencies can be snapped to a scale, which turns a held note into a sparkling arpeggio in key. |
 | **Roll** | Takes one short fragment and drills it, at a tempo-locked rate that tightens as the answer runs — a quarter-second apart at the start, down to about an eighth of that by the end. Blocks reorders whole slices; this one picks a fragment and repeats it. |
 | **Ebb** | The whole answer in reverse. The playhead walks from the end of the phrase back to its start and every grain reads backwards, so notes swell into their attacks instead of decaying away from them. Motion lets the tide run out, slowing the playback by up to half across the pass. |
@@ -75,7 +75,7 @@ The call-and-response layer. This is the page that makes Tidepools what it is.
 | Activity | 0–100 % | 50 % | Grain density, from about 4 a second to about 90 — or to about 42 in Bubbles, which is deliberately thinner. A bubble is a distinct pitched blip rather than a grain of wash, so the ear counts them one by one and the same number reads as far busier. In Blocks it has no effect: slices arrive on the beat. |
 | Shape | 0–100 % | 45 % | Grain length, 18 ms to about half a second, capped by Time. Short is percussive and clicky; long is smeared and glassy. |
 | Scatter | 0–100 % | 35 % | **Cloud/Glide**: how far grains wander from where the playhead is. **Blocks** (*Shuffle*): how scrambled the slice order is, and how often a slice is dropped for silence. **Chord** (*Strum*): how far apart in time the notes of the voicing arrive — 0 is a block chord, full is a strum across about 120 ms. **Roll** (*Jump*): how readily it moves to a different fragment. **Ebb**: how far grains wander. **Bubbles**: unused. |
-| Motion | 0–100 % | 30 % | **Glide** (*Bend*): how far the answer slides over one pass, up to an octave. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Roll** (*Speed*): how far the roll tightens — at 0 it holds its rate, at full it ends eight times faster than it started. **Ebb** (*Slow*): how much the playback slows across the pass, down to half speed. **Cloud**: unused. |
+| Motion | 0–100 % | 30 % | **Glide** (*Bend*): on Down and Up, how far the slide reaches, up to an octave. On Mixed it is how far down the list of intervals it may go — a whole tone below 25%, then fourths, then fifths, and octaves above 75% — so turning it up lets bigger intervals in rather than stretching one bend wider, which is what you want when the interval is the point. **Blocks** (*Reverse*): how often a slice plays backwards. **Bubbles** (*Range*): how wide the band of filter frequencies is. **Chord** (*Voicing*): two notes, three, then four, and past about two thirds the upper notes open an octave. **Roll** (*Speed*): how far the roll tightens — at 0 it holds its rate, at full it ends eight times faster than it started. **Ebb** (*Slow*): how much the playback slows across the pass, down to half speed. **Cloud**: unused. |
 
 **The panel renames those two for you.** Both knobs mean something different in each engine, so their
 headings are bound to Mode: Scatter reads SHUFFLE in Blocks, Motion reads REVERSE, BEND or RANGE as you switch,
@@ -83,6 +83,7 @@ and the heading goes faint in the engine where the knob does nothing. You should
 | Time Mode | Free / Sync | Sync | Whether Time is a note division of the MPC tempo or milliseconds. |
 | Time | 1/64–2/1, or 30–4000 ms | 1/8 | Slice length in Blocks; elsewhere it caps how long a grain can be. |
 | Spread | 0–100 % | 70 % | How widely grains are panned. At 0 the answer is mono. |
+| Glide | Down / Up / Mixed | Mixed | **Glide only.** Where the slide goes. *Down* and *Up* are a tide: out to Motion's full depth over one pass, back to the note you played over the next. *Mixed* picks a fresh interval every pass — ±2, ±5, ±7 or ±12 semitones, or home — never the same one twice running, so every pass actually moves. Because each pass starts where the last finished, an octave up followed by an octave down is one continuous two-octave sweep. |
 | Change | Off / 1 Bar / 2 Bars / 4 Bars | 1 Bar | **Chord only.** How often the chord moves on. It walks I – vi – IV – V in degrees of the scale, counted from the note you played, so it lands in the key wherever in the key you happen to be — and each move also picks a different part of your phrase to read, which is what keeps it from sitting still. Off holds one chord for the whole answer. It runs on the MPC's bars, not on the phrase, so it stays with the track; with the transport stopped it falls back to 120 bpm. **Much better with Scale set** — without one every chord is a major seventh and the walk is I – VI – IV – V in plain intervals. |
 
 ### Page 3: TONE
@@ -123,7 +124,7 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 |---|---|
 | Call and Answer | The plain version: Cloud, answering on the beat. Start here. |
 | Chopped Reply | Blocks on sixteenths, shuffled, with a high Reply so each answer rearranges itself |
-| Bending Back | Glide with a wide bend, so the reply slides away from what you played |
+| Bending Back | Glide on Mixed with Motion at 85%, so the reply sets off a fifth or an octave in either direction and keeps moving |
 | Bubble Bath | Bubbles with a wide filter band, unscaled |
 | In Key | Bubbles snapped to A penta minor, answering on the bar — arpeggios out of single notes |
 | Octave Answer | Cloud an octave up, long Gap, answering on the bar |
@@ -154,6 +155,9 @@ With Scale off, Interval is an honest semitone shift and no pitch is needed.
 - **Chord with Change on 2 Bars and Repeats near 95%** turns one held note into a backing part that keeps
   going: four chords round, a different slice of your phrase under each. Answer on the Bar so it starts in the
   right place, and it will stay with the track from there.
+- **Glide needs Motion up to be interesting.** At the default 30% Mixed only has whole tones and
+  fourths to choose from. Past 75% the octaves come in, and an octave up followed by an octave down
+  is a continuous two-octave sweep, because each pass sets off from wherever the last one landed.
 - **Blocks wants a rhythmic source.** On a pad it sounds like a stutter; on a drum loop or a staccato line it
   rearranges the part.
 - **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes

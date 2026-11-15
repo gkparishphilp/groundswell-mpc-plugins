@@ -92,6 +92,7 @@ enum ParamIndex
     kGapSync,                // appended: Gap in note divisions
     kSens,                   // appended: how readily the detector decides a phrase is over
     kChange,                 // appended: how often Chord moves to the next chord
+    kGlideDir,               // appended: where Glide slides to
     kNumParams
 };
 
@@ -99,6 +100,7 @@ enum Mode   { kCloud = 0, kBlocks, kGlide, kBubbles, kChord, kRoll, kEbb };
 enum Listen { kListenOff = 0, kListenAuto, kListenHold };
 enum Answer { kAnswerNow = 0, kAnswerBeat, kAnswerBar };
 enum KeyMode { kKeyFixed = 0, kKeyFollow };
+enum GlideDir { kGlideDown = 0, kGlideUp, kGlideMixed };
 
 // Pitch detection. The phrase is analysed once, when it ends, so the cost lands in one block an
 // answer or two apart rather than on every sample. Decimating by four first is what makes that
@@ -121,6 +123,10 @@ constexpr int   kWindowSize = 1 << kWindowBits;    // raised-cosine grain envelo
 // chord, then the one a sixth above, the fourth, the fifth. I - vi - IV - V, relative to whatever
 // you happened to play, so it lands in the key wherever you are in it.
 constexpr int   kChordWalk[4] = { 0, 5, 3, 4 };
+// Where Glide can land, in semitones, nearest first. A whole tone is a wobble; a fourth, a fifth
+// and an octave are intervals you would actually play, which is what makes a long slide sound
+// deliberate instead of broken. Motion decides how far down this list it is allowed to reach.
+constexpr int   kGlideTargets[4] = { 2, 5, 7, 12 };
 // A major scale in semitones, for working those moves out when no Scale is set.
 constexpr int   kMajorSteps[7] = { 0, 2, 4, 5, 7, 9, 11 };
 
@@ -287,6 +293,7 @@ public:
         addParam(mpc::choiceParam("gapsync", "Gap Mode", { "Free", "Sync" }, 0));
         addParam(mpc::floatParam ("sens",     "Sens",      0.0f, 100.0f, 50.0f, "%", 0));
         addParam(mpc::choiceParam("change",   "Change",   { "Off", "1 Bar", "2 Bars", "4 Bars" }, 1));
+        addParam(mpc::choiceParam("glidedir", "Glide",    { "Down", "Up", "Mixed" }, kGlideMixed));
 
         addPrograms();
     }
@@ -767,6 +774,8 @@ private:
         blockIndex_ = 0;
         spawnCount_ = 1;
         rollHold_ = 0;
+        glidePass_ = -1;
+        glideFrom_ = glideTo_ = 0.0f;
         chordIndex_ = 0;
         chordCount_ = chordSpan_;
         chordSlice_ = 0.0f;
@@ -1012,16 +1021,21 @@ private:
                 // other and the whole answer moves as one. The grain's own rateInc keeps it going
                 // while the grain sounds, so there is no stepping between them.
                 //
-                // The slide is a triangle across passes, not a sawtooth: the first pass bends
-                // down to the full depth, the next slides back up the way it came. A sawtooth
-                // snapped back to base pitch at every pass boundary, which at full Motion was a
-                // lurch of nearly an octave.
-                const float depth = motion * 12.0f;             // semitones at the far end
+                // Each pass slides from wherever the last one finished to a new target, so the
+                // pitch is continuous across pass boundaries however far apart the targets are.
+                // Picking the target per pass rather than deriving it from the pass number is
+                // what lets Mixed go up as well as down: the old version was a fixed triangle
+                // that always set off downwards and never rose above the note you played.
+                if (glidePass_ != passIndex_)
+                {
+                    glidePass_ = passIndex_;
+                    glideFrom_ = glideTo_;
+                    glideTo_ = nextGlideTarget(motion);
+                }
                 const float t = (float)answerPos_ / (float)phraseLen;
-                const float frac = (passIndex_ & 1) ? (1.0f - t) : t;
-                const float here = -depth * frac;
-                const double perSample = (double)(((passIndex_ & 1) ? depth : -depth))
-                                       / (double)phraseLen;
+                const float span = glideTo_ - glideFrom_;
+                const float here = glideFrom_ + span * t;
+                const double perSample = (double)span / (double)phraseLen;
                 rate = baseRate * (double)semitonesToRatio(here);
                 const double endRate = baseRate
                     * (double)semitonesToRatio(here + (float)(perSample * (double)length));
@@ -1197,6 +1211,35 @@ private:
         }
     }
 
+    // Where the pass that is just starting should end up, in semitones from the note you played.
+    float nextGlideTarget(float motion)
+    {
+        if (motion <= 0.0f) return 0.0f;
+        const int dir = clampi(getInt(kGlideDir), 0, 2);
+        if (dir != kGlideMixed)
+        {
+            // Down and Up are a tide: out to the full depth, then back to where you played.
+            const float depth = motion * 12.0f * (dir == kGlideUp ? 1.0f : -1.0f);
+            return (passIndex_ & 1) ? 0.0f : depth;
+        }
+        // Mixed: a different interval each pass, up or down, and now and then back to the note
+        // itself so it keeps coming home. Motion is how far down the list of intervals it may
+        // reach, so turning it up lets the fifths and octaves in rather than making one bend
+        // wider - which is what you want from a slide, where the interval is the whole point.
+        const int reach = clampi((int)(motion * 4.0f), 0, 3);
+        // Landing on the target it is already sitting at would be a pass with no slide in it at
+        // all, so keep rolling until it is somewhere else.
+        for (int tries = 0; tries < 4; ++tries)
+        {
+            const int pick = (int)(patternFloat() * (float)(reach + 2));
+            const float semis = (float)kGlideTargets[clampi(pick, 0, 3)];
+            const float target = pick > reach ? 0.0f          // the spare slot is "home"
+                                              : (patternFloat() < 0.5f ? -semis : semis);
+            if (target != glideFrom_) return target;
+        }
+        return glideFrom_ == 0.0f ? (float)kGlideTargets[reach] : 0.0f;
+    }
+
     int grainLength(float shape) const
     {
         // Shape runs from short and percussive to long and smeared, capped by Time.
@@ -1254,7 +1297,7 @@ private:
                                   kListenAuto, 220, kAnswerBeat, 35,  0, 0, 0, 50, 70, 0, 0 });
         prog("Chopped Reply",   { 0, 55, kBlocks,  60, 30, 55, 45, 1, T16, 45, 8000,  22, 2.4f,
                                   kListenAuto, 180, kAnswerBeat, 50,  0, 0, 0, 55, 80, 0, 0 });
-        prog("Bending Back",    { 0, 50, kGlide,   45, 55, 40, 55, 1, T8,  45, 7000,  35, 3.5f,
+        prog("Bending Back",    { 0, 50, kGlide,   45, 55, 40, 85, 1, T8,  45, 7000,  35, 3.5f,
                                   kListenAuto, 260, kAnswerBeat, 45,  0, 0, 0, 50, 75, 0, 0 });
         prog("Bubble Bath",     { 0, 55, kBubbles, 70, 30, 50, 45, 1, T16, 40, 11000, 40, 4.0f,
                                   kListenAuto, 200, kAnswerBeat, 35,  0, 3, 0, 50, 85, 0, 0 });
@@ -1336,6 +1379,9 @@ private:
     int     spawnCount_ = 0;
     double  rollPos_ = 0.0;        // Roll: the fragment being drilled
     int     rollHold_ = 0;         // ...and how many more hits before it moves
+    int     glidePass_ = -1;       // Glide: which pass the targets below were picked for
+    float   glideFrom_ = 0.0f;     // Glide: semitones at the start of this pass...
+    float   glideTo_ = 0.0f;       // ...and where it is heading by the end of it
     int     chordIndex_ = 0;       // Chord: where it is in the progression
     int64_t chordCount_ = 0;       // ...samples until it moves on
     int64_t chordSpan_ = 44100;    // ...and how many that is, from Change and the tempo
