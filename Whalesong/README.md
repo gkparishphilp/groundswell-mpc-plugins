@@ -32,6 +32,9 @@ on all three tabs, because it is the point of the plugin:
 - **DETECTED KEY** — the root, large, with the mode under it. A dash until it has decided.
 - **HEARING** — the pitch class the detector is hearing right now.
 - **CONFIDENCE** — how sure it is, as a bar.
+- **PLAYING** — the note Whalesong's own synth is sounding, with its octave, in orange.
+  Hearing is what went in and Playing is what came out, so the pair tells a wrong octave
+  apart from a wrong degree at a glance. A dash means nothing is sounding.
 
 Watch those while you play. If Confidence never climbs, the input is not giving the detector
 enough to work with: try a more melodic part, or raise Sens.
@@ -43,7 +46,7 @@ enough to work with: try a more melodic part, or raise Sens.
 | **Listen** | `Off` uses the Key and Scale buttons and ignores the input. `Follow` keeps re-reading the key as you play. `Lock` follows until it is sure, then stops changing its mind. |
 | **Sens** | How quiet the input can be and still count as playing. Turn it up for quiet or soft-attack material. |
 | **Wait** | How long it listens before it is allowed to play. Two bars is the default, and there is a reason: after one bar it is often confidently wrong. |
-| **Linger** | How long it keeps playing after you stop. `Never` means it does not stop on its own, which is what you want when it is running alongside something else; `1`–`16 Bars` wind it down that long after your last note, and the next note you play brings it back. |
+| **Linger** | How long it keeps playing after you stop. `1`–`16 Bars` wind it down that long after your last note, and the next note you play brings it back. `Forever`, at the far right, means it does not stop on its own — what you want when it is running alongside something else. It is the default. |
 | **Key** / **Scale** | The key to use when Listen is Off. Ignored while it is following. |
 | **Level** | How loud the whalesong is. **Your own signal is not touched by this** — it passes at full level whatever Level says. This is the control to reach for when it is too loud. |
 | **Output** | Master trim on everything, your dry signal included. Reach for Level first. |
@@ -141,8 +144,10 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
   Retro `64 67 64 62 60`. Echo's spacing is within 10 ms of yours; a reply on Beat or Bar lands
   on the grid to the millisecond; a single note and silence both draw nothing.
 - **Linger** stops it within a note of the bar it promises: input cut at 6 s, last note at 7.91,
-  9.82, 13.83 and 21.86 s for 1, 2, 4 and 8 bars. It comes back when the input returns (0 notes
-  during the silence, 50 after), and `Never` is still going at 40 s.
+  9.82, 13.83, 21.86 and 37.71 s for 1, 2, 4, 8 and 16 bars. It comes back when the input
+  returns (0 notes during the silence, 50 after), and `Forever` is still going at 40 s.
+- **The PLAYING meter** agreed with the voices on every one of 10,335 blocks, over a run with
+  5,313 blocks sounding and 5,022 silent, so both the note names and the dash are covered.
 - **The note segmenter** (groundwork, plays nothing yet) recovers quarters, eighths and
   sixteenths at 120 bpm from rendered audio through the real detector: 8 of 8 notes, right
   pitches, onsets within about 20 ms. Also repeated notes at one pitch, notes with vibrato, and

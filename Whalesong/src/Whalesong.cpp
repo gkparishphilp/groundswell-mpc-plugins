@@ -120,9 +120,12 @@ enum ParamIndex
     kVary,         // how much each repeat differs from the last
     kRenew,        // how many repeats before it writes a fresh phrase
 
-    // Winding down, appended. Never is the default, so a free-running instance - and every
+    // Winding down, appended. Forever is the default, so a free-running instance - and every
     // project saved before this existed - behaves exactly as it did.
     kLinger,       // how long it keeps playing after the input goes quiet
+
+    // Appended last, after everything above had already shipped.
+    kPlaying,      // meter: the note its own synth is sounding right now
     kNumParams
 };
 
@@ -212,6 +215,11 @@ struct PhraseNote
 
 // Voices.
 constexpr int kMaxVoices = 6;
+
+// The span the Playing meter names, which is the span startNote() clamps its notes to: A0 to
+// C8. Naming every semitone in it costs 88 strings and one film strip, and buys a readout that
+// says "G4" rather than "67".
+constexpr int kPlayLow = 21, kPlayHigh = 108;
 constexpr int kMaxChannels = 2;
 
 // Scales, as semitones from the root. "Off" is not offered here: an accompanist needs a scale.
@@ -430,8 +438,22 @@ public:
         addParam(mpc::choiceParam("renew",  "Renew",  { "Every 2", "Every 4", "Every 8",
                                                         "Never" }, 1));
 
-        addParam(mpc::choiceParam("linger", "Linger", { "Never", "1 Bar", "2 Bars", "4 Bars",
-                                                        "8 Bars", "16 Bars" }, 0));
+        // Shortest first, so turning the knob to the right buys more time all the way along,
+        // and Forever - which is the longest of them - sits at the far end instead of back at
+        // zero. It is still the default: an instance nobody has touched keeps playing, which is
+        // what every project made before Linger existed does.
+        addParam(mpc::choiceParam("linger", "Linger", { "1 Bar", "2 Bars", "4 Bars", "8 Bars",
+                                                        "16 Bars", "Forever" }, 5));
+
+        // "Playing": the note its own synth is sounding this instant, octave and all. Heard
+        // says what went in and this says what came out, and having the two side by side is how
+        // you tell a wrong octave from a wrong degree without having to trust your ear.
+        {
+            std::vector<std::string> playing = { "-" };
+            for (int m = kPlayLow; m <= kPlayHigh; ++m)
+                playing.push_back(std::string(kNoteNames[m % 12]) + std::to_string(m / 12 - 1));
+            meter(mpc::choiceParam("playing", "Playing", playing, 0));
+        }
 
         addPrograms();
     }
@@ -495,7 +517,7 @@ public:
         outSm_.snap(dbToGain(get(kOutput)));
         mixSm_.snap(get(kMix) * 0.01f);
         lastLevelSent_ = lastConfSent_ = -1.0f;
-        lastHeardSent_ = lastFoundSent_ = lastScaleSent_ = -1.0f;
+        lastHeardSent_ = lastFoundSent_ = lastScaleSent_ = lastPlayingSent_ = -1.0f;
     }
 
     void process(mpc::ProcessContext& ctx) override
@@ -598,12 +620,13 @@ public:
         const float sens = clamp(get(kSens) * 0.01f, 0.0f, 1.0f);
         const float onThresh = dbToGain(-44.0f - 10.0f * sens);
 
-        // How long it keeps playing once the input has gone quiet. Never means it does not stop
-        // on its own, which is what you want when it is jamming alongside another instrument,
-        // and is the default so nothing that already exists changes behaviour.
+        // How long it keeps playing once the input has gone quiet. The choices run 1, 2, 4, 8
+        // and 16 bars and then Forever, which is the last one and means it does not stop on its
+        // own - what you want when it is jamming alongside another instrument, and the default
+        // so nothing that already exists changes behaviour.
         const int lingerSel = clamp(getInt(kLinger), 0, 5);
-        const int64_t lingerSamples = lingerSel == 0 ? 0
-                                    : (int64_t)(barSamples * (float)(1 << (lingerSel - 1)));
+        const int64_t lingerSamples = lingerSel >= 5 ? 0
+                                    : (int64_t)(barSamples * (float)(1 << lingerSel));
 
         // ---- the audio loop ------------------------------------------------------------
         for (int i = 0; i < n; ++i)
@@ -1388,6 +1411,23 @@ private:
             notifyHostParameterChanged(kHeard);
         }
 
+        // The note sounding right now: the newest voice still running. It holds through the
+        // release tail, which is what you want - the readout should say what you can still
+        // hear. 0 is the dash, meaning nothing is sounding.
+        int newest = -1; int64_t newestAt = INT64_MIN;
+        for (int v = 0; v < kMaxVoices; ++v)
+            if (voices_[v].active && voices_[v].startedAt >= newestAt)
+            { newestAt = voices_[v].startedAt; newest = v; }
+        const float pv = newest < 0 ? 0.0f
+            : (float)(clamp((int)std::lround(voices_[newest].targetMidi), kPlayLow, kPlayHigh)
+                      - kPlayLow + 1);
+        if (pv != lastPlayingSent_)
+        {
+            lastPlayingSent_ = pv;
+            setNormalised(kPlaying, pv / (float)(kPlayHigh - kPlayLow + 1));
+            notifyHostParameterChanged(kPlaying);
+        }
+
         const float fv = (float)(foundRoot_ >= 0 ? foundRoot_ + 1 : 0);
         if (fv != lastFoundSent_)
         {
@@ -1532,7 +1572,7 @@ private:
     Smoother outSm_, mixSm_;
 
     float lastLevelSent_ = -1.0f, lastHeardSent_ = -1.0f, lastFoundSent_ = -1.0f,
-          lastConfSent_ = -1.0f, lastScaleSent_ = -1.0f;
+          lastConfSent_ = -1.0f, lastScaleSent_ = -1.0f, lastPlayingSent_ = -1.0f;
 };
 
 MPC_PLUGIN_ENTRY(Whalesong)

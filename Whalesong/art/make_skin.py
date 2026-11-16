@@ -53,9 +53,12 @@ P = dict(out=0, mix=1, role=2, activity=3, motion=4, octave=5, sync=6, rate=7, h
          level=24, heard=25, found=26, conf=27, foundscale=28,
          delaymix=29, delaytime=30, delayfb=31, chorus=32,
          vibrato=33, vibrate=34, tremolo=35, tremrate=36,
-         window=37, vary=38, renew=39, linger=40)
+         window=37, vary=38, renew=39, linger=40, playing=41)
 
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+# Every semitone the synth can sound (A0..C8), named: the Playing meter's frames.
+PLAY_LOW, PLAY_HIGH = 21, 108
+PLAY_NAMES = [NOTES[m % 12] + str(m // 12 - 1) for m in range(PLAY_LOW, PLAY_HIGH + 1)]
 SCALES = ["Major", "Minor", "Dorian", "Mixolyd", "Penta Maj", "Penta Min"]
 RATES = ["1/64", "1/32T", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T",
          "1/4", "1/4D", "1/2T", "1/2", "1/2D", "1 Bar"]
@@ -73,7 +76,8 @@ CHOICES = {2: ["Bass", "Lead", "Counter", "Pad", "Arp", "Echo", "Mirror", "Retro
            30: RATES,
            37: ["Off", "1 Bar", "2 Bars", "4 Bars", "8 Bars"],
            39: ["Every 2", "Every 4", "Every 8", "Never"],
-           40: ["Never", "1 Bar", "2 Bars", "4 Bars", "8 Bars", "16 Bars"]}
+           40: ["1 Bar", "2 Bars", "4 Bars", "8 Bars", "16 Bars", "Forever"],
+           41: ["-"] + PLAY_NAMES}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -346,11 +350,14 @@ TAB_NAMES = ("LISTEN", "PLAY", "TONE", "FX", "PHRASE")
 GRAPH = (0, 0, 0, 0)             # Tidepools' filter plot: Whalesong has none
 
 # The readout, inside the lit panel. A scrim goes behind it so the artwork cannot swallow the type.
-SCRIM = (420, 165, 861, 411)
+SCRIM = (420, 165, 861, 491)
 ROOT_BOX = (420, 201, 441, 84)
 MODE_BOX = (420, 287, 441, 30)
 HEARD_BOX = (432, 361, 150, 34)
 CONF_BOX = (686, 371, 158, 16)
+# PLAYING sits directly under HEARING, the same 80 px step the two rows above it use, so the
+# left column reads down: what you played, then what it answered with.
+PLAY_BOX = (432, 441, 150, 34)
 
 
 def box(col, row, span=1):
@@ -403,11 +410,14 @@ def readout_statics():
     return dict(
         headings=[("DETECTED KEY", (640, 185)),
                   ("HEARING", (507, 341)),
-                  ("CONFIDENCE", (765, 341))],
+                  ("CONFIDENCE", (765, 341)),
+                  ("PLAYING", (507, 421))],
         images=[dict(file="found_root.png", frames=13, param=P["found"], box=ROOT_BOX),
                 dict(file="found_mode.png", frames=7, param=P["foundscale"], box=MODE_BOX),
                 dict(file="heard.png", frames=13, param=P["heard"], box=HEARD_BOX),
-                dict(file="conf_bar.png", frames=CONF_FRAMES, param=P["conf"], box=CONF_BOX)])
+                dict(file="conf_bar.png", frames=CONF_FRAMES, param=P["conf"], box=CONF_BOX),
+                dict(file="playing.png", frames=1 + len(PLAY_NAMES), param=P["playing"],
+                     box=PLAY_BOX)])
 
 
 def page(name, left, right):
@@ -673,6 +683,9 @@ def build():
     save("heard.png", text_strip(["\u2014"] + NOTES, HEARD_BOX[2], HEARD_BOX[3], 26,
                                  CREAM + (235,), spacing=3.0))
     save("conf_bar.png", bar_strip(CONF_BOX[2], CONF_BOX[3]))
+    # 89 frames at 34 px is 3026 px tall, well under the 11430 px the kit is proven at.
+    save("playing.png", text_strip(["\u2014"] + PLAY_NAMES, PLAY_BOX[2], PLAY_BOX[3], 26,
+                                   ORANGE + (235,), spacing=3.0))
 
     defs = [("knob overlay", G.overlay_component("KnobOverlay", G.knob_overlay_data(False), "ff111111")),
             ("knob overlay bipolar", G.overlay_component("KnobOverlay", G.knob_overlay_data(True), "ff111111")),
@@ -796,7 +809,8 @@ DEFAULTS = {0: (2 / 3, "0.0 dB"), 1: (0.60, "60 %"), 2: (1, None), 3: (0.45, "45
             24: (0.0, None), 25: (0, None), 26: (0, None), 27: (0.0, None), 28: (0, None),
             29: (0.0, "0 %"), 30: (7, None), 31: (0.389, "35 %"), 32: (0.0, "0 %"),
             33: (0.0, "0 ct"), 34: (0.817, "5.0 Hz"), 35: (0.0, "0 %"), 36: (0.727, "4.0 Hz"),
-            37: (0, None), 38: (0.25, "25 %"), 39: (1, None), 40: (0, None)}
+            37: (0, None), 38: (0.25, "25 %"), 39: (1, None), 40: (1.0, "Forever"),
+            41: (0, None)}
 
 
 def make_previews(previews, images):
