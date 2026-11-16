@@ -1789,7 +1789,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "WhenFocussed",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 352 92"
+                                    "bounds": "0 0 350 92"
                                 }
                             },
                             {
@@ -1800,10 +1800,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_bass_106.png",
-                                        "offImage": "pill_off_bass_106.png",
+                                        "onImage": "pill_on_bass_77.png",
+                                        "offImage": "pill_off_bass_77.png",
                                         "buttonId": 0,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 8,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1818,7 +1818,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 124 52"
+                                    "bounds": "0 0 95 52"
                                 }
                             },
                             {
@@ -1829,10 +1829,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_lead_106.png",
-                                        "offImage": "pill_off_lead_106.png",
+                                        "onImage": "pill_on_lead_77.png",
+                                        "offImage": "pill_off_lead_77.png",
                                         "buttonId": 1,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 8,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1847,7 +1847,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "114 0 124 52"
+                                    "bounds": "85 0 95 52"
                                 }
                             },
                             {
@@ -1858,10 +1858,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_counter_106.png",
-                                        "offImage": "pill_off_counter_106.png",
+                                        "onImage": "pill_on_counter_77.png",
+                                        "offImage": "pill_off_counter_77.png",
                                         "buttonId": 2,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 8,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1876,7 +1876,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "228 0 124 52"
+                                    "bounds": "170 0 95 52"
                                 }
                             },
                             {
@@ -1887,10 +1887,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_pad_106.png",
-                                        "offImage": "pill_off_pad_106.png",
+                                        "onImage": "pill_on_pad_77.png",
+                                        "offImage": "pill_off_pad_77.png",
                                         "buttonId": 3,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 8,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1905,7 +1905,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "57 40 124 52"
+                                    "bounds": "255 0 95 52"
                                 }
                             },
                             {
@@ -1916,10 +1916,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_arp_106.png",
-                                        "offImage": "pill_off_arp_106.png",
+                                        "onImage": "pill_on_arp_77.png",
+                                        "offImage": "pill_off_arp_77.png",
                                         "buttonId": 4,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 8,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1934,7 +1934,94 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "171 40 124 52"
+                                    "bounds": "0 40 95 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 5",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_echo_77.png",
+                                        "offImage": "pill_off_echo_77.png",
+                                        "buttonId": 5,
+                                        "numButtonsInGroup": 8,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "85 40 95 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 6",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_mirror_77.png",
+                                        "offImage": "pill_off_mirror_77.png",
+                                        "buttonId": 6,
+                                        "numButtonsInGroup": 8,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "170 40 95 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 7",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_retro_77.png",
+                                        "offImage": "pill_off_retro_77.png",
+                                        "buttonId": 7,
+                                        "numButtonsInGroup": 8,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "255 40 95 52"
                                 }
                             }
                         ]
@@ -2496,7 +2583,10 @@
                     "Lead",
                     "Counter",
                     "Pad",
-                    "Arp"
+                    "Arp",
+                    "Echo",
+                    "Mirror",
+                    "Retro"
                 ]
             },
             {
@@ -3177,7 +3267,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "29 156 352 92"
+                                "bounds": "30 156 350 92"
                             }
                         },
                         {

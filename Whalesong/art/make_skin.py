@@ -60,7 +60,7 @@ SCALES = ["Major", "Minor", "Dorian", "Mixolyd", "Penta Maj", "Penta Min"]
 RATES = ["1/64", "1/32T", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T",
          "1/4", "1/4D", "1/2T", "1/2", "1/2D", "1 Bar"]
 
-CHOICES = {2: ["Bass", "Lead", "Counter", "Pad", "Arp"],
+CHOICES = {2: ["Bass", "Lead", "Counter", "Pad", "Arp", "Echo", "Mirror", "Retro"],
            6: ["Free", "Beat", "Bar"],
            7: RATES,
            19: ["Off", "Follow", "Lock"],

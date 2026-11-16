@@ -16,6 +16,10 @@ needs to listen.
 3. **Plays along.** A small polyphonic synth plays a line in that key — a bassline, a lead, a
    counter-melody, a pad or an arpeggio.
 
+…or it answers you instead. Three of the eight roles do not invent a line at all: they take the
+phrase you just played and hand it back changed. Those are triggered by you *stopping*, not by
+the clock — play something, lift your hands, and it replies.
+
 It needs **melody** to work with. A single line is ideal: a lead, a bass, a vocal, a mono synth.
 Dense chords and full mixes confuse the pitch detector, and drums tell it nothing at all.
 
@@ -50,14 +54,27 @@ enough to work with: try a more melodic part, or raise Sens.
 
 | Control | What it does |
 |---|---|
-| **Role** | `Bass` and `Pad` sustain: when nothing of theirs is sounding they always play, so Activity sets how often the chord *changes*, not whether there is one. `Bass` roots and fifths, low and slow. `Lead` a melodic line that steps more often than it leaps. `Counter` moves opposite to you — when you rise, it falls. `Pad` sustained triads. `Arp` cycles chord tones. |
-| **Activity** | How often it takes an opportunity to play. At 0 it is silent; at 100 it plays every one. |
+| **Role** | Five roles invent a line; three answer yours. **Inventing:** `Bass` roots and fifths, low and slow. `Lead` a melodic line that steps more often than it leaps. `Counter` moves opposite to you — when you rise, it falls. `Pad` sustained triads. `Arp` cycles chord tones. (`Bass` and `Pad` sustain: when nothing of theirs is sounding they always play, so Activity sets how often the chord *changes*, not whether there is one.) **Answering:** `Echo` plays your phrase back. `Mirror` turns it upside down about its first note. `Retro` plays it backwards, in time as well as in order. |
+| **Activity** | How often it takes an opportunity to play. At 0 it is silent; at 100 it plays every one. For the answering roles it is how often a phrase draws a reply. |
 | **Motion** | How far the line is allowed to range from where it is. |
 | **Octave** | Transposes the whole line, ±2 octaves. |
-| **Sync** | `Free` runs on its own clock, `Beat` and `Bar` lock to the host transport. |
+| **Sync** | `Free` runs on its own clock, `Beat` and `Bar` lock to the host transport. For the answering roles it is when the reply comes in: `Free` at once, `Beat` or `Bar` on the next one. |
 | **Rate** | The note division it plays on when synced. |
 | **Human** | Timing and velocity jitter. A little stops it sounding like a sequencer. |
 | **Glide** | Portamento between notes. |
+
+#### The answering roles
+
+They work in **scale degrees**, not semitones. Mirror inverting a rising third gives a falling
+third *of the scale* — which may be three semitones or four, whichever keeps it in the key. A
+semitone inversion would be arithmetically tidier and would walk straight out of the key on the
+second note.
+
+The phrase is whatever you played since your last pause: a gap of one beat ends it and sets off
+the reply. Two notes minimum — a single note is not a phrase, and gets no answer.
+
+What it hears is snapped to the key, which is also the repair for what the detector gets wrong:
+a note read a semitone off lands on the nearest degree, which is usually the note you played.
 
 ### PHRASE
 
@@ -119,6 +136,10 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
   exactly how a silent Pad once survived an audit.
 - **The phrase window** repeats exactly at Vary 0, keeps roughly two thirds of its notes at Vary
   50%, renews on schedule, and is bit-identical to the old behaviour when Off.
+- **Echo, Mirror and Retro** answer correctly through real audio and the real detector. Played
+  C D E G E, Echo replies `60 62 64 67 64`, Mirror `60 59 57 53 57` (inverted in the scale) and
+  Retro `64 67 64 62 60`. Echo's spacing is within 10 ms of yours; a reply on Beat or Bar lands
+  on the grid to the millisecond; a single note and silence both draw nothing.
 - **Linger** stops it within a note of the bar it promises: input cut at 6 s, last note at 7.91,
   9.82, 13.83 and 21.86 s for 1, 2, 4 and 8 bars. It comes back when the input returns (0 notes
   during the silence, 50 after), and `Never` is still going at 40 s.
@@ -154,8 +175,12 @@ the notes they leave out.
   wandering pitch stream; the histogram is forgiving, but it is not reading your chords.
 - **Nothing below about 79 Hz** (D#2) or above about 1.2 kHz (D#6) registers, so it cannot take
   its key from a bass part alone. Above the ceiling it reports an octave down.
-- **Nothing plays from your phrases yet.** The input is now segmented into real notes - pitch,
-  timing, length, velocity - but no role reads them. Echo, Mirror and Retrograde come next.
+- **The answering roles need a pause to work from.** They reply when you stop; play without
+  rests and they have nothing to answer. They also need two notes — a single note is not a
+  phrase. A phrase longer than 48 notes is truncated.
+- **A legato phrase segments poorly.** Two notes slurred at one pitch read as one note, and a
+  step of a semitone with no re-attack reads as one note bending. Struck and plucked playing,
+  which is most of what an MPC hears, comes back whole.
 - **It does not know where the chord changes are.** It plays in a key, not over a progression.
 - **It cannot send MIDI.** No MPC plugin can. Everything it plays, it plays itself.
 - **Linger watches the input, not the transport.** It winds down after *the input* goes quiet,

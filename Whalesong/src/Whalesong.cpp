@@ -126,7 +126,10 @@ enum ParamIndex
     kNumParams
 };
 
-enum Role   { kBass = 0, kLead, kCounter, kPad, kArp };
+// The first five invent a line from the key. The last three answer the line YOU played, which
+// is a different thing entirely: they are triggered by you stopping, not by a clock.
+enum Role   { kBass = 0, kLead, kCounter, kPad, kArp, kEcho, kMirror, kRetro };
+inline bool answersYou(int role) { return role >= kEcho; }
 enum Sync   { kFree = 0, kOnBeat, kOnBar };
 enum Listen { kListenOff = 0, kListenFollow, kListenLock };
 
@@ -181,6 +184,23 @@ constexpr int kMaxPhraseNotes = 256;
 // One note the plugin played, kept so the phrase can be played again. The pitch is stored as a
 // scale degree rather than a MIDI note, so a repeat follows the key: if the detector changes its
 // mind halfway through a take, the phrase transposes to the new key instead of fighting it.
+// A note you played, once it has been snapped to the key. Degrees rather than pitches for the
+// same reason PhraseNote uses them: an answer built from degrees transposes with the key, and
+// Mirror can invert WITHIN the scale - flipping semitones would walk straight out of it.
+struct HeardNote
+{
+    int64_t offset = 0;      // samples from the start of your phrase
+    float   midi = 60.0f;    // as heard; snapped to a degree only when the answer is built
+    int     degree = 0;      // filled in at that point
+    int64_t hold = 0;
+    float   velocity = 1.0f;
+};
+constexpr int kMaxHeardNotes = 48;
+
+// How long a gap ends a phrase and triggers the answer. A beat: long enough to sit through the
+// rests inside a phrase, short enough to answer while you still remember playing it.
+constexpr float kPhraseGapBeats = 1.0f;
+
 struct PhraseNote
 {
     int64_t offset = 0;      // samples from the start of the window
@@ -346,7 +366,8 @@ public:
 
         addParam(mpc::floatParam ("out",      "Output",   -24.0f, 12.0f,   0.0f,  "dB", 1));
         addParam(mpc::floatParam ("mix",      "Level",      0.0f, 100.0f, 60.0f,  "%",  0));
-        addParam(mpc::choiceParam("role",     "Role",     { "Bass", "Lead", "Counter", "Pad", "Arp" }, kLead));
+        addParam(mpc::choiceParam("role",     "Role",     { "Bass", "Lead", "Counter", "Pad", "Arp",
+                                                              "Echo", "Mirror", "Retro" }, kLead));
         addParam(mpc::floatParam ("activity", "Activity",   0.0f, 100.0f, 45.0f,  "%",  0));
 
         addParam(mpc::floatParam ("motion",   "Motion",     0.0f, 100.0f, 50.0f,  "%",  0));
@@ -465,6 +486,8 @@ public:
         for (float& h : pcHist_) h = 0.0f;
         foundRoot_ = -1; foundScale_ = 0; keyConf_ = 0.0f; locked_ = false; stableHops_ = 0;
         listenedSamples_ = 0; quietSamples_ = 0;
+        heardCount_ = 0; ansCount_ = 0; ansIdx_ = 0;
+        heardStart_ = 0; ansStart_ = 0; lastSegTotal_ = 0;
         nextNoteAt_ = 0; stepIndex_ = 0; arpIndex_ = 0; lastDegree_ = 0;
         phraseCount_ = 0; replayIdx_ = 0; passIndex_ = 0; writingPhrase_ = true;
         windowPos_ = 0; windowSamples_ = 0;
@@ -484,7 +507,7 @@ public:
         // ---- per-block parameter reads -------------------------------------------------
         const float targetOut = dbToGain(get(kOutput));
         const float targetMix = get(kMix) * 0.01f;
-        const int   role      = clamp(getInt(kRole), 0, 4);
+        const int   role      = clamp(getInt(kRole), 0, (int)kRetro);
         const float activity  = clamp(get(kActivity) * 0.01f, 0.0f, 1.0f);
         const float motion    = clamp(get(kMotion) * 0.01f, 0.0f, 1.0f);
         const int   octave    = clamp(getInt(kOctave), -2, 2);
@@ -622,6 +645,24 @@ public:
                 // estimate rather than the previous one's.
                 seg_.hop(heardMidi_, hopPeak_, hopPeakPos_, onThresh, writePos_);
                 hopPeak_ = 0.0f; hopPeakPos_ = writePos_;
+
+                // The answering roles work off your phrases, so they are driven from here -
+                // by you stopping - rather than from the clock the other roles run on.
+                if (answersYou(role))
+                {
+                    captureHeard();
+                    const int64_t gap = (int64_t)(beatSamples * kPhraseGapBeats);
+                    if (heardCount_ > 0 && quietSamples_ >= gap && ansCount_ == 0)
+                        buildAnswer(role, activity, sync, beatSamples, barSamples,
+                                    ctx.transport);
+                }
+                else
+                {
+                    // Keep the segmenter's note count in step while another role is selected,
+                    // or switching to Echo would answer with a phrase from minutes ago.
+                    lastSegTotal_ = seg_.total();
+                    heardCount_ = 0;
+                }
             }
 
             // Should a note start on this sample?
@@ -641,7 +682,13 @@ public:
                                && ((listen == kListenOff)
                                    || (listenedSamples_ >= waitSamples && foundRoot_ >= 0));
 
-            if (windowSamples_ > 0)
+            if (answersYou(role))
+            {
+                // No clock and no phrase window here: it speaks when it has something to say.
+                if (mayPlay && ansCount_ > 0 && writePos_ >= ansStart_)
+                    playAnswer(octave, human, maxVoices, spread, beatSamples);
+            }
+            else if (windowSamples_ > 0)
             {
                 if (++windowPos_ >= windowSamples_)
                 {
@@ -983,6 +1030,142 @@ private:
         return (float)(activeRoot() + 12 * (baseOctave + shift) + sc.notes[within]);
     }
 
+    // The inverse: the scale degree nearest a MIDI note, measured from degree 0 of octave 4.
+    // Searching rather than solving because the scales are irregular - a major scale's degrees
+    // are 0 2 4 5 7 9 11 semitones apart, so there is no arithmetic that maps back. The range
+    // covers four octaves either way, which is more than the detector can hear.
+    //
+    // Snapping to the scale is also the repair for what the detector gets wrong: a note read a
+    // semitone off lands on the nearest degree, which is usually the note you played.
+    int midiToDegree(float midi) const
+    {
+        const ScaleDef& sc = activeScale();
+        const float rel = midi - (float)(activeRoot() + 12 * 4);
+        int best = 0;
+        float bestDist = 1.0e9f;
+        for (int d = -sc.count * 4; d <= sc.count * 4; ++d)
+        {
+            const int shift = (int)std::floor((float)d / (float)sc.count);
+            int within = d - shift * sc.count;
+            if (within < 0) within += sc.count;
+            const float dist = std::fabs((float)(12 * shift + sc.notes[within]) - rel);
+            if (dist < bestDist) { bestDist = dist; best = d; }
+        }
+        return best;
+    }
+
+    // Take whatever notes the segmenter has finished since last time and add them to the phrase
+    // being heard. At most one note closes per hop, so this is never more than a note or two.
+    void captureHeard()
+    {
+        const int64_t total = seg_.total();
+        int fresh = (int)(total - lastSegTotal_);
+        if (fresh <= 0) { lastSegTotal_ = total; return; }
+        if (fresh > seg_.count()) fresh = seg_.count();
+        lastSegTotal_ = total;
+
+        for (int i = fresh - 1; i >= 0; --i)          // oldest of the new ones first
+        {
+            const ws::InputNote& n = seg_.recent(i);
+            if (heardCount_ == 0) heardStart_ = n.start;
+            if (heardCount_ >= kMaxHeardNotes) return;
+            HeardNote& h = heard_[heardCount_++];
+            h.offset   = n.start - heardStart_;
+            h.midi     = n.midi;
+            h.hold     = n.length;
+            h.velocity = n.velocity;
+        }
+    }
+
+    // Your phrase has ended. Turn it into the answer this role gives, and work out when it
+    // starts. Clears the heard buffer either way, so one phrase is answered once.
+    void buildAnswer(int role, float activity, int sync, float beatSamples, float barSamples,
+                     const mpc::Transport& transport)
+    {
+        const int n = heardCount_;
+        heardCount_ = 0;
+        ansCount_ = 0; ansIdx_ = 0;
+        if (n < 2) return;                   // a single note is not a phrase to answer
+        if (randf() > activity) return;      // Activity is how often it bothers to answer
+
+        // Snap to degrees HERE rather than as each note arrived. While Listen is following, the
+        // key moves under you: notes captured early in a phrase would be measured against one
+        // key and played back in another, which bends the phrase out of shape - the first time
+        // this ran with Follow it answered C D E G E with C C D C. Converting the whole phrase
+        // at once, against the key as it is understood now, keeps the intervals intact whatever
+        // the detector did while you were playing.
+        for (int i = 0; i < n; ++i) heard_[i].degree = midiToDegree(heard_[i].midi);
+
+        if (role == kRetro)
+        {
+            // Backwards in time as well as in order, so the phrase keeps its shape and its
+            // length: the last note's end becomes the first note's start.
+            int64_t span = 0;
+            for (int i = 0; i < n; ++i)
+                span = std::max(span, heard_[i].offset + heard_[i].hold);
+            for (int i = n - 1; i >= 0; --i)
+            {
+                HeardNote& a = answer_[ansCount_++];
+                a = heard_[i];
+                a.offset = span - (heard_[i].offset + heard_[i].hold);
+            }
+        }
+        else
+        {
+            const int pivot = heard_[0].degree;
+            for (int i = 0; i < n; ++i)
+            {
+                HeardNote& a = answer_[ansCount_++];
+                a = heard_[i];
+                // Mirror turns the line upside down about its first note, in scale degrees -
+                // so a rising third answers with a falling third OF THE SCALE, not a falling
+                // four semitones that may not be in the key at all.
+                if (role == kMirror) a.degree = 2 * pivot - heard_[i].degree;
+            }
+        }
+
+        // When to come in. Free answers at once; Beat and Bar wait for the grid, which is what
+        // makes it sound like a reply rather than an overlap.
+        int64_t grid = 0;
+        if (sync == kOnBeat)     grid = (int64_t)beatSamples;
+        else if (sync == kOnBar) grid = (int64_t)barSamples;
+
+        ansStart_ = writePos_;
+        if (grid > 0)
+        {
+            int64_t into = 0;
+            if (transport.ppqValid && transport.playing)
+            {
+                const double beats = sync == kOnBar
+                    ? (double)clamp(transport.timeSigNumerator, 1, 16) : 1.0;
+                double posBeats = std::fmod(transport.ppqPos, beats);
+                if (posBeats < 0.0) posBeats += beats;
+                into = (int64_t)(posBeats * (double)beatSamples);
+            }
+            else
+            {
+                into = writePos_ % grid;
+            }
+            ansStart_ = writePos_ + (grid - into);
+        }
+    }
+
+    // Play the answer, note by note, as each one's moment arrives.
+    void playAnswer(int octave, float human, int maxVoices, float spread, float beatSamples)
+    {
+        const int64_t now = writePos_ - ansStart_;
+        while (ansIdx_ < ansCount_ && answer_[ansIdx_].offset <= now)
+        {
+            const HeardNote a = answer_[ansIdx_++];
+            const int64_t jitter = (int64_t)((randf() - 0.5f) * human * 0.06f * beatSamples);
+            const float vel = clamp(a.velocity * (1.0f + (randf() - 0.5f) * human * 0.5f),
+                                    0.15f, 1.0f);
+            const float midi = clamp(degreeToMidi(a.degree, 4 + octave), 21.0f, 108.0f);
+            startNote(midi, vel, a.hold, jitter, maxVoices, spread, randf());
+        }
+        if (ansIdx_ >= ansCount_) { ansCount_ = 0; ansIdx_ = 0; }
+    }
+
     void scheduleNext(int role, float activity, float motion, int octave, int sync, int rateIdx,
                       float human, float beatSamples, float barSamples, int maxVoices,
                       float spread, const mpc::Transport& transport)
@@ -1262,6 +1445,14 @@ private:
              { { kVibrato, 46.0f }, { kVibRate, 4.6f }, { kTremolo, 38.0f }, { kTremRate, 3.2f },
                { kDelayMix, 26.0f }, { kDelayTime, (float)kDivisionQuarter } });
         prog("Fixed C Min", { 0, 55, (float)kLead,    45,  50, 0, (float)kOnBeat, (float)kDivisionEighth,  30,  1,  35, 2400, 20,  12,  420, 15, 40, 30, 4, (float)kListenOff,   50, 0, 0, 1 });
+
+        // The answering roles. These are triggered by you stopping, so Sync is what decides
+        // whether the reply lands on the beat or the bar, and Activity is how often it bothers
+        // to reply at all rather than how busy a line it invents.
+        prog("Call Back",   { 0, 58, (float)kEcho,    90,  50, 0, (float)kOnBeat, (float)kDivisionEighth,  20,  1,  35, 2800, 20,  10,  420, 12, 50, 40, 4, (float)kListenFollow, 50, 1, 0, 0 },
+             { { kDelayMix, 24.0f }, { kDelayTime, (float)kDivisionEighth }, { kDelayFb, 30.0f } });
+        prog("Upside Down", { 0, 56, (float)kMirror,  85,  50, 1, (float)kOnBar,  (float)kDivisionQuarter, 25,  40, 45, 2200, 24,  30,  700, 14, 65, 55, 4, (float)kListenFollow, 50, 1, 0, 0 },
+             { { kChorus, 40.0f }, { kVibrato, 7.0f } });
     }
 
     static mpc::PluginInfo makeInfo()
@@ -1293,9 +1484,8 @@ private:
     float   hopPeak_ = 0.0f;
     int64_t hopPeakPos_ = 0;
 
-    // The input, as notes rather than as a stream of estimates. Nothing plays from this yet:
-    // it is the groundwork for roles that answer what you actually played - echo the intervals
-    // back, invert them, reverse them - and it is tested on its own before any of that lands.
+    // The input, as notes rather than as a stream of estimates. This is what Echo, Mirror and
+    // Retro answer; the other five roles never look at it.
     ws::InputSegmenter seg_;
 
     float envFast_ = 0.0f, envSlow_ = 0.0f;
@@ -1315,6 +1505,12 @@ private:
     int64_t listenedSamples_ = 0, quietSamples_ = 0;
 
     PhraseNote phrase_[kMaxPhraseNotes];
+    // Your phrase as it is heard, and the answer built from it.
+    HeardNote heard_[kMaxHeardNotes];
+    HeardNote answer_[kMaxHeardNotes];
+    int       heardCount_ = 0, ansCount_ = 0, ansIdx_ = 0;
+    int64_t   heardStart_ = 0, ansStart_ = 0, lastSegTotal_ = 0;
+
     int     phraseCount_ = 0;
     int     replayIdx_ = 0;
     int     passIndex_ = 0;
