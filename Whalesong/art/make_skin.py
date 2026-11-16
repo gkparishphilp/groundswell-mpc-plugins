@@ -50,7 +50,9 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 P = dict(out=0, mix=1, role=2, activity=3, motion=4, octave=5, sync=6, rate=7, human=8, glide=9,
          shape=10, tone=11, reso=12, attack=13, release=14, drive=15, spread=16, space=17,
          voices=18, listen=19, sens=20, wait=21, key=22, scale=23,
-         level=24, heard=25, found=26, conf=27, foundscale=28)
+         level=24, heard=25, found=26, conf=27, foundscale=28,
+         delaymix=29, delaytime=30, delayfb=31, chorus=32,
+         vibrato=33, vibrate=34, tremolo=35, tremrate=36)
 
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 SCALES = ["Major", "Minor", "Dorian", "Mixolyd", "Penta Maj", "Penta Min"]
@@ -66,7 +68,8 @@ CHOICES = {2: ["Bass", "Lead", "Counter", "Pad", "Arp"],
            23: list(SCALES),
            25: ["-"] + NOTES,
            26: ["-"] + NOTES,
-           28: ["-"] + SCALES}
+           28: ["-"] + SCALES,
+           30: RATES}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -335,7 +338,7 @@ COL_X = (24, 894)                # left edge of the two control columns
 COL_W = 362
 ROW_Y = (154, 264, 374, 484)
 BOX_H = 96
-TAB_NAMES = ("LISTEN", "PLAY", "TONE")
+TAB_NAMES = ("LISTEN", "PLAY", "TONE", "FX")
 GRAPH = (0, 0, 0, 0)             # Tidepools' filter plot: Whalesong has none
 
 # The readout, inside the lit panel. A scrim goes behind it so the artwork cannot swallow the type.
@@ -439,6 +442,18 @@ def page_play():
              knob_in(P["human"], 1, 2, "HUMAN"),
              knob_in(P["glide"], 1, 3, "GLIDE")]
     return page("PLAY", left, right)
+
+
+def page_fx():
+    left = [knob_in(P["delaymix"], 0, 0, "DELAY"),
+            knob_in(P["delaytime"], 0, 1, "TIME"),
+            knob_in(P["delayfb"], 0, 2, "FEEDBACK"),
+            knob_in(P["chorus"], 0, 3, "CHORUS")]
+    right = [knob_in(P["vibrato"], 1, 0, "VIBRATO"),
+             knob_in(P["vibrate"], 1, 1, "VIB RATE"),
+             knob_in(P["tremolo"], 1, 2, "TREMOLO"),
+             knob_in(P["tremrate"], 1, 3, "TREM RATE")]
+    return page("FX", left, right)
 
 
 def page_tone():
@@ -647,7 +662,7 @@ def build():
 
     tabs, qlink_entries, previews = [], [], []
     pill_files = {}
-    for ti, (name, controls, statics, qlinks) in enumerate((page_listen(), page_play(), page_tone())):
+    for ti, (name, controls, statics, qlinks) in enumerate((page_listen(), page_play(), page_tone(), page_fx())):
         bg_file = "bg_%s.jpg" % name.lower()
         bg = draw_background(controls, statics)
         bg.save(os.path.join(OUT, bg_file), quality=92)
@@ -752,7 +767,9 @@ DEFAULTS = {0: (2 / 3, "0.0 dB"), 1: (0.60, "60 %"), 2: (1, None), 3: (0.45, "45
             12: (0.20, "20 %"), 13: (0.327, "12 ms"), 14: (0.575, "420 ms"), 15: (0.15, "15 %"),
             16: (0.40, "40 %"), 17: (0.30, "30 %"), 18: (0.60, "4"), 19: (1, None),
             20: (0.50, "50 %"), 21: (2, None), 22: (0, None), 23: (0, None),
-            24: (0.0, None), 25: (0, None), 26: (0, None), 27: (0.0, None), 28: (0, None)}
+            24: (0.0, None), 25: (0, None), 26: (0, None), 27: (0.0, None), 28: (0, None),
+            29: (0.0, "0 %"), 30: (7, None), 31: (0.389, "35 %"), 32: (0.0, "0 %"),
+            33: (0.0, "0 ct"), 34: (0.817, "5.0 Hz"), 35: (0.0, "0 %"), 36: (0.727, "4.0 Hz")}
 
 
 def make_previews(previews, images):

@@ -57,6 +57,18 @@ enough to work with: try a more melodic part, or raise Sens.
 | **Human** | Timing and velocity jitter. A little stops it sounding like a sequencer. |
 | **Glide** | Portamento between notes. |
 
+### FX
+
+| Control | What it does |
+|---|---|
+| **Delay** / **Time** / **Feedback** | A tempo-synced delay whose repeats cross over, so they walk left and right. |
+| **Chorus** | Depth only; the rate is fixed slow, the way a chorus wants to be. The two sides run a quarter cycle apart, which is what makes it wide rather than just detuned. |
+| **Vibrato** / **Vib Rate** | Pitch wobble, in cents, on every voice. |
+| **Tremolo** / **Trem Rate** | Level wobble. |
+
+Every effect defaults to zero depth, so a project saved before they existed sounds exactly as
+it did.
+
 ### TONE
 
 Shape (waveform), Tone and Reso (filter), Drive, Attack and Release, Spread (stereo width and
@@ -72,6 +84,8 @@ oscillator detune), Space (reverb).
 | **Slow Drift** | Pads on the bar, long attack, plenty of reverb. |
 | **Sonar** | Sixteenth-note arpeggios, bright and short. |
 | **Pod Chorus** | Wide six-voice pads that lock the key and stay there. |
+| **Tide Echo** | A lead through a crossing delay, with a little chorus. |
+| **Siren** | Deep slow vibrato and tremolo over a free-running lead. The most whale-like of them. |
 | **Fixed C Min** | Listening off, C minor by hand — for when you want to choose the key yourself. |
 
 ## How well does it actually find the key?
@@ -83,6 +97,12 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
 - **Refuses to guess.** A single note repeated reports 0% confidence, because one pitch class
   could be the tonic of one key, the third of another and the fifth of a third.
 - **Follows a modulation.** C major to A major is picked up within a few bars.
+- **All nine programs** identify the key of a test melody, stay finite and stay under the ceiling.
+
+**Lock** needs more than confidence: it waits for an unbroken run of about three seconds in which
+every estimate agreed on the same root *and* was over the confidence threshold. Confidence on
+ambiguous material spikes and collapses from one estimate to the next, and a single reading over
+the line would freeze the wrong key for good.
 
 Confidence is two things multiplied: how far the winning key beats the runner-up, and how many
 distinct pitch classes there are to go on. Both have to be good before it claims to be sure.
@@ -110,7 +130,7 @@ the notes they leave out.
 ## CPU
 
 About 4–6% of one MPC core with four voices, most of it the oscillators; the pitch detector adds
-roughly 1%. The detector runs on a hop counter rather than every sample, so its cost lands in one
+roughly 1%, and the effects about another 1% with all four running. The detector runs on a hop counter rather than every sample, so its cost lands in one
 block out of every forty or so. Six voices of Pad is the heaviest setting.
 
 ## The skin

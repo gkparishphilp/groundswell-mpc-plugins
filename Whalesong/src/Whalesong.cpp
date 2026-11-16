@@ -102,6 +102,17 @@ enum ParamIndex
     kFound,        // meter: the key it has settled on
     kConf,         // meter: how sure it is
     kFoundScale,   // meter: the scale shape it has settled on. Appended after the first four.
+
+    // The effect section, appended. Every one of these defaults to zero depth, so a project or
+    // program saved before they existed sounds exactly as it did.
+    kDelayMix,     // how much tempo-synced delay
+    kDelayTime,    // the delay's note division
+    kDelayFb,      // delay feedback
+    kChorus,       // chorus depth (its rate is fixed slow, the way a chorus wants to be)
+    kVibrato,      // pitch wobble, in cents
+    kVibRate,      // ...and how fast
+    kTremolo,      // level wobble
+    kTremRate,     // ...and how fast
     kNumParams
 };
 
@@ -127,7 +138,21 @@ constexpr float kDecSeconds = 1.0f;        // how much decimated history to keep
 // Key inference.
 constexpr float kHistHalfLifeBeats = 32.0f;   // eight bars of 4/4
 constexpr float kHistMinWeight = 2.5f;        // below this there is not enough evidence to call it
-constexpr float kLockConfidence = 0.60f;      // Lock freezes the key once it is this sure
+constexpr float kLockConfidence = 0.60f;      // Lock freezes the key once it is this sure...
+// ...and has been that sure of the same root, without a break, for this long. Neither test is
+// enough alone. After a single bar the detector is often confident AND wrong - a C major tune
+// that leans on its fifth reads as G, and reads it firmly - and Lock would freeze that for good.
+// Confidence on ambiguous material also spikes and collapses from one estimate to the next, so a
+// single reading over the line means little. Requiring an unbroken run costs nothing: Lock is
+// for settling down, not for speed.
+constexpr int   kLockStableHops = 64;         // 64 hops x 46 ms ~ 3 s
+
+// Effects. The delay line is sized for a bar at a slow tempo; anything longer stops being a
+// delay and starts being a looper.
+constexpr float kMaxDelaySeconds = 4.0f;
+constexpr float kChorusBaseMs = 9.0f;      // the delay a chorus sits at before it is modulated
+constexpr float kChorusSwingMs = 6.0f;     // ...and how far it swings
+constexpr float kChorusRateHz = 0.45f;     // slow, the way a chorus wants to be
 
 // Voices.
 constexpr int kMaxVoices = 6;
@@ -330,6 +355,15 @@ public:
             meter(mpc::choiceParam("foundscale", "Mode", found, 0));
         }
 
+        addParam(mpc::floatParam ("delaymix",  "Delay",    0.0f, 100.0f,  0.0f, "%",  0));
+        addParam(mpc::choiceParam("delaytime", "Time",     divisionNames(), kDivisionEighth));
+        addParam(mpc::floatParam ("delayfb",   "Feedback", 0.0f,  90.0f, 35.0f, "%",  0));
+        addParam(mpc::floatParam ("chorus",    "Chorus",   0.0f, 100.0f,  0.0f, "%",  0));
+        addParam(mpc::floatParam ("vibrato",   "Vibrato",  0.0f, 100.0f,  0.0f, "ct", 0));
+        addParam(mpc::logParam   ("vibrate",   "Vib Rate", 0.1f,  12.0f,  5.0f, "Hz", 1));
+        addParam(mpc::floatParam ("tremolo",   "Tremolo",  0.0f, 100.0f,  0.0f, "%",  0));
+        addParam(mpc::logParam   ("tremrate",  "Trem Rate", 0.1f, 16.0f,  4.0f, "Hz", 1));
+
         addPrograms();
     }
 
@@ -350,6 +384,13 @@ public:
         for (Voice& v : voices_) v.prepare(sampleRate);
         fdn_.prepare(sampleRate);
 
+        maxDelay_ = (int)(kMaxDelaySeconds * sr_);
+        delayL_.prepare(maxDelay_ + 4);
+        delayR_.prepare(maxDelay_ + 4);
+        const int chMax = (int)((kChorusBaseMs + kChorusSwingMs + 2.0f) * 0.001f * sr_);
+        chorusL_.prepare(chMax + 4);
+        chorusR_.prepare(chMax + 4);
+
         envFastRate_ = 1.0f - std::exp(-1.0f / (0.004f * sr_));
         envSlowRate_ = 1.0f - std::exp(-1.0f / (0.120f * sr_));
         outSm_.setTime(12.0f, sampleRate);
@@ -363,12 +404,14 @@ public:
         for (float& s : decBuf_) s = 0.0f;
         for (Voice& v : voices_) v.reset();
         fdn_.reset();
+        delayL_.reset(); delayR_.reset(); chorusL_.reset(); chorusR_.reset();
+        vibPhase_ = tremPhase_ = chorusPhase_ = 0.0f;
 
         writePos_ = 0; decPos_ = 0; decPhase_ = 0; hopCount_ = 0;
         envFast_ = envSlow_ = 0.0f;
         heardClass_ = -1; heardMidi_ = -1.0f; lastHeardMidi_ = -1.0f; contour_ = 0.0f;
         for (float& h : pcHist_) h = 0.0f;
-        foundRoot_ = -1; foundScale_ = 0; keyConf_ = 0.0f; locked_ = false;
+        foundRoot_ = -1; foundScale_ = 0; keyConf_ = 0.0f; locked_ = false; stableHops_ = 0;
         listenedSamples_ = 0;
         nextNoteAt_ = 0; stepIndex_ = 0; arpIndex_ = 0; lastDegree_ = 0;
         seed_ = 0x3C6EF35Fu;
@@ -421,10 +464,29 @@ public:
         fdn_.feedback = 0.42f + space * 0.52f;
         fdn_.dampCoef = 0.22f + (1.0f - space) * 0.45f;
 
+        // Effects. All default to zero depth, and each is skipped entirely when it is off.
+        const float delayMix  = clamp(get(kDelayMix) * 0.01f, 0.0f, 1.0f);
+        const float delayFb   = clamp(get(kDelayFb) * 0.01f, 0.0f, 0.9f);
+        const int   delayDiv  = clamp(getInt(kDelayTime), 0, kNumDivisions - 1);
+        const float chorus    = clamp(get(kChorus) * 0.01f, 0.0f, 1.0f);
+        const float vibCents  = clamp(get(kVibrato), 0.0f, 100.0f);
+        const float vibRate   = clamp(get(kVibRate), 0.1f, 12.0f);
+        const float tremDepth = clamp(get(kTremolo) * 0.01f, 0.0f, 1.0f);
+        const float tremRate  = clamp(get(kTremRate), 0.1f, 16.0f);
+
+        const float vibInc  = vibRate / sr_;
+        const float tremInc = tremRate / sr_;
+        const float chInc   = kChorusRateHz / sr_;
+        const float chBase  = kChorusBaseMs * 0.001f * sr_;
+        const float chSwing = kChorusSwingMs * 0.001f * sr_ * chorus;
+
         const float bpm = safeBpm(ctx.transport.tempoValid ? ctx.transport.bpm : 120.0);
         const float beatSamples = beatsToSamples(1.0f, bpm, sr_);
         const float barSamples  = beatSamples * (float)clamp(ctx.transport.timeSigNumerator, 1, 16);
         histDecay_ = std::exp(-(float)kHopSamples / (kHistHalfLifeBeats * beatSamples + 1.0f));
+
+        float delaySamples = beatSamples * divisionBeats(delayDiv);
+        delaySamples = clamp(delaySamples, 32.0f, (float)(maxDelay_ - 2));
 
         // How long it listens before it is allowed to play.
         const int waitSel = clamp(getInt(kWait), 0, 3);
@@ -486,7 +548,7 @@ public:
                 }
 
                 vo.currentMidi += vo.glideRate * (vo.targetMidi - vo.currentMidi);
-                const float hz = clamp(midiToHz(vo.currentMidi), 16.0f, 0.45f * sr_);
+                const float hz = clamp(midiToHz(vo.currentMidi + vibDepth_), 16.0f, 0.45f * sr_);
                 vo.oscA.setFrequency(hz);
                 vo.oscB.setFrequency(hz * centsToRatio(spread * 11.0f));
 
@@ -504,6 +566,48 @@ public:
             // A little headroom so stacked voices cannot slam the limiter.
             wetL *= 0.34f;
             wetR *= 0.34f;
+
+            // Vibrato is read here and applied on the next sample's oscillators: one sample of
+            // lag at an audio rate is nothing, and it keeps the LFO out of the voice loop.
+            vibPhase_ += vibInc; if (vibPhase_ >= 1.0f) vibPhase_ -= 1.0f;
+            vibDepth_ = vibCents > 0.0f ? fastSin01(vibPhase_) * vibCents * 0.01f : 0.0f;
+
+            if (tremDepth > 0.001f)
+            {
+                tremPhase_ += tremInc; if (tremPhase_ >= 1.0f) tremPhase_ -= 1.0f;
+                const float g = 1.0f - tremDepth * (0.5f - 0.5f * fastSin01(tremPhase_));
+                wetL *= g;
+                wetR *= g;
+            }
+
+            if (chorus > 0.001f)
+            {
+                chorusPhase_ += chInc; if (chorusPhase_ >= 1.0f) chorusPhase_ -= 1.0f;
+                // The two sides run a quarter cycle apart, which is what makes a chorus wide
+                // rather than just detuned.
+                const float dl = chBase + chSwing * 0.5f * (1.0f + fastSin01(chorusPhase_));
+                const float dr = chBase + chSwing * 0.5f * (1.0f + fastSin01(chorusPhase_ + 0.25f));
+                const float cl = chorusL_.process(wetL, dl);
+                const float cr = chorusR_.process(wetR, dr);
+                wetL += (cl - wetL) * chorus * 0.5f;
+                wetR += (cr - wetR) * chorus * 0.5f;
+            }
+
+            if (delayMix > 0.001f)
+            {
+                // Feedback crosses over, so repeats walk left and right.
+                const float dl = delayL_.readLinear(delaySamples);
+                const float dr = delayR_.readLinear(delaySamples);
+                delayL_.write(flushDenormal(wetL + dr * delayFb));
+                delayR_.write(flushDenormal(wetR + dl * delayFb));
+                wetL += dl * delayMix;
+                wetR += dr * delayMix;
+            }
+            else
+            {
+                delayL_.write(0.0f);
+                delayR_.write(0.0f);
+            }
 
             if (space > 0.001f)
             {
@@ -581,8 +685,11 @@ private:
             pcHist_[heardClass_] += w;
         }
 
+        const int before = foundRoot_;
         estimateKey();
-        if (listen == kListenLock && keyConf_ >= kLockConfidence && foundRoot_ >= 0) locked_ = true;
+        if (foundRoot_ >= 0 && foundRoot_ == before && keyConf_ >= kLockConfidence) ++stableHops_;
+        else stableHops_ = 0;
+        if (listen == kListenLock && stableHops_ >= kLockStableHops) locked_ = true;
     }
 
     // Correlate the histogram against every (root, scale) pair.
@@ -935,20 +1042,34 @@ private:
     void addPrograms()
     {
         // Positional, in parameter order up to kScale; anything left off takes its default.
-        auto prog = [this](const char* name, std::vector<float> v)
+        auto prog = [this](const char* name, std::vector<float> v,
+                           std::initializer_list<std::pair<int, float>> extra = {})
         {
             const size_t given = v.size();
             v.resize((size_t)kNumParams);
             for (size_t i = given; i < v.size(); ++i) v[i] = param((int)i).def;
+            for (const auto& e : extra)
+                if (e.first >= 0 && e.first < kNumParams) v[(size_t)e.first] = e.second;
             addProgram(name, std::move(v));
         };
         //            out   mix  role          act   motion oct sync      rate              human glide shape tone    reso att    rel    drive spread space voices listen         sens wait key scale
         prog("First Light", { 0, 55, (float)kLead,    40,  45, 0, (float)kOnBeat, (float)kDivisionEighth,  28,  1,  30, 2600, 18,  14,  380, 12, 45, 35, 4, (float)kListenFollow, 50, 2, 0, 0 });
         prog("Deep Voice",  { 0, 62, (float)kBass,    55,  25, 0, (float)kOnBeat, (float)kDivisionQuarter, 18,  40, 55, 900,  28,  18,  300, 30, 15, 12, 2, (float)kListenFollow, 50, 2, 0, 0 });
         prog("Answering",   { 0, 58, (float)kCounter, 38,  60, 0, (float)kOnBeat, (float)kDivisionEighth,  35,  18, 25, 3200, 22,  26,  620, 10, 60, 45, 4, (float)kListenFollow, 60, 2, 0, 0 });
-        prog("Slow Drift",  { 0, 48, (float)kPad,     30,  35, 0, (float)kOnBar,  (float)kDivisionBar,     12,  90, 12, 1700, 15,  600, 2200, 8, 75, 65, 5, (float)kListenFollow, 45, 3, 0, 0 });
-        prog("Sonar",       { 0, 52, (float)kArp,     62,  40, 1, (float)kOnBeat, (float)kDivisionSixteenth, 20, 1, 70, 4200, 35,  3,   180, 22, 55, 40, 4, (float)kListenFollow, 50, 1, 0, 0 });
-        prog("Pod Chorus",  { 0, 60, (float)kPad,     35,  55, 0, (float)kOnBar,  (float)kDivisionBar,     22,  120, 20, 2100, 20, 900, 2800, 6, 85, 78, 6, (float)kListenLock,  55, 3, 0, 0 });
+        prog("Slow Drift",  { 0, 48, (float)kPad,     30,  35, 0, (float)kOnBar,  (float)kDivisionBar,     12,  90, 12, 1700, 15,  600, 2200, 8, 75, 65, 5, (float)kListenFollow, 45, 3, 0, 0 },
+             { { kChorus, 55.0f }, { kVibrato, 9.0f }, { kVibRate, 0.8f } });
+        prog("Sonar",       { 0, 52, (float)kArp,     62,  40, 1, (float)kOnBeat, (float)kDivisionSixteenth, 20, 1, 70, 4200, 35,  3,   180, 22, 55, 40, 4, (float)kListenFollow, 50, 1, 0, 0 },
+             { { kDelayMix, 42.0f }, { kDelayTime, (float)kDivisionEighth }, { kDelayFb, 46.0f } });
+        prog("Pod Chorus",  { 0, 60, (float)kPad,     35,  55, 0, (float)kOnBar,  (float)kDivisionBar,     22,  120, 20, 2100, 20, 900, 2800, 6, 85, 78, 6, (float)kListenLock,  55, 3, 0, 0 },
+             { { kChorus, 82.0f }, { kVibrato, 14.0f }, { kVibRate, 0.6f } });
+
+        // Built around the effects rather than merely wearing them.
+        prog("Tide Echo",   { 0, 54, (float)kLead,    30,  55, 0, (float)kOnBeat, (float)kDivisionEighth,  30,  18, 40, 3000, 24,  16,  300, 12, 55, 30, 3, (float)kListenFollow, 55, 2, 0, 0 },
+             { { kDelayMix, 58.0f }, { kDelayTime, (float)kDivisionEighth }, { kDelayFb, 62.0f },
+               { kChorus, 30.0f } });
+        prog("Siren",       { 0, 58, (float)kLead,    26,  70, 0, (float)kFree,   (float)kDivisionQuarter, 15,  260, 18, 1500, 30, 420, 1800, 10, 70, 55, 2, (float)kListenFollow, 60, 2, 0, 0 },
+             { { kVibrato, 46.0f }, { kVibRate, 4.6f }, { kTremolo, 38.0f }, { kTremRate, 3.2f },
+               { kDelayMix, 26.0f }, { kDelayTime, (float)kDivisionQuarter } });
         prog("Fixed C Min", { 0, 55, (float)kLead,    45,  50, 0, (float)kOnBeat, (float)kDivisionEighth,  30,  1,  35, 2400, 20,  12,  420, 15, 40, 30, 4, (float)kListenOff,   50, 0, 0, 1 });
     }
 
@@ -990,6 +1111,7 @@ private:
     float histDecay_ = 0.999f;
     int   foundRoot_ = -1, foundScale_ = 0;
     float keyConf_ = 0.0f;
+    int   stableHops_ = 0;      // consecutive estimates that agreed, and were sure
     float rawMargin_ = 0.0f;
     bool  locked_ = false;
     int64_t listenedSamples_ = 0;
@@ -1000,6 +1122,11 @@ private:
 
     Voice voices_[kMaxVoices];
     Fdn   fdn_;
+
+    DelayLine delayL_, delayR_, chorusL_, chorusR_;
+    int   maxDelay_ = 1024;
+    float vibPhase_ = 0.0f, tremPhase_ = 0.0f, chorusPhase_ = 0.0f;
+    float vibDepth_ = 0.0f;              // semitones, smoothed per block into the voices
 
     Smoother outSm_, mixSm_;
 
