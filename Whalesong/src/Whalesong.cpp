@@ -113,6 +113,11 @@ enum ParamIndex
     kVibRate,      // ...and how fast
     kTremolo,      // level wobble
     kTremRate,     // ...and how fast
+
+    // The phrase window, appended. Off keeps the old behaviour exactly.
+    kWindow,       // how long a phrase is, in bars
+    kVary,         // how much each repeat differs from the last
+    kRenew,        // how many repeats before it writes a fresh phrase
     kNumParams
 };
 
@@ -153,6 +158,21 @@ constexpr float kMaxDelaySeconds = 4.0f;
 constexpr float kChorusBaseMs = 9.0f;      // the delay a chorus sits at before it is modulated
 constexpr float kChorusSwingMs = 6.0f;     // ...and how far it swings
 constexpr float kChorusRateHz = 0.45f;     // slow, the way a chorus wants to be
+
+// The phrase window. Eight bars of sixteenths, with room for chords on each.
+constexpr int kMaxPhraseNotes = 256;
+
+// One note the plugin played, kept so the phrase can be played again. The pitch is stored as a
+// scale degree rather than a MIDI note, so a repeat follows the key: if the detector changes its
+// mind halfway through a take, the phrase transposes to the new key instead of fighting it.
+struct PhraseNote
+{
+    int64_t offset = 0;      // samples from the start of the window
+    int     degree = 0;
+    int     octave = 4;
+    int64_t hold = 0;
+    float   velocity = 1.0f;
+};
 
 // Voices.
 constexpr int kMaxVoices = 6;
@@ -364,6 +384,12 @@ public:
         addParam(mpc::floatParam ("tremolo",   "Tremolo",  0.0f, 100.0f,  0.0f, "%",  0));
         addParam(mpc::logParam   ("tremrate",  "Trem Rate", 0.1f, 16.0f,  4.0f, "Hz", 1));
 
+        addParam(mpc::choiceParam("window", "Window", { "Off", "1 Bar", "2 Bars", "4 Bars",
+                                                          "8 Bars" }, 0));
+        addParam(mpc::floatParam ("vary",   "Vary",   0.0f, 100.0f, 25.0f, "%", 0));
+        addParam(mpc::choiceParam("renew",  "Renew",  { "Every 2", "Every 4", "Every 8",
+                                                        "Never" }, 1));
+
         addPrograms();
     }
 
@@ -414,6 +440,8 @@ public:
         foundRoot_ = -1; foundScale_ = 0; keyConf_ = 0.0f; locked_ = false; stableHops_ = 0;
         listenedSamples_ = 0;
         nextNoteAt_ = 0; stepIndex_ = 0; arpIndex_ = 0; lastDegree_ = 0;
+        phraseCount_ = 0; replayIdx_ = 0; passIndex_ = 0; writingPhrase_ = true;
+        windowPos_ = 0; windowSamples_ = 0;
         seed_ = 0x3C6EF35Fu;
         outSm_.snap(dbToGain(get(kOutput)));
         mixSm_.snap(get(kMix) * 0.01f);
@@ -488,6 +516,31 @@ public:
         float delaySamples = beatSamples * divisionBeats(delayDiv);
         delaySamples = clamp(delaySamples, 32.0f, (float)(maxDelay_ - 2));
 
+        // The phrase window is both the span it remembers and the length it loops. Off means the
+        // old behaviour: generate forever and never repeat.
+        const int winSel = clamp(getInt(kWindow), 0, 4);
+        const float vary = clamp(get(kVary) * 0.01f, 0.0f, 1.0f);
+        const int renewSel = clamp(getInt(kRenew), 0, 3);
+        const int renewEvery = renewSel >= 3 ? 0 : (2 << renewSel);   // 2, 4, 8, or never
+        const int64_t wantWindow = winSel == 0 ? 0
+                                 : (int64_t)(barSamples * (float)(1 << (winSel - 1)));
+        if (wantWindow != windowSamples_)
+        {
+            windowSamples_ = wantWindow;
+            windowPos_ = 0; replayIdx_ = 0; passIndex_ = 0;
+            phraseCount_ = 0; writingPhrase_ = true;
+        }
+        // Align the window to the song, so a phrase starts on a bar line rather than wherever
+        // the plugin happened to load.
+        if (windowSamples_ > 0 && ctx.transport.ppqValid && ctx.transport.playing)
+        {
+            const double beatsPerWindow = (double)clamp(ctx.transport.timeSigNumerator, 1, 16)
+                                        * (double)(1 << (winSel - 1));
+            double posBeats = std::fmod(ctx.transport.ppqPos, beatsPerWindow);
+            if (posBeats < 0.0) posBeats += beatsPerWindow;
+            windowPos_ = (int64_t)(posBeats * (double)beatSamples);
+        }
+
         // How long it listens before it is allowed to play.
         const int waitSel = clamp(getInt(kWait), 0, 3);
         const int64_t waitSamples = waitSel == 0 ? 0 : (int64_t)(barSamples * (float)(1 << (waitSel - 1)));
@@ -530,9 +583,32 @@ public:
 
             // Should a note start on this sample?
             const bool mayPlay = (listen == kListenOff) || (listenedSamples_ >= waitSamples && foundRoot_ >= 0);
-            if (mayPlay && writePos_ >= nextNoteAt_)
+
+            if (windowSamples_ > 0)
+            {
+                if (++windowPos_ >= windowSamples_)
+                {
+                    windowPos_ = 0;
+                    ++passIndex_;
+                    replayIdx_ = 0;
+                    // A fresh phrase every so often, so a take does not ossify; otherwise play
+                    // the one we have back again.
+                    const bool renew = (renewEvery > 0 && (passIndex_ % renewEvery) == 0);
+                    if (renew || phraseCount_ == 0) { phraseCount_ = 0; writingPhrase_ = true; }
+                    else                            { writingPhrase_ = false; }
+                }
+
+                if (mayPlay && !writingPhrase_)
+                    replayPhrase(vary, maxVoices, spread);
+                else if (mayPlay && writePos_ >= nextNoteAt_)
+                    scheduleNext(role, activity, motion, octave, sync, rateIdx, human,
+                                 beatSamples, barSamples, maxVoices, spread, ctx.transport);
+            }
+            else if (mayPlay && writePos_ >= nextNoteAt_)
+            {
                 scheduleNext(role, activity, motion, octave, sync, rateIdx, human,
                              beatSamples, barSamples, maxVoices, spread, ctx.transport);
+            }
 
             // ---- render the voices ----
             float wetL = 0.0f, wetR = 0.0f;
@@ -869,6 +945,20 @@ private:
         if (role == kBass) chance *= 0.55f;
         if (role == kPad)  chance *= 0.30f;
         if (role == kArp)  chance = clamp(activity * 1.5f, 0.0f, 1.0f);
+
+        // ...but rationing must not be able to silence a part that is supposed to sustain. A pad
+        // rolling a 27% die once a bar spends most of its time silent, which is not a pad at all;
+        // it is a pad that sometimes happens. So when nothing of theirs is sounding, the two
+        // sustaining roles always take the opportunity, and Activity goes back to meaning how
+        // often the chord CHANGES rather than whether there is one.
+        if (role == kPad || role == kBass)
+        {
+            int sounding = 0;
+            for (int v = 0; v < maxVoices; ++v)
+                if (voices_[v].active && !voices_[v].env.isReleasing()) ++sounding;
+            if (sounding == 0) chance = 1.0f;
+        }
+
         if (randf() > chance) return;
 
         // Bass sits an octave below the middle, lead an octave above. Two octaves down put the
@@ -945,6 +1035,44 @@ private:
             const float midi = clamp(degreeToMidi(degrees[k], baseOct), 21.0f, 108.0f);
             startNote(midi, velocity, holdSamples, jitter, maxVoices, spread,
                       noteCount > 1 ? (float)k / (float)(noteCount - 1) : randf());
+
+            // Keep it, so this window can be played again. Degrees, not notes: see PhraseNote.
+            if (windowSamples_ > 0 && writingPhrase_ && phraseCount_ < kMaxPhraseNotes)
+            {
+                PhraseNote& nt = phrase_[phraseCount_++];
+                nt.offset = windowPos_;
+                nt.degree = degrees[k];
+                nt.octave = baseOct;
+                nt.hold = holdSamples;
+                nt.velocity = velocity;
+            }
+        }
+    }
+
+    // Play the stored phrase back, bending it a little as it goes. Variation is what keeps a
+    // repeat from turning into a loop: the shape stays, the detail moves. Four kinds, in rough
+    // order of how much they change the line - a neighbouring degree, a rest, an octave, a
+    // different weight - because a phrase that only ever gains notes stops breathing.
+    void replayPhrase(float vary, int maxVoices, float spread)
+    {
+        while (replayIdx_ < phraseCount_ && phrase_[replayIdx_].offset <= windowPos_)
+        {
+            const PhraseNote nt = phrase_[replayIdx_++];
+            int   deg = nt.degree;
+            int   oct = nt.octave;
+            float vel = nt.velocity;
+
+            if (vary > 0.0f && randf() < vary)
+            {
+                const float r = randf();
+                if (r < 0.45f)      deg += (randf() < 0.5f ? 1 : -1);
+                else if (r < 0.68f) continue;                              // leave a rest
+                else if (r < 0.82f) oct += (randf() < 0.5f ? 1 : -1);
+                else                vel = clamp(vel * (0.55f + randf() * 0.7f), 0.15f, 1.0f);
+            }
+
+            const float midi = clamp(degreeToMidi(deg, oct), 21.0f, 108.0f);
+            startNote(midi, vel, nt.hold, 0, maxVoices, spread, randf());
         }
     }
 
@@ -1115,6 +1243,13 @@ private:
     float rawMargin_ = 0.0f;
     bool  locked_ = false;
     int64_t listenedSamples_ = 0;
+
+    PhraseNote phrase_[kMaxPhraseNotes];
+    int     phraseCount_ = 0;
+    int     replayIdx_ = 0;
+    int     passIndex_ = 0;
+    bool    writingPhrase_ = true;    // false once a phrase exists and is being played back
+    int64_t windowPos_ = 0, windowSamples_ = 0;
 
     int64_t nextNoteAt_ = 0;
     int     stepIndex_ = 0, arpIndex_ = 0, lastDegree_ = 0;

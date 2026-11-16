@@ -48,7 +48,7 @@ enough to work with: try a more melodic part, or raise Sens.
 
 | Control | What it does |
 |---|---|
-| **Role** | `Bass` roots and fifths, low and slow. `Lead` a melodic line that steps more often than it leaps. `Counter` moves opposite to you — when you rise, it falls. `Pad` sustained triads. `Arp` cycles chord tones. |
+| **Role** | `Bass` and `Pad` sustain: when nothing of theirs is sounding they always play, so Activity sets how often the chord *changes*, not whether there is one. `Bass` roots and fifths, low and slow. `Lead` a melodic line that steps more often than it leaps. `Counter` moves opposite to you — when you rise, it falls. `Pad` sustained triads. `Arp` cycles chord tones. |
 | **Activity** | How often it takes an opportunity to play. At 0 it is silent; at 100 it plays every one. |
 | **Motion** | How far the line is allowed to range from where it is. |
 | **Octave** | Transposes the whole line, ±2 octaves. |
@@ -56,6 +56,20 @@ enough to work with: try a more melodic part, or raise Sens.
 | **Rate** | The note division it plays on when synced. |
 | **Human** | Timing and velocity jitter. A little stops it sounding like a sequencer. |
 | **Glide** | Portamento between notes. |
+
+### PHRASE
+
+Normally Whalesong improvises continuously and never plays the same thing twice. A **Window**
+changes that: it plays a phrase of that length, then plays it again.
+
+| Control | What it does |
+|---|---|
+| **Window** | `Off` improvises forever. `1`–`8 Bars` sets how long a phrase is. The window is both what it remembers and what it loops, and it lines up with the song's bars rather than with whenever the plugin loaded. |
+| **Vary** | How much each repeat differs. At 0 the phrase is exact. Variation moves a note to a neighbouring degree, leaves a rest, jumps an octave, or changes a note's weight — the shape stays, the detail moves. |
+| **Renew** | How many repeats before it writes a fresh phrase, so a take does not ossify. |
+
+Notes are remembered as **scale degrees, not pitches**, so if the detector changes its mind about
+the key halfway through a take, the phrase transposes to the new key rather than fighting it.
 
 ### FX
 
@@ -98,6 +112,11 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
   could be the tonic of one key, the third of another and the fifth of a third.
 - **Follows a modulation.** C major to A major is picked up within a few bars.
 - **All nine programs** identify the key of a test melody, stay finite and stay under the ceiling.
+  The audit measures what the *synth* adds, not total output: measuring the total cannot tell a
+  working program from a silent one, since the dry input passes through either way, and that is
+  exactly how a silent Pad once survived an audit.
+- **The phrase window** repeats exactly at Vary 0, keeps roughly two thirds of its notes at Vary
+  50%, renews on schedule, and is bit-identical to the old behaviour when Off.
 
 **Lock** needs more than confidence: it waits for an unbroken run of about three seconds in which
 every estimate agreed on the same root *and* was over the confidence threshold. Confidence on
