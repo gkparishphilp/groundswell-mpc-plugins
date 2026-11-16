@@ -57,6 +57,7 @@
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include "InputSegmenter.h"
 
 using namespace mpc::dsp;
 
@@ -137,7 +138,18 @@ constexpr int   kYinMinLag = 9;            // about 1225 Hz
 constexpr int   kYinMaxLag = 140;          // about 79 Hz
 constexpr float kYinGood = 0.22f;          // below this the estimate is trusted
 constexpr float kYinUsable = 0.45f;        // above this the window is called unpitched
-constexpr int   kHopSamples = 2048;        // run the detector this often (46 ms at 44.1 kHz)
+// The detector runs every kHopSamples. 23 ms, not the 46 ms it started at: the note segmenter
+// cannot resolve notes much shorter than its hop, and at 46 ms a sixteenth at 120 bpm (125 ms)
+// came back as roughly half the notes actually played. At 23 ms it comes back whole. The cost
+// is one more YIN pass per 23 ms, which is the plugin's one expensive operation.
+//
+// The KEY estimate deliberately does not speed up with it. It was tuned and tested on hardware
+// at one vote per 46 ms, so it still votes every kVoteEvery hops - the same cadence, the same
+// decay per vote, the same time to lock. Only the pitch stream feeding the segmenter is faster.
+constexpr int   kHopSamples = 1024;        // 23 ms at 44.1 kHz
+constexpr int   kVoteEvery = 2;            // hops per key-histogram vote: back to 46 ms
+constexpr int   kVoteHop = kHopSamples * kVoteEvery;
+constexpr int   kYinSourceWindow = kYinWindow * kDecim;   // how far back a reading reaches
 constexpr float kDecSeconds = 1.0f;        // how much decimated history to keep
 
 // Key inference.
@@ -407,6 +419,8 @@ public:
         decMask_ = (int64_t)size - 1;
         yin_.assign((size_t)(kYinMaxLag + 2), 0.0f);
 
+        seg_.prepare(sr_, kHopSamples, kYinSourceWindow);
+
         for (Voice& v : voices_) v.prepare(sampleRate);
         fdn_.prepare(sampleRate);
 
@@ -433,7 +447,9 @@ public:
         delayL_.reset(); delayR_.reset(); chorusL_.reset(); chorusR_.reset();
         vibPhase_ = tremPhase_ = chorusPhase_ = 0.0f;
 
-        writePos_ = 0; decPos_ = 0; decPhase_ = 0; hopCount_ = 0;
+        writePos_ = 0; decPos_ = 0; decPhase_ = 0; hopCount_ = 0; voteCount_ = 0;
+        hopPeak_ = 0.0f; hopPeakPos_ = 0;
+        seg_.reset();
         envFast_ = envSlow_ = 0.0f;
         heardClass_ = -1; heardMidi_ = -1.0f; lastHeardMidi_ = -1.0f; contour_ = 0.0f;
         for (float& h : pcHist_) h = 0.0f;
@@ -511,7 +527,7 @@ public:
         const float bpm = safeBpm(ctx.transport.tempoValid ? ctx.transport.bpm : 120.0);
         const float beatSamples = beatsToSamples(1.0f, bpm, sr_);
         const float barSamples  = beatSamples * (float)clamp(ctx.transport.timeSigNumerator, 1, 16);
-        histDecay_ = std::exp(-(float)kHopSamples / (kHistHalfLifeBeats * beatSamples + 1.0f));
+        histDecay_ = std::exp(-(float)kVoteHop / (kHistHalfLifeBeats * beatSamples + 1.0f));
 
         float delaySamples = beatSamples * divisionBeats(delayDiv);
         delaySamples = clamp(delaySamples, 32.0f, (float)(maxDelay_ - 2));
@@ -562,6 +578,11 @@ public:
             envFast_ += envFastRate_ * (rect - envFast_);
             envSlow_ += envSlowRate_ * (rect - envSlow_);
 
+            // The loudest the input got since the last hop, and where. The segmenter needs
+            // this to find attacks: by the time a hop comes round the envelope has already
+            // decayed past the transient, so sampling it at the hop alone would miss every one.
+            if (envFast_ > hopPeak_) { hopPeak_ = envFast_; hopPeakPos_ = writePos_; }
+
             // Decimate into the detector's history.
             decAccum_ += mono;
             if (++decPhase_ >= kDecim)
@@ -579,6 +600,10 @@ public:
             {
                 hopCount_ = 0;
                 analyse(envFast_ > onThresh, listen);
+                // analyse() has just refreshed heardMidi_, so the segmenter sees this hop's
+                // estimate rather than the previous one's.
+                seg_.hop(heardMidi_, hopPeak_, hopPeakPos_, onThresh, writePos_);
+                hopPeak_ = 0.0f; hopPeakPos_ = writePos_;
             }
 
             // Should a note start on this sample?
@@ -740,16 +765,22 @@ private:
             if (cls < 0) cls += 12;
             heardClass_ = cls;
 
-            // Contour: which way the line is moving, for the Counter role.
+            // Contour: which way the line is moving, for the Counter role. The coefficient is
+            // half what it was because the hop is half as long: same smoothing in seconds.
             if (lastHeardMidi_ > 0.0f)
             {
                 const float d = clamp(midi - lastHeardMidi_, -12.0f, 12.0f);
-                contour_ += 0.25f * (d - contour_);
+                contour_ += 0.125f * (d - contour_);
             }
             lastHeardMidi_ = midi;
         }
 
         if (listen == kListenOff) return;
+
+        // Everything below is the key estimate, which keeps its original 46 ms cadence.
+        if (++voteCount_ < kVoteEvery) return;
+        voteCount_ = 0;
+
         if (locked_ && listen == kListenLock) return;
 
         for (float& h : pcHist_) h *= histDecay_;
@@ -1226,7 +1257,14 @@ private:
     int64_t writePos_ = 0, decPos_ = 0;
     int     decPhase_ = 0;
     float   decAccum_ = 0.0f;
-    int     hopCount_ = 0;
+    int     hopCount_ = 0, voteCount_ = 0;
+    float   hopPeak_ = 0.0f;
+    int64_t hopPeakPos_ = 0;
+
+    // The input, as notes rather than as a stream of estimates. Nothing plays from this yet:
+    // it is the groundwork for roles that answer what you actually played - echo the intervals
+    // back, invert them, reverse them - and it is tested on its own before any of that lands.
+    ws::InputSegmenter seg_;
 
     float envFast_ = 0.0f, envSlow_ = 0.0f;
     float envFastRate_ = 1.0f, envSlowRate_ = 1.0f;

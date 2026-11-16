@@ -117,6 +117,11 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
   exactly how a silent Pad once survived an audit.
 - **The phrase window** repeats exactly at Vary 0, keeps roughly two thirds of its notes at Vary
   50%, renews on schedule, and is bit-identical to the old behaviour when Off.
+- **The note segmenter** (groundwork, plays nothing yet) recovers quarters, eighths and
+  sixteenths at 120 bpm from rendered audio through the real detector: 8 of 8 notes, right
+  pitches, onsets within about 20 ms. Also repeated notes at one pitch, notes with vibrato, and
+  the whole range from E2 to C5. A steady-tone sweep puts the detector at 100% correct from
+  MIDI 39 to 87 (79 Hz to 1.24 kHz) - its full designed range, with no octave errors.
 
 **Lock** needs more than confidence: it waits for an unbroken run of about three seconds in which
 every estimate agreed on the same root *and* was over the confidence threshold. Confidence on
@@ -142,15 +147,26 @@ the notes they leave out.
 - **No chord recognition.** The pitch detector is monophonic (YIN). It hears one note at a time,
   so it infers the key from a melody, not from harmony. Pads and strummed chords will give it a
   wandering pitch stream; the histogram is forgiving, but it is not reading your chords.
-- **Nothing below about 79 Hz** registers, so it cannot take its key from a bass part alone.
+- **Nothing below about 79 Hz** (D#2) or above about 1.2 kHz (D#6) registers, so it cannot take
+  its key from a bass part alone. Above the ceiling it reports an octave down.
+- **Nothing plays from your phrases yet.** The input is now segmented into real notes - pitch,
+  timing, length, velocity - but no role reads them. Echo, Mirror and Retrograde come next.
 - **It does not know where the chord changes are.** It plays in a key, not over a progression.
 - **It cannot send MIDI.** No MPC plugin can. Everything it plays, it plays itself.
 
 ## CPU
 
 About 4–6% of one MPC core with four voices, most of it the oscillators; the pitch detector adds
-roughly 1%, and the effects about another 1% with all four running. The detector runs on a hop counter rather than every sample, so its cost lands in one
-block out of every forty or so. Six voices of Pad is the heaviest setting.
+roughly 2%, and the effects about another 1% with all four running. The detector runs on a hop
+counter rather than every sample, so its cost lands in one block out of every twenty or so. Six
+voices of Pad is the heaviest setting.
+
+The detector hop was halved to 23 ms to let the note segmenter resolve sixteenth notes; at 46 ms
+a sixteenth at 120 bpm lasts under three readings and came back as roughly half the notes
+actually played. Measured end to end, that costs about a fifth of the plugin's total CPU, not
+double: 10.5 ms more work per 30 seconds of audio on a desktop core. The **key** estimate did not
+speed up with it - it still votes once per 46 ms, so its tuning, its decay and its three seconds
+to Lock are all exactly as they were tested on hardware.
 
 ## The skin
 
