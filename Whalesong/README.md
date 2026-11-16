@@ -39,10 +39,12 @@ enough to work with: try a more melodic part, or raise Sens.
 | **Listen** | `Off` uses the Key and Scale buttons and ignores the input. `Follow` keeps re-reading the key as you play. `Lock` follows until it is sure, then stops changing its mind. |
 | **Sens** | How quiet the input can be and still count as playing. Turn it up for quiet or soft-attack material. |
 | **Wait** | How long it listens before it is allowed to play. Two bars is the default, and there is a reason: after one bar it is often confidently wrong. |
-| **Mix** | How loud the accompaniment sits against your dry signal. |
+| **Linger** | How long it keeps playing after you stop. `Never` means it does not stop on its own, which is what you want when it is running alongside something else; `1`–`16 Bars` wind it down that long after your last note, and the next note you play brings it back. |
 | **Key** / **Scale** | The key to use when Listen is Off. Ignored while it is following. |
-| **Voices** | How many notes may sound at once, 1–6. Pad wants 4 or more; Bass wants 1 or 2. |
-| **Output** | Master volume. |
+| **Level** | How loud the whalesong is. **Your own signal is not touched by this** — it passes at full level whatever Level says. This is the control to reach for when it is too loud. |
+| **Output** | Master trim on everything, your dry signal included. Reach for Level first. |
+
+**Voices** moved to the PHRASE tab to make room for Linger.
 
 ### PLAY
 
@@ -117,6 +119,9 @@ Measured, not guessed. The test harness feeds it generated melodies in known key
   exactly how a silent Pad once survived an audit.
 - **The phrase window** repeats exactly at Vary 0, keeps roughly two thirds of its notes at Vary
   50%, renews on schedule, and is bit-identical to the old behaviour when Off.
+- **Linger** stops it within a note of the bar it promises: input cut at 6 s, last note at 7.91,
+  9.82, 13.83 and 21.86 s for 1, 2, 4 and 8 bars. It comes back when the input returns (0 notes
+  during the silence, 50 after), and `Never` is still going at 40 s.
 - **The note segmenter** (groundwork, plays nothing yet) recovers quarters, eighths and
   sixteenths at 120 bpm from rendered audio through the real detector: 8 of 8 notes, right
   pitches, onsets within about 20 ms. Also repeated notes at one pitch, notes with vibrato, and
@@ -153,6 +158,10 @@ the notes they leave out.
   timing, length, velocity - but no role reads them. Echo, Mirror and Retrograde come next.
 - **It does not know where the chord changes are.** It plays in a key, not over a progression.
 - **It cannot send MIDI.** No MPC plugin can. Everything it plays, it plays itself.
+- **Linger watches the input, not the transport.** It winds down after *the input* goes quiet,
+  not after the sequencer stops. On a track that has never had any input it does not wind down
+  at all, whatever Linger says — there is nothing to wind down from, and a free-running instance
+  falling silent after one bar would look like a fault.
 
 ## CPU
 

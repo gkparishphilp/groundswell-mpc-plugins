@@ -119,6 +119,10 @@ enum ParamIndex
     kWindow,       // how long a phrase is, in bars
     kVary,         // how much each repeat differs from the last
     kRenew,        // how many repeats before it writes a fresh phrase
+
+    // Winding down, appended. Never is the default, so a free-running instance - and every
+    // project saved before this existed - behaves exactly as it did.
+    kLinger,       // how long it keeps playing after the input goes quiet
     kNumParams
 };
 
@@ -341,7 +345,7 @@ public:
         for (int i = 0; i < kNumScales; ++i) scaleChoices.push_back(kScales[i].name);
 
         addParam(mpc::floatParam ("out",      "Output",   -24.0f, 12.0f,   0.0f,  "dB", 1));
-        addParam(mpc::floatParam ("mix",      "Mix",        0.0f, 100.0f, 60.0f,  "%",  0));
+        addParam(mpc::floatParam ("mix",      "Level",      0.0f, 100.0f, 60.0f,  "%",  0));
         addParam(mpc::choiceParam("role",     "Role",     { "Bass", "Lead", "Counter", "Pad", "Arp" }, kLead));
         addParam(mpc::floatParam ("activity", "Activity",   0.0f, 100.0f, 45.0f,  "%",  0));
 
@@ -375,7 +379,10 @@ public:
         // kept out of saved state - a project should not store a stale level reading and push it
         // back in on load.
         auto meter = [this](mpc::Param p) { p.automatable = false; p.saved = false; addParam(p); };
-        meter(mpc::floatParam ("level", "Level", 0.0f, 100.0f, 0.0f, "%", 0));
+        // "Input", not "Level": this meter reads how loud YOU are, while the Level control
+        // above sets how loud the whalesong is. Two things called Level on one panel is one too
+        // many. The id stays "level" because ids are permanent.
+        meter(mpc::floatParam ("level", "Input", 0.0f, 100.0f, 0.0f, "%", 0));
         meter(mpc::choiceParam("heard", "Heard", { "-", "C", "C#", "D", "D#", "E", "F",
                                                    "F#", "G", "G#", "A", "A#", "B" }, 0));
         meter(mpc::choiceParam("found", "Found", { "-", "C", "C#", "D", "D#", "E", "F",
@@ -401,6 +408,9 @@ public:
         addParam(mpc::floatParam ("vary",   "Vary",   0.0f, 100.0f, 25.0f, "%", 0));
         addParam(mpc::choiceParam("renew",  "Renew",  { "Every 2", "Every 4", "Every 8",
                                                         "Never" }, 1));
+
+        addParam(mpc::choiceParam("linger", "Linger", { "Never", "1 Bar", "2 Bars", "4 Bars",
+                                                        "8 Bars", "16 Bars" }, 0));
 
         addPrograms();
     }
@@ -454,7 +464,7 @@ public:
         heardClass_ = -1; heardMidi_ = -1.0f; lastHeardMidi_ = -1.0f; contour_ = 0.0f;
         for (float& h : pcHist_) h = 0.0f;
         foundRoot_ = -1; foundScale_ = 0; keyConf_ = 0.0f; locked_ = false; stableHops_ = 0;
-        listenedSamples_ = 0;
+        listenedSamples_ = 0; quietSamples_ = 0;
         nextNoteAt_ = 0; stepIndex_ = 0; arpIndex_ = 0; lastDegree_ = 0;
         phraseCount_ = 0; replayIdx_ = 0; passIndex_ = 0; writingPhrase_ = true;
         windowPos_ = 0; windowSamples_ = 0;
@@ -565,6 +575,13 @@ public:
         const float sens = clamp(get(kSens) * 0.01f, 0.0f, 1.0f);
         const float onThresh = dbToGain(-44.0f - 10.0f * sens);
 
+        // How long it keeps playing once the input has gone quiet. Never means it does not stop
+        // on its own, which is what you want when it is jamming alongside another instrument,
+        // and is the default so nothing that already exists changes behaviour.
+        const int lingerSel = clamp(getInt(kLinger), 0, 5);
+        const int64_t lingerSamples = lingerSel == 0 ? 0
+                                    : (int64_t)(barSamples * (float)(1 << (lingerSel - 1)));
+
         // ---- the audio loop ------------------------------------------------------------
         for (int i = 0; i < n; ++i)
         {
@@ -593,7 +610,8 @@ public:
                 decAccum_ = 0.0f;
             }
 
-            if (envFast_ > onThresh) ++listenedSamples_;
+            if (envFast_ > onThresh) { ++listenedSamples_; quietSamples_ = 0; }
+            else                     ++quietSamples_;
 
             // The pitch detector and the key estimate run on a hop, not per sample.
             if (++hopCount_ >= kHopSamples)
@@ -607,7 +625,21 @@ public:
             }
 
             // Should a note start on this sample?
-            const bool mayPlay = (listen == kListenOff) || (listenedSamples_ >= waitSamples && foundRoot_ >= 0);
+            // Has it been quiet long enough to wind down? Only new notes are withheld; voices
+            // already sounding keep their scheduled release, so it tails off rather than
+            // cutting. Start playing again and the next note brings it straight back in.
+            //
+            // listenedSamples_ > 0 is the guard that stops this being a trap. Winding down
+            // "after the input goes quiet" presupposes there WAS an input. Without the guard,
+            // a free-running instance on an empty track - Listen off, nothing plugged in -
+            // would play for one bar and then fall silent for good, which looks exactly like a
+            // broken plugin. Having never heard anything, it has nothing to wind down from.
+            const bool windDown = lingerSamples > 0 && listenedSamples_ > 0
+                                  && quietSamples_ >= lingerSamples;
+
+            const bool mayPlay = !windDown
+                               && ((listen == kListenOff)
+                                   || (listenedSamples_ >= waitSamples && foundRoot_ >= 0));
 
             if (windowSamples_ > 0)
             {
@@ -1280,7 +1312,7 @@ private:
     int   stableHops_ = 0;      // consecutive estimates that agreed, and were sure
     float rawMargin_ = 0.0f;
     bool  locked_ = false;
-    int64_t listenedSamples_ = 0;
+    int64_t listenedSamples_ = 0, quietSamples_ = 0;
 
     PhraseNote phrase_[kMaxPhraseNotes];
     int     phraseCount_ = 0;

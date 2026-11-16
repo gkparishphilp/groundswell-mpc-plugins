@@ -2660,6 +2660,17 @@
                     "Every 8",
                     "Never"
                 ]
+            },
+            {
+                "key": "Parameter 40",
+                "value": [
+                    "Never",
+                    "1 Bar",
+                    "2 Bars",
+                    "4 Bars",
+                    "8 Bars",
+                    "16 Bars"
+                ]
             }
         ],
         "info": {
@@ -2820,7 +2831,7 @@
                                 "map": [
                                     {
                                         "key": "Data",
-                                        "value": "Parameter 1"
+                                        "value": "Parameter 40"
                                     }
                                 ]
                             },
@@ -2907,7 +2918,7 @@
                                 "map": [
                                     {
                                         "key": "Data",
-                                        "value": "Parameter 18"
+                                        "value": "Parameter 1"
                                     }
                                 ]
                             },
@@ -4494,6 +4505,35 @@
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
                                 "bounds": "29 376 352 92"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 3",
+                                "type": "knob wide",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 18"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "24 482 316 100"
                             }
                         },
                         {

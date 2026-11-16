@@ -53,7 +53,7 @@ P = dict(out=0, mix=1, role=2, activity=3, motion=4, octave=5, sync=6, rate=7, h
          level=24, heard=25, found=26, conf=27, foundscale=28,
          delaymix=29, delaytime=30, delayfb=31, chorus=32,
          vibrato=33, vibrate=34, tremolo=35, tremrate=36,
-         window=37, vary=38, renew=39)
+         window=37, vary=38, renew=39, linger=40)
 
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 SCALES = ["Major", "Minor", "Dorian", "Mixolyd", "Penta Maj", "Penta Min"]
@@ -72,7 +72,8 @@ CHOICES = {2: ["Bass", "Lead", "Counter", "Pad", "Arp"],
            28: ["-"] + SCALES,
            30: RATES,
            37: ["Off", "1 Bar", "2 Bars", "4 Bars", "8 Bars"],
-           39: ["Every 2", "Every 4", "Every 8", "Never"]}
+           39: ["Every 2", "Every 4", "Every 8", "Never"],
+           40: ["Never", "1 Bar", "2 Bars", "4 Bars", "8 Bars", "16 Bars"]}
 
 # Knob geometry. Film strips stay under 11430 px tall (the SDK kit's proven size).
 SMALL = dict(src="knob_small.webp", crop=300, knob=78, arc_r=46, arc_w=4, frame=100, frames=110, ticks=(54, 61))
@@ -424,13 +425,24 @@ def page(name, left, right):
 
 
 def page_listen():
+    # The left column is now the whole of its behaviour over time: whether it listens, how
+    # readily, how long before it starts, and how long before it stops. WAIT and LINGER are a
+    # pair and belong next to each other.
+    #
+    # The right column ends with the two level controls together, which is the point of the
+    # rearrangement: LEVEL sets how loud the whalesong is and leaves your own signal alone,
+    # OUTPUT trims everything. Those sitting apart - and LEVEL being called MIX - was why they
+    # were hard to find at all.
     left = [pills_in(P["listen"], 0, 0, "LISTEN"),
             knob_in(P["sens"], 0, 1, "SENS"),
             pills_in(P["wait"], 0, 2, "WAIT"),
-            knob_in(P["mix"], 0, 3, "MIX")]
+            # A knob, not pills: six choices need two rows of pills, and a two-row block
+            # has no room for its heading - the box would read NEVER / 1 BAR / 2 BARS with
+            # nothing saying what it is. A knob shows the name and the value, as RATE does.
+            knob_in(P["linger"], 0, 3, "LINGER")]
     right = [pills_in(P["key"], 1, 0, None, rows=2),
              pills_in(P["scale"], 1, 1, None, rows=2),
-             knob_in(P["voices"], 1, 2, "VOICES"),
+             knob_in(P["mix"], 1, 2, "LEVEL"),
              knob_in(P["out"], 1, 3, "OUTPUT", bipolar=True)]
     return page("LISTEN", left, right)
 
@@ -448,11 +460,13 @@ def page_play():
 
 
 def page_phrase():
-    # One column. The window is the page's whole subject, and padding it out with controls that
-    # belong elsewhere would only make it harder to find them.
+    # VOICES is here because LINGER took its slot on LISTEN and this is the only column with
+    # room. It is not a phrase control and that is worth admitting - though how many notes can
+    # sound at once does shape how dense a repeated phrase comes out, so it is not a stranger.
     left = [pills_in(P["window"], 0, 0, None, rows=2),
             knob_in(P["vary"], 0, 1, "VARY"),
-            pills_in(P["renew"], 0, 2, None, rows=2)]
+            pills_in(P["renew"], 0, 2, None, rows=2),
+            knob_in(P["voices"], 0, 3, "VOICES")]
     return page("PHRASE", left, [])
 
 
@@ -782,7 +796,7 @@ DEFAULTS = {0: (2 / 3, "0.0 dB"), 1: (0.60, "60 %"), 2: (1, None), 3: (0.45, "45
             24: (0.0, None), 25: (0, None), 26: (0, None), 27: (0.0, None), 28: (0, None),
             29: (0.0, "0 %"), 30: (7, None), 31: (0.389, "35 %"), 32: (0.0, "0 %"),
             33: (0.0, "0 ct"), 34: (0.817, "5.0 Hz"), 35: (0.0, "0 %"), 36: (0.727, "4.0 Hz"),
-            37: (0, None), 38: (0.25, "25 %"), 39: (1, None)}
+            37: (0, None), 38: (0.25, "25 %"), 39: (1, None), 40: (0, None)}
 
 
 def make_previews(previews, images):
