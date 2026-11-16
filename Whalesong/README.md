@@ -19,26 +19,32 @@ needs to listen.
 It needs **melody** to work with. A single line is ideal: a lead, a bass, a vocal, a mono synth.
 Dense chords and full mixes confuse the pitch detector, and drums tell it nothing at all.
 
-## The pages
+## The panel
 
-### LISTEN — what it is hearing
+The artwork leaves a lit panel in the middle and a gutter either side. The gutters hold the
+controls, four to a side, eight to a tab. The middle panel is **the readout**, and it is the same
+on all three tabs, because it is the point of the plugin:
+
+- **DETECTED KEY** — the root, large, with the mode under it. A dash until it has decided.
+- **HEARING** — the pitch class the detector is hearing right now.
+- **CONFIDENCE** — how sure it is, as a bar.
+
+Watch those while you play. If Confidence never climbs, the input is not giving the detector
+enough to work with: try a more melodic part, or raise Sens.
+
+### LISTEN
 
 | Control | What it does |
 |---|---|
-| **Listen** | `Off` uses the Key and Scale knobs and ignores the input. `Follow` keeps re-reading the key as you play. `Lock` follows until it is sure, then stops changing its mind. |
+| **Listen** | `Off` uses the Key and Scale buttons and ignores the input. `Follow` keeps re-reading the key as you play. `Lock` follows until it is sure, then stops changing its mind. |
 | **Sens** | How quiet the input can be and still count as playing. Turn it up for quiet or soft-attack material. |
 | **Wait** | How long it listens before it is allowed to play. Two bars is the default, and there is a reason: after one bar it is often confidently wrong. |
 | **Mix** | How loud the accompaniment sits against your dry signal. |
 | **Key** / **Scale** | The key to use when Listen is Off. Ignored while it is following. |
-| **Found** | *Meter.* The key it has settled on. |
-| **Conf** | *Meter.* How sure it is, 0–100%. |
-| **Heard** | *Meter.* The pitch class it is hearing right now. |
-| **Level** | *Meter.* Input level. |
+| **Voices** | How many notes may sound at once, 1–6. Pad wants 4 or more; Bass wants 1 or 2. |
+| **Output** | Master volume. |
 
-Watch **Found** and **Conf** while you play. If Conf never climbs, the input is not giving the
-detector enough to work with: try a more melodic part, or raise Sens.
-
-### PLAY — what it plays
+### PLAY
 
 | Control | What it does |
 |---|---|
@@ -49,12 +55,12 @@ detector enough to work with: try a more melodic part, or raise Sens.
 | **Sync** | `Free` runs on its own clock, `Beat` and `Bar` lock to the host transport. |
 | **Rate** | The note division it plays on when synced. |
 | **Human** | Timing and velocity jitter. A little stops it sounding like a sequencer. |
-| **Voices** | How many notes may sound at once, 1–6. Pad wants 4 or more; Bass wants 1 or 2. |
+| **Glide** | Portamento between notes. |
 
-### VOICE — what it sounds like
+### TONE
 
-Shape (waveform), Tone and Reso (filter), Drive, Attack and Release, Glide (portamento),
-Spread (stereo width and oscillator detune), Space (reverb), Output.
+Shape (waveform), Tone and Reso (filter), Drive, Attack and Release, Spread (stereo width and
+oscillator detune), Space (reverb).
 
 ## Programs
 
@@ -106,6 +112,15 @@ the notes they leave out.
 About 4–6% of one MPC core with four voices, most of it the oscillators; the pitch detector adds
 roughly 1%. The detector runs on a hop counter rather than every sample, so its cost lands in one
 block out of every forty or so. Six voices of Pad is the heaviest setting.
+
+## The skin
+
+`art/make_skin.py` builds `skins/` from `art/background-src.png` and the knob and pill artwork.
+Regenerate it whenever the parameter list changes, because the skin binds to parameter indices:
+
+```
+python3 plugins/Whalesong/art/make_skin.py
+```
 
 ## Licence
 

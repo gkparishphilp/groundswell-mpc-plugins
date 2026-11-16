@@ -101,6 +101,7 @@ enum ParamIndex
     kHeard,        // meter: the pitch class it is hearing right now
     kFound,        // meter: the key it has settled on
     kConf,         // meter: how sure it is
+    kFoundScale,   // meter: the scale shape it has settled on. Appended after the first four.
     kNumParams
 };
 
@@ -323,6 +324,11 @@ public:
         meter(mpc::choiceParam("found", "Found", { "-", "C", "C#", "D", "D#", "E", "F",
                                                    "F#", "G", "G#", "A", "A#", "B" }, 0));
         meter(mpc::floatParam ("conf",  "Conf",  0.0f, 100.0f, 0.0f, "%", 0));
+        {
+            std::vector<std::string> found = { "-" };
+            for (int i = 0; i < kNumScales; ++i) found.push_back(kScales[i].name);
+            meter(mpc::choiceParam("foundscale", "Mode", found, 0));
+        }
 
         addPrograms();
     }
@@ -369,7 +375,7 @@ public:
         outSm_.snap(dbToGain(get(kOutput)));
         mixSm_.snap(get(kMix) * 0.01f);
         lastLevelSent_ = lastConfSent_ = -1.0f;
-        lastHeardSent_ = lastFoundSent_ = -1.0f;
+        lastHeardSent_ = lastFoundSent_ = lastScaleSent_ = -1.0f;
     }
 
     void process(mpc::ProcessContext& ctx) override
@@ -909,6 +915,14 @@ private:
             notifyHostParameterChanged(kFound);
         }
 
+        const float sv = (float)(foundRoot_ >= 0 ? foundScale_ + 1 : 0);
+        if (sv != lastScaleSent_)
+        {
+            lastScaleSent_ = sv;
+            setNormalised(kFoundScale, sv / (float)kNumScales);
+            notifyHostParameterChanged(kFoundScale);
+        }
+
         const float cf = clamp(keyConf_ * 100.0f, 0.0f, 100.0f);
         if (std::fabs(cf - lastConfSent_) > 2.0f)
         {
@@ -989,7 +1003,8 @@ private:
 
     Smoother outSm_, mixSm_;
 
-    float lastLevelSent_ = -1.0f, lastHeardSent_ = -1.0f, lastFoundSent_ = -1.0f, lastConfSent_ = -1.0f;
+    float lastLevelSent_ = -1.0f, lastHeardSent_ = -1.0f, lastFoundSent_ = -1.0f,
+          lastConfSent_ = -1.0f, lastScaleSent_ = -1.0f;
 };
 
 MPC_PLUGIN_ENTRY(Whalesong)
