@@ -800,7 +800,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "WhenFocussed",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 315 52"
+                                    "bounds": "0 0 252 94"
                                 }
                             },
                             {
@@ -811,10 +811,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_wah_53.png",
-                                        "offImage": "pill_off_wah_53.png",
+                                        "onImage": "pill_on_wah_74.png",
+                                        "offImage": "pill_off_wah_74.png",
                                         "buttonId": 0,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -829,7 +829,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 71 52"
+                                    "bounds": "0 0 92 52"
                                 }
                             },
                             {
@@ -840,10 +840,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_lp_53.png",
-                                        "offImage": "pill_off_lp_53.png",
+                                        "onImage": "pill_on_lp_74.png",
+                                        "offImage": "pill_off_lp_74.png",
                                         "buttonId": 1,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -858,7 +858,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "61 0 71 52"
+                                    "bounds": "80 0 92 52"
                                 }
                             },
                             {
@@ -869,10 +869,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_bp_53.png",
-                                        "offImage": "pill_off_bp_53.png",
+                                        "onImage": "pill_on_bp_74.png",
+                                        "offImage": "pill_off_bp_74.png",
                                         "buttonId": 2,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -887,7 +887,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "122 0 71 52"
+                                    "bounds": "160 0 92 52"
                                 }
                             },
                             {
@@ -898,10 +898,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_hp_53.png",
-                                        "offImage": "pill_off_hp_53.png",
+                                        "onImage": "pill_on_hp_74.png",
+                                        "offImage": "pill_off_hp_74.png",
                                         "buttonId": 3,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -916,7 +916,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "183 0 71 52"
+                                    "bounds": "0 42 92 52"
                                 }
                             },
                             {
@@ -927,10 +927,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_notch_53.png",
-                                        "offImage": "pill_off_notch_53.png",
+                                        "onImage": "pill_on_notch_74.png",
+                                        "offImage": "pill_off_notch_74.png",
                                         "buttonId": 4,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -945,7 +945,36 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "244 0 71 52"
+                                    "bounds": "80 42 92 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 5",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_vowel_74.png",
+                                        "offImage": "pill_off_vowel_74.png",
+                                        "buttonId": 5,
+                                        "numButtonsInGroup": 6,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "160 42 92 52"
                                 }
                             }
                         ]
@@ -1011,7 +1040,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "WhenFocussed",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 315 52"
+                                    "bounds": "0 0 252 94"
                                 }
                             },
                             {
@@ -1022,10 +1051,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_wah_53.png",
-                                        "offImage": "pill_off_wah_53.png",
+                                        "onImage": "pill_on_wah_74.png",
+                                        "offImage": "pill_off_wah_74.png",
                                         "buttonId": 0,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1040,7 +1069,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 71 52"
+                                    "bounds": "0 0 92 52"
                                 }
                             },
                             {
@@ -1051,10 +1080,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_lp_53.png",
-                                        "offImage": "pill_off_lp_53.png",
+                                        "onImage": "pill_on_lp_74.png",
+                                        "offImage": "pill_off_lp_74.png",
                                         "buttonId": 1,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1069,7 +1098,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "61 0 71 52"
+                                    "bounds": "80 0 92 52"
                                 }
                             },
                             {
@@ -1080,10 +1109,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_bp_53.png",
-                                        "offImage": "pill_off_bp_53.png",
+                                        "onImage": "pill_on_bp_74.png",
+                                        "offImage": "pill_off_bp_74.png",
                                         "buttonId": 2,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1098,7 +1127,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "122 0 71 52"
+                                    "bounds": "160 0 92 52"
                                 }
                             },
                             {
@@ -1109,10 +1138,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_hp_53.png",
-                                        "offImage": "pill_off_hp_53.png",
+                                        "onImage": "pill_on_hp_74.png",
+                                        "offImage": "pill_off_hp_74.png",
                                         "buttonId": 3,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1127,7 +1156,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "183 0 71 52"
+                                    "bounds": "0 42 92 52"
                                 }
                             },
                             {
@@ -1138,10 +1167,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_notch_53.png",
-                                        "offImage": "pill_off_notch_53.png",
+                                        "onImage": "pill_on_notch_74.png",
+                                        "offImage": "pill_off_notch_74.png",
                                         "buttonId": 4,
-                                        "numButtonsInGroup": 5,
+                                        "numButtonsInGroup": 6,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1156,7 +1185,36 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "244 0 71 52"
+                                    "bounds": "80 42 92 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 5",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_vowel_74.png",
+                                        "offImage": "pill_off_vowel_74.png",
+                                        "buttonId": 5,
+                                        "numButtonsInGroup": 6,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "160 42 92 52"
                                 }
                             }
                         ]
@@ -1222,7 +1280,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "WhenFocussed",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 316 52"
+                                    "bounds": "0 0 260 94"
                                 }
                             },
                             {
@@ -1233,10 +1291,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_off_43.png",
-                                        "offImage": "pill_off_off_43.png",
+                                        "onImage": "pill_on_off_56.png",
+                                        "offImage": "pill_off_off_56.png",
                                         "buttonId": 0,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1251,7 +1309,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "0 0 61 52"
+                                    "bounds": "0 0 74 52"
                                 }
                             },
                             {
@@ -1262,10 +1320,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_wah_43.png",
-                                        "offImage": "pill_off_wah_43.png",
+                                        "onImage": "pill_on_wah_56.png",
+                                        "offImage": "pill_off_wah_56.png",
                                         "buttonId": 1,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1280,7 +1338,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "51 0 61 52"
+                                    "bounds": "62 0 74 52"
                                 }
                             },
                             {
@@ -1291,10 +1349,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_lp_43.png",
-                                        "offImage": "pill_off_lp_43.png",
+                                        "onImage": "pill_on_lp_56.png",
+                                        "offImage": "pill_off_lp_56.png",
                                         "buttonId": 2,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1309,7 +1367,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "102 0 61 52"
+                                    "bounds": "124 0 74 52"
                                 }
                             },
                             {
@@ -1320,10 +1378,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_bp_43.png",
-                                        "offImage": "pill_off_bp_43.png",
+                                        "onImage": "pill_on_bp_56.png",
+                                        "offImage": "pill_off_bp_56.png",
                                         "buttonId": 3,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1338,7 +1396,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "153 0 61 52"
+                                    "bounds": "186 0 74 52"
                                 }
                             },
                             {
@@ -1349,10 +1407,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_hp_43.png",
-                                        "offImage": "pill_off_hp_43.png",
+                                        "onImage": "pill_on_hp_56.png",
+                                        "offImage": "pill_off_hp_56.png",
                                         "buttonId": 4,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1367,7 +1425,7 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "204 0 61 52"
+                                    "bounds": "0 42 74 52"
                                 }
                             },
                             {
@@ -1378,10 +1436,10 @@
                                     "type": "Button",
                                     "data": {
                                         "version": 2,
-                                        "onImage": "pill_on_notch_43.png",
-                                        "offImage": "pill_off_notch_43.png",
+                                        "onImage": "pill_on_notch_56.png",
+                                        "offImage": "pill_off_notch_56.png",
                                         "buttonId": 5,
-                                        "numButtonsInGroup": 6,
+                                        "numButtonsInGroup": 7,
                                         "handleName": "Data",
                                         "gestureBehaviour": "Instant"
                                     }
@@ -1396,7 +1454,36 @@
                                     "showWhenDataModelInvalid": "Show",
                                     "whenVisible": "Always",
                                     "boundsType": "Absolute",
-                                    "bounds": "255 0 61 52"
+                                    "bounds": "62 42 74 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 6",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_vowel_56.png",
+                                        "offImage": "pill_off_vowel_56.png",
+                                        "buttonId": 6,
+                                        "numButtonsInGroup": 7,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "124 42 74 52"
                                 }
                             }
                         ]
@@ -1908,7 +1995,8 @@
                     "Lowpass",
                     "Bandpass",
                     "Highpass",
-                    "Notch"
+                    "Notch",
+                    "Vowel"
                 ]
             },
             {
@@ -1926,7 +2014,8 @@
                     "Lowpass",
                     "Bandpass",
                     "Highpass",
-                    "Notch"
+                    "Notch",
+                    "Vowel"
                 ]
             },
             {
@@ -2062,7 +2151,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/0/5/Parameter 4"
+                                    "IndexedEnabling/0/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2098,7 +2187,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/5/Parameter 4"
+                                    "IndexedEnabling/1/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2134,7 +2223,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/5/Parameter 4"
+                                    "IndexedEnabling/2/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2170,7 +2259,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/5/Parameter 4"
+                                    "IndexedEnabling/3/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2206,7 +2295,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/5/Parameter 4"
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2242,7 +2367,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/6/Parameter 8"
+                                    "IndexedEnabling/1/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2278,7 +2403,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/6/Parameter 8"
+                                    "IndexedEnabling/2/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2314,7 +2439,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/6/Parameter 8"
+                                    "IndexedEnabling/3/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2350,7 +2475,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/6/Parameter 8"
+                                    "IndexedEnabling/4/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2386,7 +2511,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/5/6/Parameter 8"
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2432,7 +2593,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "664 366 84 24",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2519,7 +2680,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "750 364 140 28",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -2549,7 +2710,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "32 175 315 52"
+                                "bounds": "99 144 252 94"
                             }
                         },
                         {
@@ -2846,7 +3007,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/0/5/Parameter 4"
+                                    "IndexedEnabling/0/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2882,7 +3043,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/5/Parameter 4"
+                                    "IndexedEnabling/1/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2918,7 +3079,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/5/Parameter 4"
+                                    "IndexedEnabling/2/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2954,7 +3115,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/5/Parameter 4"
+                                    "IndexedEnabling/3/6/Parameter 4"
                                 ]
                             }
                         },
@@ -2990,7 +3151,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/5/Parameter 4"
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3026,7 +3223,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/6/Parameter 8"
+                                    "IndexedEnabling/1/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3062,7 +3259,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/6/Parameter 8"
+                                    "IndexedEnabling/2/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3098,7 +3295,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/6/Parameter 8"
+                                    "IndexedEnabling/3/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3134,7 +3331,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/6/Parameter 8"
+                                    "IndexedEnabling/4/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3170,7 +3367,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/5/6/Parameter 8"
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3216,7 +3449,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "664 366 84 24",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3303,7 +3536,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "750 364 140 28",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3333,7 +3566,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "32 175 315 52"
+                                "bounds": "99 144 252 94"
                             }
                         },
                         {
@@ -3449,7 +3682,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "932 175 316 52"
+                                "bounds": "991 144 260 94"
                             }
                         },
                         {
@@ -3630,7 +3863,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/0/5/Parameter 4"
+                                    "IndexedEnabling/0/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3666,7 +3899,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/5/Parameter 4"
+                                    "IndexedEnabling/1/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3702,7 +3935,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/5/Parameter 4"
+                                    "IndexedEnabling/2/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3738,7 +3971,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/5/Parameter 4"
+                                    "IndexedEnabling/3/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3774,7 +4007,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/5/Parameter 4"
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
                                 ]
                             }
                         },
@@ -3810,7 +4079,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/6/Parameter 8"
+                                    "IndexedEnabling/1/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3846,7 +4115,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/6/Parameter 8"
+                                    "IndexedEnabling/2/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3882,7 +4151,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/6/Parameter 8"
+                                    "IndexedEnabling/3/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3918,7 +4187,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/6/Parameter 8"
+                                    "IndexedEnabling/4/7/Parameter 8"
                                 ]
                             }
                         },
@@ -3954,7 +4223,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/5/6/Parameter 8"
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4000,7 +4305,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "664 366 84 24",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4087,7 +4392,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "750 364 140 28",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4414,7 +4719,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/0/5/Parameter 4"
+                                    "IndexedEnabling/0/6/Parameter 4"
                                 ]
                             }
                         },
@@ -4450,7 +4755,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/5/Parameter 4"
+                                    "IndexedEnabling/1/6/Parameter 4"
                                 ]
                             }
                         },
@@ -4486,7 +4791,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/5/Parameter 4"
+                                    "IndexedEnabling/2/6/Parameter 4"
                                 ]
                             }
                         },
@@ -4522,7 +4827,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/5/Parameter 4"
+                                    "IndexedEnabling/3/6/Parameter 4"
                                 ]
                             }
                         },
@@ -4558,7 +4863,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/5/Parameter 4"
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
                                 ]
                             }
                         },
@@ -4594,7 +4935,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/6/Parameter 8"
+                                    "IndexedEnabling/1/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4630,7 +4971,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/6/Parameter 8"
+                                    "IndexedEnabling/2/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4666,7 +5007,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/6/Parameter 8"
+                                    "IndexedEnabling/3/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4702,7 +5043,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/6/Parameter 8"
+                                    "IndexedEnabling/4/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4738,7 +5079,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/5/6/Parameter 8"
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4784,7 +5161,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "664 366 84 24",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -4871,7 +5248,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "750 364 140 28",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5227,7 +5604,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/0/5/Parameter 4"
+                                    "IndexedEnabling/0/6/Parameter 4"
                                 ]
                             }
                         },
@@ -5263,7 +5640,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/5/Parameter 4"
+                                    "IndexedEnabling/1/6/Parameter 4"
                                 ]
                             }
                         },
@@ -5299,7 +5676,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/5/Parameter 4"
+                                    "IndexedEnabling/2/6/Parameter 4"
                                 ]
                             }
                         },
@@ -5335,7 +5712,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/5/Parameter 4"
+                                    "IndexedEnabling/3/6/Parameter 4"
                                 ]
                             }
                         },
@@ -5371,7 +5748,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/5/Parameter 4"
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
                                 ]
                             }
                         },
@@ -5407,7 +5820,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/1/6/Parameter 8"
+                                    "IndexedEnabling/1/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5443,7 +5856,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/2/6/Parameter 8"
+                                    "IndexedEnabling/2/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5479,7 +5892,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/3/6/Parameter 8"
+                                    "IndexedEnabling/3/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5515,7 +5928,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/4/6/Parameter 8"
+                                    "IndexedEnabling/4/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5551,7 +5964,43 @@
                                 "boundsType": "Absolute",
                                 "bounds": "394 194 494 150",
                                 "additionalInvalidatingHandles": [
-                                    "IndexedEnabling/5/6/Parameter 8"
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5597,7 +6046,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "664 366 84 24",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5684,7 +6133,7 @@
                                 "boundsType": "Absolute",
                                 "bounds": "750 364 140 28",
                                 "additionalInvalidatingHandles": [
-                                    "RangedEnabling/1/5/6/Parameter 8"
+                                    "RangedEnabling/1/6/7/Parameter 8"
                                 ]
                             }
                         },
@@ -5947,6 +6396,862 @@
                                 "additionalInvalidatingHandles": [
                                     "IndexedEnabling/0/2/Parameter 7"
                                 ]
+                            }
+                        }
+                    ]
+                },
+                "qlinkBoundsData": [
+                    "26 146 1228 90",
+                    "26 244 1228 90",
+                    "26 342 1228 90",
+                    "26 440 1228 90"
+                ]
+            },
+            {
+                "version": 1,
+                "tabName": "PLAY",
+                "fnKeyIndex": 5,
+                "fnKeySubIndex": 0,
+                "componentDefinition": {
+                    "version": 2,
+                    "actions": [],
+                    "backgroundData": {
+                        "version": 1,
+                        "focussed": {
+                            "version": 1,
+                            "colour": "ff000000",
+                            "image": ""
+                        },
+                        "unfocussed": {
+                            "version": 1,
+                            "colour": "ff000000",
+                            "image": ""
+                        }
+                    },
+                    "ignoreMousePresses": false,
+                    "disableCoarseDataWheel": false,
+                    "componentsData": [
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "background",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "Regular",
+                                    "colour": "0",
+                                    "image": "bg_play.jpg"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": []
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Show",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "0 0 1280 628"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Wah",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_wah.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/0/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Lowpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_lowpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/1/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Bandpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_bandpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/2/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Highpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_highpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/3/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Notch",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_notch.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/4/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve a Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_a_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/6/Parameter 4"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Wah",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_wah.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/1/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Lowpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_lowpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/2/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Bandpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_bandpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/3/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Highpass",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_highpass.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/4/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Notch",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_notch.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/5/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "curve b Vowel",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "FilmStrip",
+                                    "colour": "0",
+                                    "image": "curve_b_vowel.png",
+                                    "numFrames": 48,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "394 194 494 150",
+                                "additionalInvalidatingHandles": [
+                                    "IndexedEnabling/6/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "caption b",
+                                "type": "Label",
+                                "data": {
+                                    "version": 1,
+                                    "textStyle": {
+                                        "version": 1,
+                                        "font": {
+                                            "version": 1,
+                                            "name": "Titillium Web",
+                                            "style": "Regular",
+                                            "height": 15.0
+                                        },
+                                        "colour": "ffbe6eff",
+                                        "justification": "left verticallyCentred",
+                                        "case": "Original"
+                                    },
+                                    "type": "Text",
+                                    "handleName": "Data",
+                                    "text": "FILTER B"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 8"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "664 366 84 24",
+                                "additionalInvalidatingHandles": [
+                                    "RangedEnabling/1/6/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "readout 27",
+                                "type": "Label",
+                                "data": {
+                                    "version": 1,
+                                    "textStyle": {
+                                        "version": 1,
+                                        "font": {
+                                            "version": 1,
+                                            "name": "Titillium Web",
+                                            "style": "Regular",
+                                            "height": 22.0
+                                        },
+                                        "colour": "ff3fd9e3",
+                                        "justification": "left verticallyCentred",
+                                        "case": "Original"
+                                    },
+                                    "type": "Value",
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "500 364 140 28"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "readout 28",
+                                "type": "Label",
+                                "data": {
+                                    "version": 1,
+                                    "textStyle": {
+                                        "version": 1,
+                                        "font": {
+                                            "version": 1,
+                                            "name": "Titillium Web",
+                                            "style": "Regular",
+                                            "height": 22.0
+                                        },
+                                        "colour": "ffbe6eff",
+                                        "justification": "left verticallyCentred",
+                                        "case": "Original"
+                                    },
+                                    "type": "Value",
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 2,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "750 364 140 28",
+                                "additionalInvalidatingHandles": [
+                                    "RangedEnabling/1/6/7/Parameter 8"
+                                ]
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 0",
+                                "type": "knob cyan",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 37"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "28 147 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 1",
+                                "type": "knob cyan bipolar",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 38"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "28 245 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 2",
+                                "type": "knob violet bipolar",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 39"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "28 343 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 3",
+                                "type": "knob cyan",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 3"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "28 441 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 4",
+                                "type": "knob cyan bipolar",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 36"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "928 147 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 5",
+                                "type": "knob cyan",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 6"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "928 245 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 6",
+                                "type": "knob violet",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 10"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "928 343 296 88"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 7",
+                                "type": "knob cyan",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 2"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "928 441 296 88"
                             }
                         }
                     ]

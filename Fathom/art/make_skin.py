@@ -60,9 +60,9 @@ P = dict(out=0, mix=1, drive=2, breathe=3,
          fola=21, lfoa=22, enva=23, folb=24, lfob=25, envb=26,
          metera=27, meterb=28,
          apan=29, bpan=30, lfobmode=31, lfobshape=32, lfobsync=33, lfobrate=34,
-         envswell=35)
+         envswell=35, folreso=36, pedal=37, pedala=38, pedalb=39)
 
-A_TYPES = ["Wah", "Lowpass", "Bandpass", "Highpass", "Notch"]
+A_TYPES = ["Wah", "Lowpass", "Bandpass", "Highpass", "Notch", "Vowel"]
 B_TYPES = ["Off"] + A_TYPES
 SHAPES = ["Sine", "Triangle", "Ramp Up", "Ramp Down", "Square", "Steps", "Drift"]
 CHOICES = {P["atype"]: A_TYPES,
@@ -75,7 +75,8 @@ CHOICES = {P["atype"]: A_TYPES,
            P["lfobsync"]: ["Free", "Sync"]}
 
 # Filter B's controls get violet arcs, so the colour on the knob matches the colour of B's curve.
-VIOLET_PARAMS = {P["bfreq"], P["bres"], P["folb"], P["lfob"], P["envb"], P["bpan"], P["lfobshape"], P["lfobrate"]}
+VIOLET_PARAMS = {P["bfreq"], P["bres"], P["folb"], P["lfob"], P["envb"], P["bpan"], P["lfobshape"], P["lfobrate"],
+                 P["pedalb"]}
 
 # Knob geometry: Whalesong's small knob, scaled to fit a 90 px box. Film strips stay under 11430 px tall.
 KNOB = dict(src="knob_small.webp", crop=300, knob=68, arc_r=40, arc_w=4, frame=88, frames=100, ticks=(47, 53))
@@ -216,8 +217,26 @@ CURVE_FRAMES = 48
 READ_Y = 378                            # the live readouts under the plot
 
 
+FORMANTS = [(300, 870, 2240), (570, 840, 2410), (730, 1090, 2440), (530, 1840, 2480), (270, 2290, 3010)]
+
+
+def vowel_formants(fc):
+    """FilterSlot::set for Vowel: the cutoff picks a point on oo-oh-ah-eh-ee, 150 Hz .. 2.4 kHz."""
+    t = min(4.0, max(0.0, math.log2(max(fc, 1.0)) - math.log2(150.0)))
+    i = min(3, int(t))
+    f = t - i
+    return [a * (b / a) ** f for a, b in zip(FORMANTS[i], FORMANTS[i + 1])]
+
+
 def response_db(ftype, f, fc, reso):
     """Magnitude of FilterSlot::process for one type, as the analog prototype (ignores warping)."""
+    if ftype == "Vowel":
+        k = 2.0 - 1.98 * (0.80 + 0.17 * reso)
+        h = 0j
+        for g, ff in zip((1.0, 0.5, 0.25), vowel_formants(fc)):
+            s_ = 1j * f / ff
+            h += g * k * s_ / (s_ * s_ + k * s_ + 1.0)
+        return 20 * math.log10(max(abs(1.6 * h), 1e-6))
     r = 0.35 + 0.60 * reso if ftype == "Wah" else 0.95 * reso
     k = 2.0 - 1.98 * r
     w = f / fc
@@ -257,8 +276,9 @@ def curve_image(ftype, fc, reso, colour):
         d.polygon(pts + [(gw * s, gh * s), (0, gh * s)], fill=colour + (34,))
         d.line(pts, fill=colour + (255,), width=int(2.4 * s), joint="curve")
         # The marker at the cutoff, like the mock's: where the filter is right now.
-        mx = graph_x(fc) * gw * s
-        my = graph_y(response_db(ftype, fc, fc, reso)) * gh * s
+        mf = vowel_formants(fc)[0] if ftype == "Vowel" else fc   # Vowel: mark the first formant
+        mx = graph_x(mf) * gw * s
+        my = graph_y(response_db(ftype, mf, fc, reso)) * gh * s
         rr = 4.5 * s
         d.ellipse([mx - rr, my - rr, mx + rr, my + rr], fill=(235, 250, 255, 255), outline=colour + (255,),
                   width=int(1.6 * s))
@@ -288,7 +308,7 @@ COL_X = (26, 926)                # left edge of the two control columns
 COL_W = 328
 ROW_Y = (146, 244, 342, 440)
 BOX_H = 90
-TAB_NAMES = ("MAIN", "FILTERS", "MOTION", "LFO", "DEPTH")
+TAB_NAMES = ("MAIN", "FILTERS", "MOTION", "LFO", "DEPTH", "PLAY")
 
 
 def box(col, row):
@@ -314,6 +334,17 @@ def pills_in(param, col, row, heading, captions=None):
     return dict(kind="pills", param=param, items=items, heading=heading, heading_xy=(bx0 + 20, by0 + 18))
 
 
+def pills_grid(param, col, row, heading, captions, per_row, head_w=66):
+    """Two rows of pills, for a long menu (the filter types), with a two-line heading at the left of the box."""
+    bx0, by0, bx1, by1 = box(col, row)
+    gap = 6
+    left, right = bx0 + 16 + head_w, bx1 - 10
+    pw = int((right - left - (per_row - 1) * gap) / per_row)
+    tops = (by0 + 7, by1 - 7 - PILL_H)
+    items = [(i, nm, left + (i % per_row) * (pw + gap), tops[i // per_row], pw) for i, nm in enumerate(captions)]
+    return dict(kind="pills", param=param, items=items, heading=heading, heading_xy=(bx0 + 20, (by0 + by1) / 2))
+
+
 def page(name, left, right, scrims=()):
     """Four controls down each gutter (None = a deliberately empty box). Q-Links take the outer columns.
 
@@ -329,9 +360,12 @@ def scrim(boxes, condition, preview_when):
     return dict(boxes=boxes, condition=condition, preview_when=preview_when)
 
 
+A_CAPS = ["WAH", "LP", "BP", "HP", "NOTCH", "VOWEL"]
+
+
 def page_main():
     # The breathing wah on one page: filter A, how far the follower and LFO move it, Breathe, levels.
-    left = [pills_in(P["atype"], 0, 0, "FILTER A", captions=["WAH", "LP", "BP", "HP", "NOTCH"]),
+    left = [pills_grid(P["atype"], 0, 0, "FILTER\nA", A_CAPS, 3),
             knob_in(P["afreq"], 0, 1, "FREQ"),
             knob_in(P["ares"], 0, 2, "RESO"),
             knob_in(P["breathe"], 0, 3, "BREATHE")]
@@ -343,11 +377,11 @@ def page_main():
 
 
 def page_filters():
-    left = [pills_in(P["atype"], 0, 0, "FILTER A", captions=["WAH", "LP", "BP", "HP", "NOTCH"]),
+    left = [pills_grid(P["atype"], 0, 0, "FILTER\nA", A_CAPS, 3),
             knob_in(P["afreq"], 0, 1, "A FREQ"),
             knob_in(P["ares"], 0, 2, "A RESO"),
             knob_in(P["drive"], 0, 3, "DRIVE")]
-    right = [pills_in(P["btype"], 1, 0, "FILTER B", captions=["OFF", "WAH", "LP", "BP", "HP", "NOTCH"]),
+    right = [pills_grid(P["btype"], 1, 0, "FILTER\nB", ["OFF"] + A_CAPS, 4, head_w=58),
              knob_in(P["bfreq"], 1, 1, "B FREQ"),
              knob_in(P["bres"], 1, 2, "B RESO"),
              pills_in(P["routing"], 1, 3, "ROUTING", captions=["SERIES", "PARALLEL"])]
@@ -396,6 +430,21 @@ def page_depth():
     series = scrim([box(0, 3), box(1, 3)],
                    "IndexedEnabling/0/2/Parameter %d" % P["routing"], (P["routing"], 0))
     return page("DEPTH", left, right, [series])
+
+
+def page_play():
+    # How your playing moves it, beyond the movers. Left: the manual pedal (put it on a Q-Link), how far it moves
+    # each filter, and Breathe, which glides it. Right: resonance, and Fol>Reso, which raises it as you dig in;
+    # Drive, which makes a resonant peak growl.
+    left = [knob_in(P["pedal"], 0, 0, "PEDAL"),
+            knob_in(P["pedala"], 0, 1, "PEDAL > A", bipolar=True),
+            knob_in(P["pedalb"], 0, 2, "PEDAL > B", bipolar=True),
+            knob_in(P["breathe"], 0, 3, "BREATHE")]
+    right = [knob_in(P["folreso"], 1, 0, "FOL > RESO", bipolar=True),
+             knob_in(P["ares"], 1, 1, "A RESO"),
+             knob_in(P["bres"], 1, 2, "B RESO"),
+             knob_in(P["drive"], 1, 3, "DRIVE")]
+    return page("PLAY", left, right)
 
 
 QLINK_RECTS = ["%d %d %d %d" % (COL_X[0], ROW_Y[r], COL_X[1] + COL_W - COL_X[0], BOX_H) for r in range(4)]
@@ -471,8 +520,11 @@ def draw_background(controls, boxes):
                 size -= 1
             draw_spaced(d, (x, y), ctl["heading"], font(size, FONT_DEMI), CREAM + (255,), spacing=2.2, anchor="lm")
         elif ctl["kind"] == "pills" and ctl.get("heading"):
-            draw_spaced(d, ctl["heading_xy"], ctl["heading"], font(12, FONT_DEMI), CREAM + (230,),
-                        spacing=1.8, anchor="lm")
+            lines = ctl["heading"].split("\n")
+            hx, hy = ctl["heading_xy"]
+            for li, line in enumerate(lines):
+                draw_spaced(d, (hx, hy + (li - (len(lines) - 1) / 2) * 18), line, font(12, FONT_DEMI),
+                            CREAM + (230,), spacing=1.8, anchor="lm")
     return im.convert("RGB")
 
 
@@ -592,7 +644,7 @@ def build():
     tabs, qlink_entries, previews = [], [], []
     pill_files = {}
     for ti, (name, controls, qlinks, boxes, scrims) in enumerate(
-            (page_main(), page_filters(), page_motion(), page_lfo(), page_depth())):
+            (page_main(), page_filters(), page_motion(), page_lfo(), page_depth(), page_play())):
         bg_file = "bg_%s.jpg" % name.lower()
         bg = draw_background(controls, boxes)
         bg.save(os.path.join(OUT, bg_file), quality=92)

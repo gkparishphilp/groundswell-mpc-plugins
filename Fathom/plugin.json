@@ -1,7 +1,7 @@
 {
   "name": "Fathom",
   "manufacturer": "Groundswell",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "format": "vst2",
   "kind": "effect",
   "uid": "GpBV",
@@ -10,7 +10,7 @@
   "category": "Effect",
   "file32": "VST/fathom-arm32.so",
   "file64": "VST/fathom-arm64.so",
-  "description": "A filter that breathes with the music: two filters (wah, low-pass, band-pass, high-pass, notch; in series, or in parallel and panned apart) moved by a slow envelope follower, two tempo-synced LFOs and a transient envelope that snaps or swells, with a Breathe control that adds inertia and slow drift.",
+  "description": "A filter that breathes with the music: two filters (wah, low-pass, band-pass, high-pass, notch, vowel; in series, or in parallel and panned apart) moved by a slow envelope follower, two tempo-synced LFOs and a transient envelope that snaps or swells, with a Breathe control that adds inertia and slow drift.",
   "author": "Groundswell",
   "url": "https://github.com/gkparishphilp/groundswell-mpc-plugins/tree/main/Fathom",
   "license": "MIT"

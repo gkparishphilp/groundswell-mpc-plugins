@@ -22,13 +22,19 @@
 //     BREATHE   not a mover of its own: it adds inertia (a glide on every filter movement, 5..600 ms) and a
 //               slow drift (smooth random, ~11 s per wander) so the filter keeps moving on held notes.
 //
-//   Each filter's cutoff, in octaves:  log2(Freq) + Fol*Fol>X + LFO X*LFO>X + Env*Env>X + drift
+//     PEDAL     a manual position (0 = heel) for a Q-Link or automation, scaled per filter by Pedal>X (1.3).
+//
+//   Each filter's cutoff, in octaves:  log2(Freq) + Fol*Fol>X + LFO X*LFO>X + Env*Env>X + Pedal*Pedal>X + drift
+//   Each filter's resonance:           Reso + Fol*Fol>Reso, clamped to 0..100 %
 //   then glided by Breathe, converted to Hz and clamped to 20 Hz .. 0.45 * sample rate.
 //
 // Filters are the framework's Cytomic SVF (topology preserving, stable under fast modulation). Coefficients are
 // recomputed every 16 samples (one tan() per filter per channel), all mover maths runs at that control rate too.
 //   Wah       a resonant band-pass with a little low-pass under it, louder at the peak: the shape of a pedal wah.
 //   Lowpass / Bandpass (unity gain at the peak) / Highpass / Notch.
+//   Vowel     three formant band-passes (1.3). The cutoff picks the vowel instead of a frequency: 150 Hz and
+//             below is "oo", then "oh", "ah", "eh", and 2.4 kHz and above is "ee"; in between they blend.
+//             Reso sets how narrow the formants are. Three SVFs instead of one, only while selected.
 //
 // Parameters (ids are permanent once released - never rename or reorder; append new ones at the end):
 //    0 Output      dB  -24..+12    0      level after everything (the host nudges parameter 0 on load)
@@ -68,6 +74,10 @@
 //   34 LFO B Rate  0..1            1 bar
 //   35 Env Swell   ms  1..2000     1.5    how long the envelope takes to rise after a note: short = the quack,
 //                                        long = the filter swells open like a slowly rocked pedal (1.2)
+//   36 Fol>Reso    %   -100..100   0      +: the harder you play, the more resonant both filters get (1.3)
+//   37 Pedal       %   0..100      0      a manual wah pedal: put it on a Q-Link (0 = heel, no effect)
+//   38 Pedal>A     oct -4..+4      2.5    how far the Pedal moves filter A
+//   39 Pedal>B     oct -4..+4      2.5    and filter B
 //
 // CPU: four SVFs, one drive, a handful of one-pole followers per sample; one tan(), exp2() and log10() per
 // filter per 16 samples. Well under the budget of the slowest MPC.
@@ -98,10 +108,11 @@ enum ParamIndex
     kMeterA, kMeterB,
     kAPan, kBPan, kLfoBMode, kLfoBShape, kLfoBSync, kLfoBRate,
     kEnvSwell,
+    kFolReso, kPedal, kPedalA, kPedalB,
     kNumParams
 };
 
-enum FilterType { kWah = 0, kLowpass, kBandpass, kHighpass, kNotch };   // B's menu has "Off" first, so B = index - 1
+enum FilterType { kWah = 0, kLowpass, kBandpass, kHighpass, kNotch, kVowel };   // B's menu has "Off" first, so B = index - 1
 enum LfoShape { kSine = 0, kTriangle, kRampUp, kRampDown, kSquare, kSteps, kDrift };
 
 constexpr int kCtrl = 16;   // control-rate interval in samples
@@ -170,15 +181,53 @@ inline float softKnee(float x)
     return x < 0.0f ? -y : y;
 }
 
-// One filter slot: an SVF plus the output shape for its type.
+// Vowel formants F1, F2, F3 as log2(Hz), from "oo" to "ee" (adult male averages: oo 300/870/2240, oh 570/840/2410,
+// ah 730/1090/2440, eh 530/1840/2480, ee 270/2290/3010 Hz). Interpolated in log frequency.
+constexpr float kFormants[5][3] = {
+    {8.2288f, 9.7649f, 11.1293f}, {9.1548f, 9.7142f, 11.2348f}, {9.5118f, 10.0901f, 11.2527f},
+    {9.0498f, 10.8455f, 11.2761f}, {8.0768f, 11.1611f, 11.5555f},
+};
+constexpr float kVowelLo = 7.2288f;   // log2(150 Hz): "oo". Four octaves up, log2(2400 Hz), is "ee".
+
+// Position along oo-oh-ah-eh-ee, 0..4, from a cutoff in Hz.
+inline float vowelPos(float hz) { return clamp((std::log2(hz > 1.0f ? hz : 1.0f) - kVowelLo), 0.0f, 4.0f); }
+
+inline const char* vowelName(float hz)
+{
+    static const char* const names[5] = {"oo", "oh", "ah", "eh", "ee"};
+    static const char* const blends[4] = {"oo-oh", "oh-ah", "ah-eh", "eh-ee"};
+    const float t = vowelPos(hz);
+    const int i = (int)t; const float f = t - (float)i;
+    if (i >= 4 || f < 0.3f) return names[i];
+    if (f > 0.7f) return names[i + 1];
+    return blends[i];
+}
+
+// One filter slot: an SVF plus the output shape for its type. Vowel uses two more SVFs for F2 and F3.
 struct FilterSlot
 {
-    SVF svf;
+    SVF svf, f2, f3;
     int type = kWah;
     float k = 1.0f;   // 1/Q, matching what the SVF uses, for gain normalisation
 
+    void setSampleRate(double sr) { svf.setSampleRate(sr); f2.setSampleRate(sr); f3.setSampleRate(sr); }
+    void reset() { svf.reset(); f2.reset(); f3.reset(); }
+
     void set(float hz, float reso01)
     {
+        if (type == kVowel)
+        {
+            const float t = vowelPos(hz);
+            const int i = t >= 4.0f ? 3 : (int)t;
+            const float f = t - (float)i;
+            const float* a = kFormants[i]; const float* b = kFormants[i + 1];
+            const float r = 0.80f + 0.17f * reso01;   // Q ~2.4 .. ~12: formants are always fairly narrow
+            svf.set(std::exp2(a[0] + f * (b[0] - a[0])), r);
+            f2.set(std::exp2(a[1] + f * (b[1] - a[1])), r);
+            f3.set(std::exp2(a[2] + f * (b[2] - a[2])), r);
+            k = 2.0f - 1.98f * r;
+            return;
+        }
         float r;
         switch (type)
         {
@@ -199,6 +248,13 @@ struct FilterSlot
             case kLowpass:  return lp;
             case kBandpass: return 1.4f * k * bp;
             case kHighpass: return hp;
+            case kVowel:
+            {
+                float o = bp;
+                f2.processAll(x, lp, bp, hp); o += 0.5f * bp;
+                f3.processAll(x, lp, bp, hp); o += 0.25f * bp;
+                return 1.6f * k * o;
+            }
             case kNotch:
             default:        return lp + hp;
         }
@@ -216,11 +272,11 @@ public:
         addParam(mpc::floatParam ("mix",      "Mix",         0.0f,   100.0f,  100.0f,  "%",  0));
         addParam(mpc::floatParam ("drive",    "Drive",       0.0f,   100.0f,  15.0f,   "%",  0));
         addParam(mpc::floatParam ("breathe",  "Breathe",     0.0f,   100.0f,  40.0f,   "%",  0));
-        addParam(mpc::choiceParam("a_type",   "A Type",      {"Wah", "Lowpass", "Bandpass", "Highpass", "Notch"}, kWah));
+        addParam(mpc::choiceParam("a_type",   "A Type",      {"Wah", "Lowpass", "Bandpass", "Highpass", "Notch", "Vowel"}, kWah));
         addParam(mpc::logParam   ("a_freq",   "A Freq",      60.0f,  8000.0f, 380.0f,  "", 0));   // unit from formatValue
         addParam(mpc::floatParam ("a_reso",   "A Reso",      0.0f,   100.0f,  60.0f,   "%",  0));
         addParam(mpc::choiceParam("routing",  "Routing",     {"Series", "Parallel"}, 0));
-        addParam(mpc::choiceParam("b_type",   "B Type",      {"Off", "Wah", "Lowpass", "Bandpass", "Highpass", "Notch"}, 0));
+        addParam(mpc::choiceParam("b_type",   "B Type",      {"Off", "Wah", "Lowpass", "Bandpass", "Highpass", "Notch", "Vowel"}, 0));
         addParam(mpc::logParam   ("b_freq",   "B Freq",      60.0f,  12000.0f, 1500.0f, "", 0));
         addParam(mpc::floatParam ("b_reso",   "B Reso",      0.0f,   100.0f,  40.0f,   "%",  0));
         addParam(mpc::logParam   ("fol_att",  "Fol Attack",  1.0f,   1000.0f, 150.0f,  "ms", 0));
@@ -251,16 +307,22 @@ public:
         addParam(mpc::floatParam ("lfo_b_rate","LFO B Rate",  0.0f,   1.0f,    syncPos(3), "", 3));
         // 1.2: the envelope's rise time, appended.
         addParam(mpc::logParam   ("env_swell", "Env Swell",   1.0f,   2000.0f, 1.5f, "", 1));   // text from formatValue
+        // 1.3: resonance that follows your playing, and a manual pedal.
+        addParam(mpc::floatParam ("fol_reso",  "Fol>Reso",    -100.0f, 100.0f, 0.0f, "", 0));
+        addParam(mpc::floatParam ("pedal",     "Pedal",       0.0f,   100.0f,  0.0f, "%", 0));
+        addParam(mpc::floatParam ("pedal_a",   "Pedal>A",     -4.0f,  4.0f,    2.5f, "", 1));
+        addParam(mpc::floatParam ("pedal_b",   "Pedal>B",     -4.0f,  4.0f,    2.5f, "", 1));
 
         // Every program sets every parameter (a program that left the 1.1 ones out would inherit the previous
-        // program's pans and LFO B). The tail: pans, LFO B mode / shape / sync / rate, Env Swell. Meters are written live.
+        // program's pans and LFO B). The tail: pans, LFO B mode / shape / sync / rate, Env Swell,
+        // then (1.3) Fol>Reso, Pedal, Pedal>A, Pedal>B. Meters are written live.
         auto prog = [this](const char* name, std::vector<float> v, std::vector<float> tail)
         {
             v.push_back(0.4f); v.push_back(0.6f);                   // 27, 28 meters (overwritten at once)
             v.insert(v.end(), tail.begin(), tail.end());
             addProgram(name, v);
         };
-        const std::vector<float> centred = {0, 0, 0, kSine, 1, syncPos(3), 1.5f};   // no pan, LFO B linked, snappy envelope
+        const std::vector<float> centred = {0, 0, 0, kSine, 1, syncPos(3), 1.5f, 0, 0, 2.5f, 2.5f};   // no pan, LFO B linked, snappy envelope, pedal at heel
         //                     Out  Mix Drv Brth  AType  AFreq ARes Rt BType BFreq BRes  FAtt FRel  FGain FLfo  Shape     Sync Rate         Sprd ESens EDec  FA    LA    EA   FB    LB    EB
         prog("Breathing Wah",   {0,  100, 15, 40,  kWah,  380,  60,  0, 0,    1500, 40,   150, 1500, 12,   60,   kSine,    1,   syncPos(2),  20,  50,   300,  2.5f, 0.6f, 0,   0,    0,    0}, centred);
         prog("Classic Quack",   {0,  100, 10, 0,   kWah,  350,  70,  0, 0,    1500, 40,   3,   120,  12,   0,    kSine,    1,   syncPos(3),  0,   60,   180,  0.6f, 0,    2.8f,0,    0,    0}, centred);
@@ -270,35 +332,42 @@ public:
         prog("Random Steps",    {0,  100, 15, 5,   kBandpass, 900, 60, 0, 0,  1500, 40,   150, 1500, 12,   0,    kSteps,   1,   syncPos(12), 60,  50,   300,  0,    1.5f, 0,   0,    0,    0}, centred);
         prog("Notch Sweep",     {0,  100, 0,  25,  kNotch, 800,  30,  0, 0,   1500, 40,   150, 1500, 12,   0,    kTriangle,1,   syncPos(3),  90,  50,   300,  0,    2.0f, 0,   0,    0,    0}, centred);
         prog("Smoky Room",      {0,  100, 35, 55,  kWah,  320,  45,  0, 2,    2500, 20,   250, 2500, 12,   80,   kDrift,   1,   syncPos(1),  45,  50,   300,  1.8f, 0.8f, 0,   0.5f, 0,    0}, centred);
-        //                     ...                                                                                                           APan  BPan  LfoB Shape  Sync Rate  Swell
-        prog("Twin Tides",      {0,  100, 15, 35,  kWah,  420,  60,  1, 1,    700,  55,   150, 1500, 12,   50,   kSine,    1,   syncPos(3),  0,   50,   300,  2.0f, 0.8f, 0,   1.6f, 0.8f, 0},  {-80, 80, 1, kSine, 1, syncPos(4), 1.5f});
-        prog("Ping-Pong Talk",  {0,  100, 15, 10,  kBandpass, 600, 70, 1, 3,  1500, 70,   100, 1000, 12,   20,   kTriangle,1,   syncPos(7),  0,   50,   300,  0.8f, 1.5f, 0,   0.6f, -1.5f,0},  {-100, 100, 1, kTriangle, 1, syncPos(8), 1.5f});
+        //                     ...                                                                                                           APan  BPan  LfoB Shape  Sync Rate  Swell FRes Pedal PA  PB
+        prog("Twin Tides",      {0,  100, 15, 35,  kWah,  420,  60,  1, 1,    700,  55,   150, 1500, 12,   50,   kSine,    1,   syncPos(3),  0,   50,   300,  2.0f, 0.8f, 0,   1.6f, 0.8f, 0},  {-80, 80, 1, kSine, 1, syncPos(4), 1.5f, 0, 0, 2.5f, 2.5f});
+        prog("Ping-Pong Talk",  {0,  100, 15, 10,  kBandpass, 600, 70, 1, 3,  1500, 70,   100, 1000, 12,   20,   kTriangle,1,   syncPos(7),  0,   50,   300,  0.8f, 1.5f, 0,   0.6f, -1.5f,0},  {-100, 100, 1, kTriangle, 1, syncPos(8), 1.5f, 0, 0, 2.5f, 2.5f});
 
         // 1.2
         const float hz01 = 0.233f, hz015 = 0.292f, hz013 = 0.271f, hz021 = 0.340f;   // free rates: 0.10, 0.15, 0.13, 0.21 Hz
         //                     Out  Mix Drv Brth  AType  AFreq ARes Rt BType BFreq BRes  FAtt FRel  FGain FLfo  Shape     Sync Rate         Sprd ESens EDec  FA    LA    EA   FB    LB    EB
-        prog("Foot Rock",       {0,  100, 15, 20,  kWah,  400,  65,  0, 0,    1500, 40,   150, 1500, 12,   0,    kSine,    1,   syncPos(3),  0,   55,   900,  0.8f, 0,    2.2f,0,    0,    0},  {0, 0, 0, kSine, 1, syncPos(3), 350});
+        prog("Foot Rock",       {0,  100, 15, 20,  kWah,  400,  65,  0, 0,    1500, 40,   150, 1500, 12,   0,    kSine,    1,   syncPos(3),  0,   55,   900,  0.8f, 0,    2.2f,0,    0,    0},  {0, 0, 0, kSine, 1, syncPos(3), 350, 0, 0, 2.5f, 2.5f});
         prog("Parked Wah",      {0,  100, 20, 15,  kWah,  750,  85,  0, 0,    1500, 40,   150, 1500, 12,   0,    kDrift,   0,   hz01,        30,  50,   300,  0.3f, 0.25f,0,   0,    0,    0}, centred);
         prog("Bloom",           {0,  100, 10, 10,  kLowpass, 2500, 35, 0, 0,  1500, 40,   150, 1500, 12,   0,    kSine,    1,   syncPos(3),  0,   55,   1200, 0,    0,   -2.5f,0,    0,    0}, centred);
         prog("Duck & Glow",     {0,  100, 10, 40,  kLowpass, 1800, 40, 0, 0,  1500, 40,   60,  2500, 12,   0,    kSine,    1,   syncPos(2),  30,  50,   300, -2.0f, 0.3f, 0,   0,    0,    0}, centred);
         prog("Deep Water",      {0,  100, 10, 100, kLowpass, 280, 55, 0, 2,   700,  10,   300, 3000, 12,   0,    kDrift,   0,   hz015,       120, 50,   300,  0.8f, 1.2f, 0,   0.4f, 0.6f, 0}, centred);
         prog("Filter Pump",     {0,  100, 20, 0,   kLowpass, 1200, 30, 0, 0,  1500, 40,   150, 1500, 12,   0,    kRampUp,  1,   syncPos(7),  0,   50,   300,  0,    2.0f, 0,   0,    0,    0}, centred);
-        prog("Wide Phase",      {0,  100, 0,  20,  kNotch, 600,  30,  1, 5,   1400, 30,   150, 1500, 12,   0,    kTriangle,0,   hz013,       0,   50,   300,  0,    2.0f, 0,   0,    2.0f, 0},  {-70, 70, 1, kTriangle, 0, hz021, 1.5f});
+        prog("Wide Phase",      {0,  100, 0,  20,  kNotch, 600,  30,  1, 5,   1400, 30,   150, 1500, 12,   0,    kTriangle,0,   hz013,       0,   50,   300,  0,    2.0f, 0,   0,    2.0f, 0},  {-70, 70, 1, kTriangle, 0, hz021, 1.5f, 0, 0, 2.5f, 2.5f});
         prog("Funk Bass",       {-1, 100, 20, 0,   kLowpass, 180, 70, 0, 0,   1500, 40,   20,  300,  12,   0,    kSine,    1,   syncPos(3),  0,   55,   220,  0.5f, 0,    2.6f,0,    0,    0}, centred);
         prog("Chop",            {0,  100, 0,  0,   kLowpass, 400, 40, 0, 0,   1500, 40,   150, 1500, 12,   0,    kSquare,  1,   syncPos(12), 0,   50,   300,  0,    2.5f, 0,   0,    0,    0}, centred);
+
+        // 1.3
+        //                     Out  Mix Drv Brth  AType  AFreq ARes Rt BType BFreq BRes  FAtt FRel  FGain FLfo  Shape     Sync Rate         Sprd ESens EDec  FA    LA    EA   FB    LB    EB
+        prog("Talk Box",        {3,  100, 20, 15,  kVowel, 200, 55,  0, 0,    1500, 40,   80,  800,  12,   0,    kDrift,   0,   hz01,        20,  55,   600,  2.0f, 0.2f, 0.8f,0,    0,    0},  {0, 0, 0, kSine, 1, syncPos(3), 120, 30, 0, 2.5f, 2.5f});
+        prog("Babble",          {0,  100, 15, 10,  kVowel, 500, 60,  0, 0,    1500, 40,   150, 1500, 12,   0,    kSteps,   1,   syncPos(10), 0,   50,   300,  0,    2.0f, 0,   0,    0,    0}, centred);
+        prog("Hand Wah",        {0,  100, 15, 5,   kWah,  350,  65,  0, 0,    1500, 40,   150, 1500, 12,   0,    kSine,    1,   syncPos(3),  0,   50,   300,  0,    0,    0,   0,    0,    0},  {0, 0, 0, kSine, 1, syncPos(3), 1.5f, 0, 40, 2.5f, 2.5f});
+        prog("Howl",            {0,  100, 30, 25,  kWah,  450,  35,  0, 0,    1500, 40,   100, 1200, 12,   30,   kSine,    1,   syncPos(2),  20,  50,   300,  1.5f, 0.4f, 0,   0,    0,    0},  {0, 0, 0, kSine, 1, syncPos(3), 1.5f, 70, 0, 2.5f, 2.5f});
     }
 
     void prepare(double sampleRate, int) override
     {
         sr_ = (float)sampleRate;
-        for (int c = 0; c < 2; ++c) { a_[c].svf.setSampleRate(sampleRate); b_[c].svf.setSampleRate(sampleRate); }
+        for (int c = 0; c < 2; ++c) { a_[c].setSampleRate(sampleRate); b_[c].setSampleRate(sampleRate); }
         powCoef_ = onePoleCoeff(10.0f, sampleRate);   // RMS pre-smoothing for the follower
         reset();
     }
 
     void reset() override
     {
-        for (int c = 0; c < 2; ++c) { a_[c].svf.reset(); b_[c].svf.reset(); }
+        for (int c = 0; c < 2; ++c) { a_[c].reset(); b_[c].reset(); }
         power_ = 0.0f; peak_ = 0.0f; ctrlCount_ = 0;
         fol_ = 0.0f; fast_ = slow_ = 0.0f; env_ = 0.0f; envRising_ = false; riseFrom_ = riseT_ = 0.0f; holdoff_ = 0;
         lfoCycles_ = lfoCyclesB_ = 0.0; driftCycles_ = 0.0;
@@ -392,7 +461,7 @@ public:
                 float y = softKnee(wet[c]);
                 y = x[c] + (y - x[c]) * mix;
                 y *= og;
-                if (!std::isfinite(y)) { y = 0.0f; a_[c].svf.reset(); b_[c].svf.reset(); }
+                if (!std::isfinite(y)) { y = 0.0f; a_[c].reset(); b_[c].reset(); }
                 (c == 0 ? outL : outR)[i] = y;
             }
         }
@@ -416,6 +485,9 @@ public:
                 v = meterHz(v);
                 [[fallthrough]];
             case kAFreq: case kBFreq:
+                // A Vowel filter's "frequency" picks the vowel: show that instead.
+                if ((index == kAFreq || index == kMeterA) ? getInt(kAType) == kVowel : getInt(kBType) == kVowel + 1)
+                { out = vowelName(v); return true; }
                 if (v >= 1000.0f) std::snprintf(b, sizeof(b), "%.2f kHz", (double)(v * 0.001f));
                 else              std::snprintf(b, sizeof(b), "%.0f Hz", (double)v);
                 out = b; return true;
@@ -423,7 +495,7 @@ public:
                 if (getInt(index == kLfoRate ? kLfoSync : kLfoBSync) == 1) out = kSyncDivs[syncIndex(v)].name;
                 else { const float hz = freeHz(v); std::snprintf(b, sizeof(b), hz < 10.0f ? "%.2f Hz" : "%.1f Hz", (double)hz); out = b; }
                 return true;
-            case kFolA: case kLfoA: case kEnvA: case kFolB: case kLfoB: case kEnvB:
+            case kFolA: case kLfoA: case kEnvA: case kFolB: case kLfoB: case kEnvB: case kPedalA: case kPedalB:
                 if (std::fabs(v) < 0.05f) out = "0 oct";
                 else { std::snprintf(b, sizeof(b), "%+.1f oct", (double)v); out = b; }
                 return true;
@@ -436,7 +508,7 @@ public:
                 else if (v < 10.0f) std::snprintf(b, sizeof(b), "%.1f ms", (double)v);
                 else                std::snprintf(b, sizeof(b), "%.0f ms", (double)v);
                 out = b; return true;
-            case kFolLfo:
+            case kFolLfo: case kFolReso:
                 if (std::fabs(v) < 0.5f) out = "0 %";
                 else { std::snprintf(b, sizeof(b), "%+.0f %%", (double)v); out = b; }
                 return true;
@@ -451,7 +523,7 @@ private:
         info.name         = "Fathom";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1200;           // 1.2.0.0
+        info.version      = 1300;           // 1.3.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -572,12 +644,16 @@ private:
         const float lfoB[2] = { lfoBL * lfoDepth, lfoBR * lfoDepth };
         const float drift[2] = { driftL, driftR };
         const float baseA = std::log2(get(kAFreq)), baseB = std::log2(get(kBFreq));
-        const float resA = get(kARes) * 0.01f, resB = get(kBRes) * 0.01f;
+        const float folRes = fol_ * get(kFolReso) * 0.01f;
+        const float resA = clamp(get(kARes) * 0.01f + folRes, 0.0f, 1.0f);
+        const float resB = clamp(get(kBRes) * 0.01f + folRes, 0.0f, 1.0f);
+        const float pedal = get(kPedal) * 0.01f;
+        const float pedA = pedal * get(kPedalA), pedB = pedal * get(kPedalB);
         const float maxOct = std::log2(0.45f * sr_);
         for (int c = 0; c < 2; ++c)
         {
-            const float tA = baseA + fol_ * get(kFolA) + lfo[c] * get(kLfoA) + env_ * get(kEnvA) + drift[c];
-            const float tB = baseB + fol_ * get(kFolB) + lfoB[c] * get(kLfoB) + env_ * get(kEnvB) + drift[c];
+            const float tA = baseA + fol_ * get(kFolA) + lfo[c] * get(kLfoA) + env_ * get(kEnvA) + pedA + drift[c];
+            const float tB = baseB + fol_ * get(kFolB) + lfoB[c] * get(kLfoB) + env_ * get(kEnvB) + pedB + drift[c];
             octA_[c] += glide * (tA - octA_[c]);
             octB_[c] += glide * (tB - octB_[c]);
             a_[c].set(std::exp2(clamp(octA_[c], 4.33f, maxOct)), resA);   // 2^4.33 ~ 20 Hz
