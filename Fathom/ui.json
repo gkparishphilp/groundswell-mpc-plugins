@@ -1,0 +1,52 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "FILTERS",
+      "controls": [
+        { "param": "A Type",  "widget": "slider", "overlay": "menu" },
+        { "param": "A Freq",  "widget": "knob" },
+        { "param": "A Reso",  "widget": "knob" },
+        { "param": "Drive",   "widget": "knob" },
+        { "param": "B Type",  "widget": "slider", "overlay": "menu" },
+        { "param": "B Freq",  "widget": "knob" },
+        { "param": "B Reso",  "widget": "knob" },
+        { "param": "Routing", "widget": "switch" },
+        { "param": "Breathe", "widget": "knob" },
+        { "param": "Mix",     "widget": "fader" },
+        { "param": "Output",  "widget": "fader" },
+        "empty"
+      ]
+    },
+    {
+      "name": "MOVERS",
+      "controls": [
+        { "param": "Fol Attack",  "widget": "knob" },
+        { "param": "Fol Release", "widget": "knob" },
+        { "param": "Fol Gain",    "widget": "knob" },
+        { "param": "Fol>LFO",     "widget": "knob", "polarity": "bipolar" },
+        { "param": "LFO Shape",   "widget": "slider", "overlay": "menu" },
+        { "param": "LFO Sync",    "widget": "switch" },
+        { "param": "LFO Rate",    "widget": "knob" },
+        { "param": "Spread",      "widget": "knob" },
+        { "param": "Env Sens",    "widget": "knob" },
+        { "param": "Env Decay",   "widget": "knob" },
+        "empty",
+        "empty"
+      ]
+    },
+    {
+      "name": "DEPTH",
+      "controls": [
+        { "param": "Fol>A", "widget": "knob", "polarity": "bipolar" },
+        { "param": "LFO>A", "widget": "knob", "polarity": "bipolar" },
+        { "param": "Env>A", "widget": "knob", "polarity": "bipolar" },
+        { "param": "A Freq", "widget": "knob" },
+        { "param": "Fol>B", "widget": "knob", "polarity": "bipolar" },
+        { "param": "LFO>B", "widget": "knob", "polarity": "bipolar" },
+        { "param": "Env>B", "widget": "knob", "polarity": "bipolar" },
+        { "param": "B Freq", "widget": "knob" }
+      ]
+    }
+  ]
+}

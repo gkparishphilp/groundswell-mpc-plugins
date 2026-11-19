@@ -8,6 +8,7 @@ it costs in CPU; anything borrowed is credited there with its licence.
 |---|---|---|---|
 | [Undertow](Undertow/) | Effect: dub delay with filter, FX, pitch shift, reverse and modulation in the feedback loop; custom skin | Original design | MIT |
 | [Tidepools](Tidepools/) | Effect: granular call-and-response — listens to a phrase, waits for the beat, answers it through one of seven grain engines; pitch tracking, 21 programs, custom skin | Original design | MIT |
+| [Fathom](Fathom/) | Effect: a filter that breathes with the music — two filters (wah, LP, BP, HP, notch; in series, or in parallel and panned apart) moved by a slow envelope follower, two tempo-synced LFOs and a swelling transient envelope, with inertia and drift; 19 programs | Original design | MIT |
 | [Whalesong](Whalesong/) | Effect: an accompanist — infers the key from what you play by pitch-class histogram, then plays along on its own synth as a bass, lead, counter-melody, pad or arpeggio | Original design | MIT |
 
 ## Installing on an MPC
