@@ -10,14 +10,14 @@ It contains no code from any commercial product.
 
 ```
 in ─┬──────────────────────────────────────────────────────────────────────────────────────────────┐ dry
-    └► Input ─► delay ─► CHARACTER ─► FILTER ─► [PITCH ─► FX] ─► (SPRING) ─► DRIVE ─┬─► REVERSE ─► (SPRING) ─► WET LIMITER ─► mix ┴─► Output ─► out
-         ▲      (Digital/Tape/BBD)          level-matched    In Loop          │                 After
+    └► Input ─► delay ─► CHARACTER ─► FILTER ─► [PITCH ─► FX] ─► (SPRING) ─► DRIVE ─┬─► REVERSE ─► SWIRL ─► (SPRING) ─► WET LIMITER ─► mix ┴─► Output ─► out
+         ▲      (Digital/Tape/BBD)          level-matched    In Loop          │                           After
          └─────────────────────────────── x Feedback (or Freeze) ◄───────────────┘     (Ping-Pong: left and right swap on every repeat)
 ```
 
 ## The screen
 
-Undertow has its own skin: a black panel with a glowing tube, six pages (**DELAY**, **HEADS**, **TAPE**, **LOOP**, **MOD** and **SPACE**), and three rows
+Undertow has its own skin: a black panel with a glowing tube, seven pages (**DELAY**, **HEADS**, **TAPE**, **LOOP**, **MOD**, **SPACE** and **SWIRL**), and three rows
 of controls on each page that line up with the Q-Link knobs: the top row is on Q-Links 13–16, the middle row on
 9–12, the bottom row on 5–8. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter)
 for a large edit view. The **FEEDBACK SAFETY** lamp lights when Feedback is at 100% or above, where the loop can
@@ -116,6 +116,29 @@ A spring reverb, plus Freeze and the filter again so you can freeze a loop and s
 | Decay | 0.3–6 s | 1.8 s | Spring decay time. |
 | Freeze, Cutoff, Filter, Resonance | | | The same controls as on DELAY. |
 
+### Page 7: SWIRL
+
+Swirl sends the repeats round your head: on headphones they circle from in front, to your right, behind you, to
+your left and back. It works on the repeats only, after Reverse and before the spring, so the spring's room
+stays put while the echoes move, and it leaves the feedback loop alone: Feedback, Freeze and everything inside
+the loop behave exactly as before. It works over a frozen loop too.
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Depth | 0–100 % | 70 % | The headphone cues. The far ear hears each echo up to 0.66 ms later and duller (your head is in the way), and echoes behind you are darker and a little quieter. At 0 it is a plain auto-pan with no delays, which is the setting for speakers or anything that ends up in mono. |
+| Width | 0–180° | 0° | How far apart the left and right repeats sit on the circle. At 0 they travel together as one source: the clearest swirl. Turn it up with Ping-Pong on and the bouncing pair circles you, at 180° as a ping-pong whose axis rotates. With a mono (Straight) echo keep it low: two copies opposite each other just sound centred. |
+| Swirl | 0–100 % | 0 % (Off) | How much of the circling to hear, blended with the normal stereo repeats. 0 switches it off and costs nothing. |
+| Mode | Echo / Sync / Free | Echo | **Echo**: each repeat lands a fixed step further round, so the trail spirals. The speed follows the delay time, even while it glides. **Sync**: one turn per note length, locked to the song when the MPC is playing. **Free**: a speed in Hz. |
+| Rate | see Mode | 1/8 turn | One knob for all three modes. Echo: 1/24 to 3/8 of a turn per repeat (1/8 = once round every 8 echoes). Sync: 16 bars to 1/8 per turn. Free: 0.02–4 Hz. |
+| Direction | Clockwise / Counter | Clockwise | Seen from above: front, right, behind, left, or the other way round. |
+| Cross, Ping-Pong, Head 2 Pan | | | The other stereo controls, gathered here. |
+| Display | | | The same switch as on HEADS. It also drives the orbit, a dot that follows the swirl round the listener in the middle of the page (it hides while Swirl is at 0). |
+
+Turning Swirl up keeps the level within about 1.5 dB: a centred mono echo comes out slightly louder, a one-sided
+ping-pong echo slightly quieter. Front and back over headphones is a suggestion, as it is for any binaural trick.
+Left and right carry the motion, and the "behind you" darkening helps it along, but some listeners hear the back of
+the circle as inside their head. On speakers you get an auto-pan with a gentle tone change; set Depth to 0 there.
+
 ### FX types
 
 | FX Type | FX Amount | FX Rate |
@@ -164,6 +187,12 @@ how long they last: Feedback still decides that (see "Level matching" below).
 | Slow Tide | A 900 ms glide: move the delay time and the repeats take a second to get there, warping on the way |
 | Half Crossed | Cross at 55%, so the repeats lean across the stereo instead of snapping side to side |
 | Bad Ground | Worn gear with 60 Hz mains buzzing in the loop (turn Age down for a cleaner drone) |
+| Orbit Dub | Dub echo that spirals round your head, 1/8 of a turn per repeat (headphones) |
+| Slow Halo | Chorused quarter notes circling slowly (about 8 s a turn) in a still spring room |
+| Spiral Staircase | Every repeat an octave up and a sixth of a turn round, counter-clockwise |
+
+Every program sets the Swirl controls (off, apart from the last three), so changing program never leaves one
+spinning.
 
 (The programs do not set Display; it stays as you leave it.)
 
@@ -180,6 +209,8 @@ how long they last: Feedback still decides that (see "Level matching" below).
 - **Tape stop:** Glide up around 1.5 s, then drop Delay Time a long way while repeats are playing. The pitch slides down over a second instead of jumping.
 - **Dub throws that land in time:** Glide at Instant with Time Mode on Sync. Changing division is then a clean cut, not a warp, so a throw stays on the grid.
 - **Stereo that moves:** Cross around 40–60% with Feedback 70%+. Each repeat only half swaps, so the pattern walks across the image over several passes instead of flipping.
+- **Echoes that walk round you:** Swirl 100%, Mode Echo, Rate 1/8 turn, Width 0, on headphones. Small steps (1/24, 1/16) make a slow spiral; 1/3 and 3/8 scatter the repeats round the circle.
+- **A rotating ping-pong:** Ping-Pong on, Swirl 100%, Width 180°, Mode Sync at 2 or 4 bars.
 - **Two delays in one:** Cross at Straight with Head 2 up and Head 2 Pan hard over. The sides stop talking to each other, so you get two independent rhythms, one per speaker.
 
 ## The animated display
@@ -205,8 +236,12 @@ and only when its brightness step changes, and the trail sends two bars per slic
 newly lit one), about 15 to 20 a second. All 65 are marked not automatable and are left out of saved state, so
 they should not reach automation lanes or projects.
 
-The **Display** switch (on HEADS) turns all of it off: no host calls at all, the tube is drawn as painted, and
-the bars are hidden.
+The SWIRL page's orbit is one more parameter, "Orbit": the dot's position round the listener (32 steps, and a
+second set of 32 with the tail the other way for Counter). It is sent at most 25 times a second and only when the
+dot moves, and not at all while Swirl is 0.
+
+The **Display** switch (on HEADS and SWIRL) turns all of it off: no host calls at all, the tube is drawn as
+painted, and the bars and the orbit dot are hidden.
 
 ## Level matching
 
@@ -274,7 +309,7 @@ Per sample: one delay read per channel, a state-variable filter, the pitch stage
 Filter, phaser, level-match and modulation updates (cutoff, FX Amount, pitch) run every 16 samples; the LFO, envelope
 follower, ducking and time modulation run per sample with no transcendental functions.
 The spring reverb costs about three times the rest of the plugin while Space is above 0 (36 allpass stages per side);
-at 0 it is skipped. Head 2 is one extra read per sample, and the display four comparisons, which is nothing. Noise costs a few percent more than the rest of the plugin put together while it is above 0, except Hum, which costs about 20% more (four polynomial sines a sample, per channel); all of them are free at 0. Glide and Cross cost nothing measurable - a one-pole re-timing and two multiply-adds a sample. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
+at 0 it is skipped. Head 2 is one extra read per sample, and the display four comparisons, which is nothing. Noise costs a few percent more than the rest of the plugin put together while it is above 0, except Hum, which costs about 20% more (four polynomial sines a sample, per channel); all of them are free at 0. Glide and Cross cost nothing measurable - a one-pole re-timing and two multiply-adds a sample. Swirl adds about a quarter to the plugin's base cost while it is above 0 (measured on the desktop: 0.17% → 0.21% of one core). That is four short interpolated delays, four one-pole filters and some ramps a sample; its sines, cosines and exponentials are worked out every 16 samples. At 0 it is skipped. Memory is about 2.5 MB per instance (5 s delay and 2 s reverse buffer, stereo, at 44.1 kHz).
 
 ## Skin
 

@@ -42,14 +42,16 @@ P = dict(output=0, sync=1, time=3, feedback=4, mix=5, pingpong=6, wobble=7, limi
          lfoshape=21, lfosync=22, lforate=23, spread=24, lfocut=25, lfopitch=26, lfofx=27, lfotime=28,
          envcut=29, envfx=30, envspeed=31, duck=32, freeze=33, space=34, sdecay=35, stone=36, drip=37, spos=38,
          character=39, age=40, head2=41, hratio=42, h2pan=43, tube=44, level=45, echo=46,
-         noise=110, ntype=111, lfonoise=112, mains=113, glide=114, cross=115)
+         noise=110, ntype=111, lfonoise=112, mains=113, glide=114, cross=115,
+         swirl=116, swmode=117, swrate=118, swdir=119, swwidth=120, swdepth=121, orbit=122)
 CHOICES = {1: ["Free", "Sync"], 6: ["Off", "On"], 9: ["Off", "LP", "BP", "HP"],
            13: ["Off", "Chorus", "Flanger", "Phaser", "Bitcrush", "Downsample", "Ring Mod", "Fuzz"],
            16: ["Semitones", "Hz"], 19: ["Off", "On"],
            21: ["Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random", "Drift"], 22: ["Free", "Sync"],
            33: ["Off", "On"], 38: ["After", "In Loop"], 39: ["Digital", "Tape", "BBD"],
            42: ["1/4", "1/3", "1/2", "2/3", "3/4", "1/1", "4/3", "3/2", "2/1"], 44: ["Off", "On"],
-           111: ["Hiss", "Air", "Crackle", "Hum", "Rain"], 113: ["60 Hz", "50 Hz"]}
+           111: ["Hiss", "Air", "Crackle", "Hum", "Rain"], 113: ["60 Hz", "50 Hz"],
+           117: ["Free", "Sync", "Echo"], 119: ["Clockwise", "Counter"]}
 HEAD_RATIOS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1.0, 4 / 3, 1.5, 2.0]
 
 # The echo trail in the centre of the HEADS page: 64 bars, each one parameter, drawn from one film strip of
@@ -467,6 +469,38 @@ def head_mark_strip():
     return strip
 
 
+# The orbit on the SWIRL page: the listener seen from above (nose up = straight ahead), a ring round them, and
+# a dot the plugin moves round it. Orbit parameter: frames 0..31 = k/32 of a turn clockwise from the front with
+# the tail trailing a clockwise turn, 32..63 the same positions with the tail the other way (Counter).
+ORBIT_POSITIONS = 32
+ORBIT_FRAMES = 2 * ORBIT_POSITIONS
+ORBIT_CENTRE, ORBIT_R = (520, 342), 70
+ORBIT_BOX = (ORBIT_CENTRE[0] - ORBIT_R - 18, ORBIT_CENTRE[1] - ORBIT_R - 18, 2 * ORBIT_R + 36, 2 * ORBIT_R + 36)
+
+
+def orbit_strip():
+    bw, bh = ORBIT_BOX[2], ORBIT_BOX[3]
+    c = bw / 2
+    strip = Image.new("RGBA", (bw, bh * ORBIT_FRAMES), (0, 0, 0, 0))
+    for f in range(ORBIT_FRAMES):
+        k, sign = f % ORBIT_POSITIONS, (1 if f < ORBIT_POSITIONS else -1)
+
+        def paint(d, sc, k=k, sign=sign):
+            for back in range(6, 0, -1):     # a short comet tail, fading, behind the direction of travel
+                a = 2 * math.pi * (k - sign * back * 0.16) / ORBIT_POSITIONS
+                x, y = c + ORBIT_R * math.sin(a), c - ORBIT_R * math.cos(a)
+                r = 7 - back * 0.7
+                d.ellipse([(x - r) * sc, (y - r) * sc, (x + r) * sc, (y + r) * sc], fill=CYAN + (int(150 - 22 * back),))
+            a = 2 * math.pi * k / ORBIT_POSITIONS
+            x, y = c + ORBIT_R * math.sin(a), c - ORBIT_R * math.cos(a)
+            d.ellipse([(x - 8) * sc, (y - 8) * sc, (x + 8) * sc, (y + 8) * sc], fill=CYAN + (255,))
+            d.ellipse([(x - 3.5) * sc, (y - 3.5) * sc, (x + 3.5) * sc, (y + 3.5) * sc], fill=(225, 252, 255, 255))
+        frame = supersampled((bw, bh), 3, paint)
+        frame = Image.alpha_composite(frame.filter(ImageFilter.GaussianBlur(4)), frame)
+        strip.alpha_composite(frame, (0, f * bh))
+    return strip
+
+
 def page_heads():
     bx0, by0, bx1, by1 = CENTRE_BOX
     pw, gap = 80, 6
@@ -598,6 +632,36 @@ def page_tape():
     return "TAPE", controls, statics, qlinks
 
 
+def page_swirl():
+    controls = [
+        small_knob(P["swdepth"], 150, ROW_A_Y, "DEPTH"),
+        small_knob(P["swwidth"], 318, ROW_A_Y, "WIDTH"),
+        small_knob(P["mix"], 962, ROW_A_Y, "DRY / WET"),
+        small_knob(P["output"], 1130, ROW_A_Y, "OUTPUT"),
+
+        large_knob(P["swirl"], 168, ROW_B_Y, "SWIRL"),
+        pills(P["swmode"], [(2, "Echo", 292, 296, 88), (1, "Sync", 292, 340, 88), (0, "Free", 292, 384, 88)],
+              "MODE", (336, 276)),
+        readout(P["swrate"], (612, 262, 250, 56), 40, "knob overlay"),
+        pills(P["swdir"], [(0, "Clockwise", 612, 370, 118), (1, "Counter", 744, 370, 118)], "DIRECTION", (737, 348)),
+        large_knob(P["swrate"], 1000, ROW_B_Y, "RATE"),
+
+        small_knob(P["cross"], 125, ROW_C_Y, "CROSS", heading_pos="right"),
+        pills(P["pingpong"], [(0, "Straight", 345, 512, 118), (1, "Ping-Pong", 471, 512, 118)], None),
+        pills(P["tube"], [(1, "Display", 691, 512, 148)], toggle=True),
+        small_knob(P["h2pan"], 1155, ROW_C_Y, "HEAD 2 PAN", bipolar=True, heading_pos="left"),
+    ]
+    statics = dict(headings=[("ECHOES", (465, 482)), ("ORBIT", (765, 482))], centre_title=None,
+                   dividers_b=(281, 890), waveform=False, graph=False, orbit=True,
+                   images=[dict(file="orbit.png", frames=ORBIT_FRAMES, param=P["orbit"], box=ORBIT_BOX,
+                                invalidating=["NonZero/Parameter %d" % P["swirl"],
+                                              "IndexedEnabling/1/2/Parameter %d" % P["tube"]])])
+    qlinks = [[P["swdepth"], P["swwidth"], P["mix"], P["output"]],
+              [P["swirl"], P["swmode"], P["swdir"], P["swrate"]],
+              [P["cross"], P["pingpong"], P["tube"], P["h2pan"]]]
+    return "SWIRL", controls, statics, qlinks
+
+
 LAMP_POS = (1118, 284)
 QLINK_RECTS = ["36 46 1208 180", "36 230 1208 216", "46 448 1188 158"]
 
@@ -652,6 +716,28 @@ def draw_background(controls, statics):
             d.rounded_rectangle([(hx - 8) * sc, hy * sc, (hx + 8) * sc, (hy + 15) * sc], radius=3 * sc,
                                 fill=(12, 12, 12, 225), outline=ECHO_HUES[0] + (255,), width=int(1.2 * sc))
             d.text((hx * sc, (hy + 7) * sc), "1", font=font(11 * sc, FONT_DEMI), fill=ECHO_HUES[0] + (255,), anchor="mm")
+
+        # The orbit: a ring with tick marks every eighth of a turn, and the listener from above.
+        if statics.get("orbit"):
+            cx, cy = ORBIT_CENTRE
+            r = ORBIT_R
+            d.ellipse([(cx - r) * sc, (cy - r) * sc, (cx + r) * sc, (cy + r) * sc], outline=CREAM + (80,),
+                      width=int(1.4 * sc))
+            for k in range(8):
+                a = 2 * math.pi * k / 8
+                r0, r1 = r - (6 if k % 2 else 9), r + (6 if k % 2 else 9)
+                d.line([((cx + r0 * math.sin(a)) * sc, (cy - r0 * math.cos(a)) * sc),
+                        ((cx + r1 * math.sin(a)) * sc, (cy - r1 * math.cos(a)) * sc)],
+                       fill=CREAM + (110 if k % 2 == 0 else 60,), width=int(1.2 * sc))
+            head = (205, 140, 90)
+            d.ellipse([(cx - 6 - 19) * sc, (cy - 5) * sc, (cx - 19 + 6) * sc, (cy + 9) * sc], outline=head + (220,),
+                      width=int(1.4 * sc))                                                    # left ear
+            d.ellipse([(cx + 19 - 6) * sc, (cy - 5) * sc, (cx + 19 + 6) * sc, (cy + 9) * sc], outline=head + (220,),
+                      width=int(1.4 * sc))                                                    # right ear
+            d.ellipse([(cx - 19) * sc, (cy - 23) * sc, (cx + 19) * sc, (cy + 23) * sc], fill=(18, 16, 14, 255),
+                      outline=head + (235,), width=int(1.6 * sc))                             # head
+            d.polygon([((cx - 6) * sc, (cy - 21) * sc), ((cx + 6) * sc, (cy - 21) * sc), (cx * sc, (cy - 31) * sc)],
+                      fill=head + (235,))                                                     # nose: front
 
         # Graph grid.
         if statics["graph"]:
@@ -726,6 +812,13 @@ def draw_background(controls, statics):
         for frac, text in ((0.25, "half"), (0.5, "one delay"), (0.75, "one and a half")):
             d.text((ax + frac * aw, ay - 12), text, font=small_f, fill=CREAM + (130,), anchor="mm")
         d.text((ax + aw, ay - 12), "two", font=small_f, fill=CREAM + (130,), anchor="rm")
+    if statics.get("orbit"):
+        cx, cy = ORBIT_CENTRE
+        r = ORBIT_R
+        d.text((cx, cy - r - 20), "front", font=small_f, fill=CREAM + (150,), anchor="mm")
+        d.text((cx, cy + r + 20), "behind", font=small_f, fill=CREAM + (150,), anchor="mm")
+        d.text((cx - r - 24, cy), "L", font=mid, fill=CREAM + (170,), anchor="mm")
+        d.text((cx + r + 24, cy), "R", font=mid, fill=CREAM + (170,), anchor="mm")
     if statics["graph"]:
         gx, gy, gw, gh = GRAPH
         for f_hz, lab in ((100, "100"), (1000, "1k"), (10000, "10k")):
@@ -810,6 +903,7 @@ def build():
     save("knob_large.png", knob_strip(LARGE))
     lamp_file = save("lamp.png", lamp_strip())
     save("head_mark.png", head_mark_strip())
+    save("orbit.png", orbit_strip())
     echo_file = save("echo_bar.png", echo_bar_strip())
     tube_file = "tube.png"
     tube = tube_strip()
@@ -832,7 +926,8 @@ def build():
 
     tabs, qlink_entries, previews = [], [], []
     pill_files = {}
-    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_heads(), page_tape(), page_loop(), page_mod(), page_space())):
+    for ti, (name, controls, statics, qlinks) in enumerate((page_delay(), page_heads(), page_tape(), page_loop(), page_mod(), page_space(),
+                                                             page_swirl())):
         bg_file = "bg_%s.jpg" % name.lower()
         bg = draw_background(controls, statics)
         bg.save(os.path.join(OUT, bg_file), quality=92)
@@ -884,7 +979,8 @@ def build():
                                     "%d %d %d %d" % (ix, iy, iw, ih), "No", "Hide", "Always",
                                     remap=[("Data", "Parameter %d" % spec["param"])],
                                     invalidating=spec.get("invalidating")))
-            previews.append((ti, "image", None, (spec["file"], DEFAULTS[spec["param"]][0], (ix, iy)), None))
+            previews.append((ti, "image", None, (spec["file"], DEFAULTS[spec["param"]][0], (ix, iy), spec["frames"]),
+                             None))
 
         # The ECHO bars: one parameter each, hidden together with the tube when Display is off.
         if statics.get("echo"):
@@ -974,7 +1070,9 @@ DEFAULTS = {0: (1.0, "0.0 dB"), 1: (1, None), 3: (0.5625, "1/8D"), 4: (55 / 120,
             36: (0.45, "45 %"), 37: (0.7, "70 %"), 38: (0, None), 39: (1, None), 40: (0.5, "50 %"),
             41: (0.45, "45 %"), 42: (3, None), 43: (0.5 + 0.275, "+55 %"), 44: (1, None), 45: (0.6, None),
             110: (0.4, "40 %"), 111: (0, None), 112: (0.5 + 0.15, "+30 %"), 113: (0, None),
-            114: ((150 / 2000) ** 0.4, "150 ms"), 115: (0.6, "60 %")}
+            114: ((150 / 2000) ** 0.4, "150 ms"), 115: (0.6, "60 %"),
+            116: (0.8, "80 %"), 117: (2, None), 118: (4 / 9, "1/8 turn"), 119: (0, None), 120: (0.0, "0 deg"),
+            121: (0.7, "70 %"), 122: (5, None)}
 
 
 def make_previews(previews, images):
@@ -1007,9 +1105,9 @@ def make_previews(previews, images):
                 im.alpha_composite(strip.crop((0, frame * ah, strip.width, (frame + 1) * ah)),
                                    (round(ax + i * pitch + (pitch - ECHO_BAR_W) / 2), ay))
         elif kind == "image":
-            file, frame, (x, y) = data
+            file, frame, (x, y) = data[:3]
             strip = images[file]
-            fh = strip.height // (TUBE_FRAMES if file.startswith("tube") else len(HEAD_RATIOS))
+            fh = strip.height // (data[3] if len(data) > 3 else TUBE_FRAMES)
             im.alpha_composite(strip.crop((0, int(frame) * fh, strip.width, (int(frame) + 1) * fh)), (x, y))
         elif kind == "knob":
             spec = SMALL if ctl["size"] == "small" else LARGE
@@ -1047,8 +1145,8 @@ def make_previews(previews, images):
         full.alpha_composite(im, (0, 110))
         fd = ImageDraw.Draw(full)
         fd.text((24, 55), "MPC header (drawn by the MPC)", font=font(18, FONT_MEDIUM), fill=(120, 120, 120), anchor="lm")
-        for k, nm in enumerate(("DELAY", "HEADS", "TAPE", "LOOP", "MOD", "SPACE")):
-            fd.text((80 + k * 200, 770), nm, font=font(18, FONT_DEMI), fill=(200, 200, 200), anchor="mm")
+        for k, nm in enumerate(("DELAY", "HEADS", "TAPE", "LOOP", "MOD", "SPACE", "SWIRL")):
+            fd.text((80 + k * 180, 770), nm, font=font(18, FONT_DEMI), fill=(200, 200, 200), anchor="mm")
         os.makedirs(PREVIEW_DIR, exist_ok=True)
         full.convert("RGB").save(os.path.join(PREVIEW_DIR, "skin-preview-%d.png" % (ti + 1)))
 

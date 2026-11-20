@@ -92,6 +92,17 @@
 //  110 Noise      %   0..100       0      a noise bed poured into the loop (see below)
 //  111 Noise Type Hiss, Air, Crackle, Hum, Rain
 //  112 LFO>Noise  %  -100..100     0      added to Noise
+//  113 Mains      60 Hz / 50 Hz    60 Hz  the Hum noise's frequency
+//  114 Glide      ms  0..2000      150    how long Time takes to reach a new setting (tape-style warp)
+//  115 Cross      %   0..100       100    with Ping-Pong on: how much of each repeat lands on the other side
+//  116 Swirl      %   0..100       0      the repeats circle your head (see below); 0 = off
+//  117 Swirl Mode Free/Sync/Echo   Echo   Free: Rate in Hz; Sync: one turn per note length (locked to the song);
+//                                         Echo: each repeat lands a fixed step further round
+//  118 Swirl Rate 0.02..4 Hz       1/8 turn  one control for all three modes, like LFO Rate
+//  119 Swirl Dir  Clockwise/Counter       seen from above: front, right, behind, left - or the other way
+//  120 Swirl Width deg 0..180      0      how far apart the left and right repeats sit on the circle
+//  121 Swirl Depth %  0..100       70     the headphone cues (ear delay, head shadow, behind-you darkening)
+//  122 Orbit      0..1             0      read-only: where the swirl is, for the display; not automatable
 //
 // Head 2: a second tap on the same tape, at Head Ratio x the delay time, crossfaded into the electronics
 // (weights summing to 1), so two heads never make the loop louder than Feedback says. Both heads therefore go
@@ -131,6 +142,17 @@
 // Filter, pitch, FX, drive and reverse then work on the output only, so sweeping them over a frozen loop never
 // wears it away. Engaging and releasing crossfade over 20 ms; because the crossfade blends the normal loop into
 // the held one, the loop's wrap point is seamless.
+//
+// Swirl: after Reverse, before the spring (so the room stays still while the echoes move) and the wet limiter.
+// Each side of the repeats is a source on a circle round the listener, Width apart and centred on the orbit
+// position. A source at azimuth a is panned with a constant-power law on sin(a), and Depth adds the cues that
+// make it feel outside your head on headphones: the far ear hears it up to 0.66 ms later and through a
+// low-pass (head shadow, down to ~1.8 kHz at the side), and when the source is behind you both ears hear it
+// up to 1.8 octaves darker and 2 dB quieter. Front/back over headphones is a suggestion, not a certainty, as
+// it is for any binaural trick; left/right motion carries it. Depth 0 is a plain auto-pan with no delays, safe
+// in mono. The controls are worked out every 16 samples (a few sin/cos/exp) and ramped, so the cost is small.
+// Echo mode ties the speed to the (gliding) delay time: turns per second = step / delay time, so each repeat
+// lands one step further round and the trail spirals. The stage is skipped entirely at Swirl 0.
 //
 // Spring: one spring per side (43.7 / 51.3 ms): a delay line, 24 stretched first-order allpasses (the chirp,
 // after Parker & Valimaki's spring models), a one-pole low-pass and a decay gain, with a little delay
@@ -184,7 +206,42 @@ constexpr int kLfoNoise = kNoiseType + 1;        // 112
 constexpr int kMains = kLfoNoise + 1;            // 113
 constexpr int kGlide = kMains + 1;               // 114
 constexpr int kCross = kGlide + 1;               // 115
-constexpr int kNumParams = kCross + 1;
+// Appended in 2.1: Swirl, and the orbit display parameter it draws from.
+constexpr int kSwirl = kCross + 1;               // 116
+constexpr int kSwirlMode = kSwirl + 1;           // 117
+constexpr int kSwirlRate = kSwirlMode + 1;       // 118
+constexpr int kSwirlDir = kSwirlRate + 1;        // 119
+constexpr int kSwirlWidth = kSwirlDir + 1;       // 120
+constexpr int kSwirlDepth = kSwirlWidth + 1;     // 121
+constexpr int kOrbit = kSwirlDepth + 1;          // 122 (read-only)
+constexpr int kNumParams = kOrbit + 1;
+
+// Swirl. Rate is one control with three meanings, like Time and LFO Rate: Free = Hz; Sync = one turn per
+// note length; Echo = how far round each repeat lands. Sync and Echo share positions on the knob (10 each),
+// so the middle of the knob is "1 bar" in Sync and "1/8 turn" in Echo.
+enum SwirlMode { kSwirlFree = 0, kSwirlSync, kSwirlEcho };
+constexpr int kNumSwirlSteps = 10;
+const char* const kSwirlSyncNames[kNumSwirlSteps] = {
+    "16 bars", "8 bars", "4 bars", "2 bars", "1 bar", "1/2D", "1/2", "1/4D", "1/4", "1/8" };
+constexpr double kSwirlSyncBeats[kNumSwirlSteps] = { 64.0, 32.0, 16.0, 8.0, 4.0, 3.0, 2.0, 1.5, 1.0, 0.5 };
+const char* const kSwirlStepNames[kNumSwirlSteps] = {
+    "1/24 turn", "1/16 turn", "1/12 turn", "1/10 turn", "1/8 turn", "1/6 turn", "1/5 turn", "1/4 turn",
+    "1/3 turn", "3/8 turn" };
+constexpr float kSwirlStepTurns[kNumSwirlSteps] = {
+    1.0f / 24.0f, 1.0f / 16.0f, 1.0f / 12.0f, 0.1f, 0.125f, 1.0f / 6.0f, 0.2f, 0.25f, 1.0f / 3.0f, 0.375f };
+constexpr float kSwirlMinHz = 0.02f, kSwirlMaxHz = 4.0f;
+constexpr int   kSwirlDefaultStep = 4;           // 1/8 turn per echo (and 1 bar in Sync)
+// The head model, all scaled by Depth (0 = a plain constant-power pan, safe on speakers).
+constexpr float kSwirlItdSeconds = 0.00066f;     // the far ear hears a source at the side this much later
+constexpr float kSwirlFarFloor = 0.3f;           // ...and still hears it, round the head, at up to -10 dB
+constexpr float kSwirlShadowOct = 3.2f;          // head shadow: far ear low-passed by up to 3.2 octaves
+constexpr float kSwirlRearOct = 1.8f;            // behind you: both ears up to 1.8 octaves darker...
+constexpr float kSwirlRearDip = 0.2f;            // ...and up to 2 dB quieter
+// Each side of the repeats is one source. Their sum is +1.5 dB for a centred mono echo and -1.5 dB for a
+// one-sided (ping-pong) echo at Width 0, so turning Swirl up keeps the level within 1.5 dB either way.
+constexpr float kSwirlSourceGain = 0.84f;
+constexpr int   kOrbitPositions = 32;            // positions of the dot in the orbit display; the film strip has
+constexpr int   kOrbitFrames = 2 * kOrbitPositions;   // them twice, tail trailing clockwise then counter-clockwise
 
 enum FilterMode { kFilterOff = 0, kFilterLP, kFilterBP, kFilterHP };
 enum FxType { kFxOff = 0, kFxChorus, kFxFlanger, kFxPhaser, kFxBitcrush, kFxDownsample, kFxRingMod, kFxFuzz };
@@ -359,6 +416,55 @@ struct Spring
     }
 };
 
+// Swirl: one side of the repeats placed somewhere on a circle round the listener's head. Per ear it has a
+// gain, a short delay (the far ear hears it later) and a one-pole low-pass (head shadow, and the duller sound
+// of something behind you). Targets are worked out every 16 samples and ramped towards, so the movement is
+// smooth while the per-sample work is a few multiplies.
+struct SwirlSource
+{
+    static constexpr int kLen = 256;           // > 0.66 ms at 192 kHz, power of two
+    float buf[kLen] = {};
+    int pos = 0;
+    float gain[2] = {}, gainInc[2] = {}, delay[2] = {}, delayInc[2] = {};
+    float coef[2] = { 1.0f, 1.0f }, coefInc[2] = {}, lp[2] = {};
+
+    void clear()
+    {
+        for (float& v : buf) v = 0.0f;
+        pos = 0;
+        for (int e = 0; e < 2; ++e) { gainInc[e] = delayInc[e] = coefInc[e] = 0.0f; lp[e] = 0.0f; }
+    }
+    // Ear e reaches gain g, delay d (samples, >= 0) and low-pass coefficient c over the next n samples
+    // (invN = 1 / n); snap jumps straight there.
+    void aim(int e, float g, float d, float c, float invN, bool snap)
+    {
+        if (snap) { gain[e] = g; delay[e] = d; coef[e] = c; gainInc[e] = delayInc[e] = coefInc[e] = 0.0f; return; }
+        gainInc[e] = (g - gain[e]) * invN;
+        delayInc[e] = (d - delay[e]) * invN;
+        coefInc[e] = (c - coef[e]) * invN;
+    }
+    void process(float x, float& l, float& r)
+    {
+        buf[pos] = x;
+        float o[2];
+        for (int e = 0; e < 2; ++e)
+        {
+            gain[e] += gainInc[e];
+            delay[e] += delayInc[e];
+            coef[e] += coefInc[e];
+            const float d = delay[e] < 0.0f ? 0.0f : (delay[e] > kLen - 2.0f ? kLen - 2.0f : delay[e]);
+            const int i = (int)d;
+            const float fr = d - (float)i;
+            const float a = buf[(pos - i) & (kLen - 1)], b = buf[(pos - i - 1) & (kLen - 1)];
+            lp[e] += coef[e] * (a + (b - a) * fr - lp[e]);
+            o[e] = lp[e] * gain[e];
+        }
+        pos = (pos + 1) & (kLen - 1);
+        l = o[0];
+        r = o[1];
+    }
+};
+
 // Everything one channel needs inside the loop.
 struct LoopChannel
 {
@@ -525,6 +631,18 @@ public:
         // Glide is skewed so the first third of the knob covers the short, musical times.
         addParam(floatParam ("glide",    "Glide",     0.0f, kGlideMaxMs, kGlideDefaultMs, "ms", 0, 0.4f));
         addParam(floatParam ("cross",    "Cross",     0.0f, 100.0f,   100.0f, "%", 0));
+        // 2.1: Swirl.
+        addParam(floatParam ("swirl",    "Swirl",     0.0f, 100.0f,   0.0f,   "%", 0));
+        addParam(choiceParam("swmode",   "Swirl Mode", {"Free", "Sync", "Echo"}, kSwirlEcho));
+        addParam(logParam   ("swrate",   "Swirl Rate", kSwirlMinHz, kSwirlMaxHz, swirlPositionHz(kSwirlDefaultStep),
+                             "", 2));   // unit added by formatValue
+        addParam(choiceParam("swdir",    "Swirl Dir", {"Clockwise", "Counter"}, 0));
+        addParam(floatParam ("swwidth",  "Swirl Width", 0.0f, 180.0f, 0.0f,   "deg", 0));
+        addParam(floatParam ("swdepth",  "Swirl Depth", 0.0f, 100.0f, 70.0f,  "%", 0));
+        Param orbit = floatParam("orbit", "Orbit", 0.0f, 1.0f, 0.0f, "", 2);   // written by the plugin
+        orbit.automatable = false;
+        orbit.saved = false;
+        addParam(orbit);
         if (numParams() != kNumParams) mpc::log("Undertow: parameter count mismatch");
 
         // Programs. The Time column is given as a division (D(9) = 1/8D) because the programs are synced.
@@ -548,14 +666,23 @@ public:
         // Noise tail (110..115):        Amt Type L>Noise Mains Glide Cross
         //                               (types 0..4 = Hiss/Air/Crackle/Hum/Rain; mains 0 = 60 Hz, 1 = 50 Hz)
         const std::vector<float> quiet = { 0,  0,   0,      0,    kGlideDefaultMs, 100 };
+        // Swirl tail (116..121):        Amt Mode Rate                               Dir Width Depth
+        //                               (modes 0..2 = Free/Sync/Echo; Rate is Hz in Free, a position (SW) otherwise)
+        auto SW = [](int step) { return swirlPositionHz(step); };
+        const std::vector<float> still = { 0,  (float)kSwirlEcho, SW(kSwirlDefaultStep), 0,  0,    70 };
         // The display parameters (46..109) sit between the head tail and the noise tail; they are always 0.
-        auto progH = [this](const char* name, std::vector<float> v, const std::vector<float>& mod,
-                            const std::vector<float>& sp, const std::vector<float>& chr, const std::vector<float>& hd,
-                            const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f, 0.0f, kGlideDefaultMs, 100.0f })
+        // Every program sets the Swirl tail too (off unless given), so switching programs never leaves one spinning.
+        auto progH = [this, still](const char* name, std::vector<float> v, const std::vector<float>& mod,
+                                   const std::vector<float>& sp, const std::vector<float>& chr,
+                                   const std::vector<float>& hd,
+                                   const std::vector<float>& nz = { 0.0f, 0.0f, 0.0f, 0.0f, kGlideDefaultMs, 100.0f },
+                                   const std::vector<float>& sw = {})
         {
             for (const std::vector<float>* tail : { &mod, &sp, &chr, &hd }) v.insert(v.end(), tail->begin(), tail->end());
             v.resize((size_t)kEchoBase + (size_t)kEchoBars, 0.0f);
             v.insert(v.end(), nz.begin(), nz.end());
+            const std::vector<float>& swirl = sw.empty() ? still : sw;
+            v.insert(v.end(), swirl.begin(), swirl.end());
             addProgram(name, std::move(v));
         };
         auto progC = [&](const char* name, std::vector<float> v, const std::vector<float>& mod,
@@ -620,6 +747,19 @@ public:
         // Mains buzz: Age drives how rough it gets, so this one leans on it.
         progC("Bad Ground",        { 0, 1,  8, D(8),   72,  42, 1, 16, 40,  1, 2000,   40, 35,  0, 50, 30,  0, 0,        100, 0, 0 },
                                    noMod, noSpace, { 1, 85 }, { 46, kNoiseHum, 0, 0, 150, 100 });
+        // Swirl (2.1). Best on headphones.
+        // Orbit Dub: each repeat lands 1/8 of a turn further round, so the trail circles you once every 8 echoes.
+        progH("Orbit Dub",         { 0, 1,  9, D(9),   66,  40, 1, 12, 30,  1, 2600,   30, 25,  0, 50, 30,  0, 0,        100, 0, 0 },
+                                   noMod, noSpace, { 1, 40 }, oneHead, { 0, 0, 0, 0, 150, 100 },
+                                   { 100, (float)kSwirlEcho, SW(4), 0, 0, 80 });
+        // Slow Halo: a slow free-running turn (about 8 s), with the spring standing still while the echoes move.
+        progH("Slow Halo",         { 0, 1, 10, D(10),  70,  42, 1, 10, 30,  1, 3800,   25, 20,  1, 30, 15,  0, 0,        100, 0, 0 },
+                                   noMod, { 0, 35, 2.6f, 45, 60, 0 }, digital, oneHead, { 0, 0, 0, 0, 150, 100 },
+                                   { 100, (float)kSwirlFree, 0.12f, 0, 60, 70 });
+        // Spiral Staircase: every repeat an octave up and a sixth of a turn round, counter-clockwise.
+        progH("Spiral Staircase",  { 0, 1, 10, D(10),  70,  38, 1,  5, 40,  1, 7000,   15, 15,  0, 50, 30,  0, ST(12),    50, 0, 0 },
+                                   noMod, noSpace, digital, oneHead, { 0, 0, 0, 0, 150, 100 },
+                                   { 100, (float)kSwirlEcho, SW(5), 1, 0, 75 });
     }
 
     void prepare(double sampleRate, int /*maxBlockSize*/) override
@@ -672,6 +812,11 @@ public:
         peakRelease_ = 1.0f - std::exp(-1.0f / (0.030f * sr_));
         meterRelease_ = 1.0f - std::exp(-1.0f / (0.150f * sr_));   // VU-ish fall for the tube
         reverseMix_.setTime(25.0f, sampleRate);
+        swirlAmt_.setTime(30.0f, sampleRate);
+        // Swirl's low-pass: the coefficient at "no filtering" is normalised to exactly 1, so Depth 0 (and a
+        // source straight ahead) passes the repeats untouched.
+        swirlW0_ = 6.2831853f * std::fmin(20000.0f, 0.45f * sr_) / sr_;
+        swirlNorm_ = 1.0f / (1.0f - std::exp(-swirlW0_));
     }
 
     void reset() override
@@ -707,6 +852,10 @@ public:
         revPos_ = 0; revChunk_ = revPrevChunk_ = (int)clamp(delayTime_.value(), 0.02f * sr_, kReverseMaxSeconds * sr_);
         pitchMix_.snap(pitchMixTarget());
         reverseMix_.snap(getBool(kReverse) ? 1.0f : 0.0f);
+        swirlAmt_.snap(get(kSwirl) * 0.01f);
+        for (SwirlSource& s : swirl_) s.clear();
+        swirlPhase_ = 0.0f; swirlTick_ = 0; swirlSnap_ = true;
+        orbitCounter_ = 0; lastOrbitFrame_ = -1;
     }
 
     void process(mpc::ProcessContext& ctx) override
@@ -858,6 +1007,41 @@ public:
         const float lfoPitchSt = lfoPitch * kLfoPitchSemis, lfoPitchHz = lfoPitch * lfoPitch * lfoPitch * kLfoPitchHz;
         const float lfoFx = get(kLfoFx) * 0.01f, envFx = get(kEnvFx) * 0.01f;
         const float lfoTime = get(kLfoTime) * 0.01f * kLfoTimeDepth;
+
+        // Swirl: speed (turns per second, signed by direction), song-position lock in Sync, the two sources'
+        // offsets either side of the orbit position. Skipped entirely while Swirl is at 0.
+        swirlAmt_.setTarget(clamp(get(kSwirl) * 0.01f, 0.0f, 1.0f));
+        const bool swirlOn = swirlAmt_.target() > 0.0f || swirlAmt_.value() > 1e-5f;
+        float swirlInc = 0.0f, swirlHalfWidth = 0.0f, swirlDepth = 0.0f;
+        if (swirlOn)
+        {
+            const int mode = clamp(getInt(kSwirlMode), 0, 2);
+            const int step = swirlStepFromPosition(getNormalised(kSwirlRate));
+            float turnsPerSecond;
+            if (mode == kSwirlEcho)        // one step per repeat, whatever the delay time is doing
+                turnsPerSecond = kSwirlStepTurns[step] * sr_ / std::fmax(delayTime_.value(), 0.001f * sr_);
+            else if (mode == kSwirlSync)
+                turnsPerSecond = (float)(bpm / 60.0 / kSwirlSyncBeats[step]);
+            else
+                turnsPerSecond = clamp(get(kSwirlRate), kSwirlMinHz, kSwirlMaxHz);
+            swirlInc = (getInt(kSwirlDir) == 1 ? -turnsPerSecond : turnsPerSecond) / sr_;
+            if (mode == kSwirlSync && ctx.transport.playing && ctx.transport.ppqValid)
+            {
+                const double turns = ctx.transport.ppqPos / kSwirlSyncBeats[step];
+                float target = (float)(turns - std::floor(turns));
+                if (swirlInc < 0.0f) target = target > 0.0f ? 1.0f - target : 0.0f;
+                float diff = target - swirlPhase_;
+                diff -= std::floor(diff + 0.5f);
+                if (std::fabs(diff) > 0.01f) swirlPhase_ = target;
+            }
+            swirlHalfWidth = clamp(get(kSwirlWidth), 0.0f, 180.0f) / 720.0f;   // degrees -> half the gap, in turns
+            swirlDepth = clamp(get(kSwirlDepth) * 0.01f, 0.0f, 1.0f);
+        }
+        else if (!swirlSnap_)
+        {
+            swirlSnap_ = true;     // when it comes back, start from silence-free buffers at the right place
+            for (SwirlSource& s : swirl_) s.clear();
+        }
         const float envSpeed = get(kEnvSpeed) * 0.01f;
         const float envAttack = 1.0f - std::exp(-(float)kCoeffInterval / ((0.001f + 0.029f * envSpeed) * sr_));
         const float envRelease = 1.0f - std::exp(-(float)kCoeffInterval / ((0.06f + 0.94f * envSpeed) * sr_));
@@ -1160,6 +1344,28 @@ public:
                 wet[c] += (r - wet[c]) * rMix;
             }
 
+            // Swirl (wet only): the repeats circle the listener's head. Each side of the repeats is a source on
+            // the circle, Width apart, centred on the orbit position; Swirl crossfades from the plain stereo
+            // repeats to the circling ones. Before the spring, so the room stays put while the echoes move.
+            if (swirlOn)
+            {
+                if (--swirlTick_ <= 0)
+                {
+                    swirlTick_ = kCoeffInterval;
+                    const float ahead = advanceSigned(swirlPhase_, swirlInc * (float)kCoeffInterval);
+                    swirlTargets(swirl_[0], ahead - swirlHalfWidth, swirlDepth, swirlSnap_);
+                    swirlTargets(swirl_[1], ahead + swirlHalfWidth, swirlDepth, swirlSnap_);
+                    swirlSnap_ = false;
+                }
+                swirlPhase_ = advanceSigned(swirlPhase_, swirlInc);
+                const float amt = swirlAmt_.process();
+                float l0, r0, l1, r1;
+                swirl_[0].process(wet[0], l0, r0);
+                swirl_[1].process(wet[1], l1, r1);
+                wet[0] += (l0 + l1 - wet[0]) * amt;
+                wet[1] += (r0 + r1 - wet[1]) * amt;
+            }
+
             // Spring after the delay (on the repeats, before the wet limiter).
             if (springActive && !springInLoop)   // like a spring tank: mono in, a different spring on each side
             {
@@ -1278,6 +1484,25 @@ public:
             echoClearPending_ = true;          // refill the bars when the display comes back on
         }
 
+        // Orbit display: where the swirl is, at most 25 times a second and only when the dot moves. The picture
+        // is hidden by the skin while Swirl is 0 or Display is off, so nothing needs sending then.
+        if (tubeOn && swirlOn)
+        {
+            orbitCounter_ += ctx.numFrames;
+            if (orbitCounter_ >= (int)(0.04f * sr_))
+            {
+                orbitCounter_ = 0;
+                const int frame = (int)std::lround(swirlPhase_ * (float)kOrbitPositions) % kOrbitPositions
+                                + (getInt(kSwirlDir) == 1 ? kOrbitPositions : 0);
+                if (frame != lastOrbitFrame_)
+                {
+                    lastOrbitFrame_ = frame;
+                    setNormalised(kOrbit, (float)frame / (float)(kOrbitFrames - 1));
+                    notifyHostParameterChanged(kOrbit);
+                }
+            }
+        }
+
         // Keep the frequency-shift oscillator on the unit circle.
         const float mag = std::sqrt(shiftCos_ * shiftCos_ + shiftSin_ * shiftSin_);
         if (mag > 0.0f) { shiftCos_ /= mag; shiftSin_ /= mag; }
@@ -1290,7 +1515,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 2000;            // 2.0.0.0
+        info.version      = 2100;            // 2.1.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -1364,6 +1589,42 @@ private:
         }
     }
 
+    // Swirl Rate works like LFO Rate: in Sync and Echo its 0..1 position picks one of 10 steps.
+    static int swirlStepFromPosition(float norm)
+    {
+        return clamp((int)std::lround(norm * (kNumSwirlSteps - 1)), 0, kNumSwirlSteps - 1);
+    }
+    static float swirlPositionHz(int step)   // plain Swirl Rate value at a step's position (for defaults, programs)
+    {
+        return kSwirlMinHz * std::pow(kSwirlMaxHz / kSwirlMinHz, (float)step / (kNumSwirlSteps - 1));
+    }
+    static float advanceSigned(float phase, float inc)
+    {
+        phase += inc;
+        return phase - std::floor(phase);    // 0..1 either way round
+    }
+    // Where one source at azimuth `az` (turns: 0 = in front, 0.25 = right, 0.5 = behind, 0.75 = left) lands
+    // in each ear, reached over the next 16 samples. Depth scales the head cues; at 0 this is a plain
+    // constant-power pan.
+    void swirlTargets(SwirlSource& s, float az, float depth, bool snap)
+    {
+        const float ang = 6.2831853f * az;
+        const float x = std::sin(ang), f = std::cos(ang);       // x: right (+) / left (-); f: front (+) / behind (-)
+        const float rear = std::fmax(0.0f, -f);
+        for (int e = 0; e < 2; ++e)
+        {
+            const float p = e == 0 ? -x : x;                    // 1 = the source is at this ear, -1 = at the other
+            const float far = std::fmax(0.0f, -p);
+            float g = std::cos(0.78539816f * (1.0f - p));       // constant-power pan
+            g += kSwirlFarFloor * depth * (1.0f - g);           // the far ear still hears it, round the head
+            g *= kSwirlSourceGain * (1.0f - kSwirlRearDip * depth * rear);
+            const float oct = depth * (kSwirlShadowOct * far + kSwirlRearOct * rear);
+            const float c = oct < 1e-4f ? 1.0f : (1.0f - std::exp(-swirlW0_ * std::exp2(-oct))) * swirlNorm_;
+            const float d = depth * kSwirlItdSeconds * sr_ * far;
+            s.aim(e, g, d, c, 1.0f / (float)kCoeffInterval, snap);
+        }
+    }
+
     // One ECHO bar: frame 0..15 is a finished bar, 16..31 the same height lit (the newest). -1 leaves it alone.
     void setEchoBar(int bar, int frame)
     {
@@ -1391,6 +1652,16 @@ private:
             if (plainValue < 0.5f) out = "Straight";
             else if (plainValue > 99.5f) out = "Ping-Pong";
             else { std::snprintf(mb, sizeof(mb), "%.0f %%", (double)plainValue); out = mb; }
+            return true;
+        }
+        if (index == kSwirl && plainValue < 0.5f) { out = "Off"; return true; }
+        if (index == kSwirlRate)
+        {
+            const int mode = getInt(kSwirlMode);
+            const int step = swirlStepFromPosition(param(kSwirlRate).toNormalised(plainValue));
+            if (mode == kSwirlSync) out = kSwirlSyncNames[step];
+            else if (mode == kSwirlEcho) out = kSwirlStepNames[step];
+            else { std::snprintf(mb, sizeof(mb), "%.2f Hz", (double)plainValue); out = mb; }
             return true;
         }
         if (index == kLfoRate)
@@ -1608,6 +1879,13 @@ private:
     bool echoAdvance_ = false, echoClearPending_ = true;
     bool springWasActive_ = false, lastSpringInLoop_ = false;
     float env_ = 0.0f, envNorm_ = 0.0f, peakRelease_ = 0.001f, duckGain_ = 1.0f, duckTarget_ = 1.0f, duckSmooth_ = 0.01f;
+    SwirlSource swirl_[2];           // the left and right sides of the repeats
+    Smoother swirlAmt_;
+    float swirlPhase_ = 0.0f;        // orbit position in turns, clockwise from straight ahead
+    float swirlW0_ = 1.0f, swirlNorm_ = 1.0f;
+    int swirlTick_ = 0;
+    bool swirlSnap_ = true;
+    int orbitCounter_ = 0, lastOrbitFrame_ = -1;
 };
 
 MPC_PLUGIN_ENTRY(Undertow)
