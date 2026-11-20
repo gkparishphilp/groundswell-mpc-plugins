@@ -1,0 +1,7 @@
+# Whalesong has its own repository (github.com/gkparishphilp/whalesong) and is
+# no longer maintained here. The copy this repo tracked stopped at "Linger runs
+# shortest to Forever" and had drifted thirteen commits behind, so it reported a
+# wall of phantom changes - including ~45 skin images that Whalesong's own
+# .gitignore deliberately stopped tracking, because the composited skin is ~7 MB
+# of JPEG/PNG rewritten whole on every render.
+Whalesong/
