@@ -357,14 +357,14 @@ If a host does not list the plugin after a rescan, check its scan log before sus
 writes one per run to `~/Documents/Image-Line/FL Studio/Support/Logs/`, and the `search path:` lines in it say
 exactly which folders were looked at.
 
-The DSP is identical to the MPC build, and **so is the panel**: the plugin draws the same six pages, from the
+The DSP is identical to the MPC build, and **so is the panel**: the plugin draws the same seven pages, from the
 same `Plugin Skins/TUI.json` the MPC renders. Knobs turn on a drag (hold shift for fine, or use the scroll
 wheel), pills and switches take a click, the tabs along the bottom change page, and the controls that hide
 themselves on the MPC — the second head's marker, the RESPONSE curve for the chosen filter — do the same here.
 Two things do not come across: the MPC's fonts are not on a desktop machine, so labels are drawn in the system
 face at the same size, and the big edit view you get from double-tapping a knob on the MPC is not drawn.
 
-The echo trail and the tube animate on the computer too. The 65 display parameters (Level and Echo 1–64) are
+The echo trail, the tube and the swirl orbit animate on the computer too. The 66 display parameters (Level, Echo 1–64 and Orbit) are
 reported as not automatable, so a well-behaved host keeps them out of its automation lists, and the panel will
 not let you drag them.
 
