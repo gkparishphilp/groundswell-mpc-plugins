@@ -127,6 +127,43 @@
           "overlay": "menu"
         }
       ]
+    },
+    {
+      "name": "SWIRL",
+      "controls": [
+        {
+          "param": "Swirl",
+          "widget": "knob"
+        },
+        {
+          "param": "Swirl Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "Swirl Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "Swirl Dir",
+          "widget": "switch"
+        },
+        {
+          "param": "Swirl Depth",
+          "widget": "knob"
+        },
+        {
+          "param": "Swirl Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Spread",
+          "widget": "knob"
+        },
+        {
+          "param": "Mix",
+          "widget": "knob"
+        }
+      ]
     }
   ]
 }

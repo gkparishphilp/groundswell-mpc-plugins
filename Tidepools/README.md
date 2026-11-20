@@ -23,7 +23,7 @@ in ─┬───────────────────────�
                            └─────────────────────┴──> 16 grain voices ──┐ │
                                        Cloud / Blocks / Glide / Bubbles │ │
                                                                         │ │
-                                      tone ─> limiter ─> reverb ─> trade┴─┘
+                             tone ─> swirl ─> reverb ─> limiter ─> trade┴─┘
 ```
 
 ## The seven engines
@@ -43,7 +43,7 @@ is about pitch and movement. Both are listed per engine below.
 
 ## The screen
 
-Tidepools has its own panel, built from artwork in `art/`: three pages — **LISTEN**, **GRAINS** and **TONE** —
+Tidepools has its own panel, built from artwork in `art/`: four pages — **LISTEN**, **GRAINS**, **TONE** and **SWIRL** —
 each a row of boxes laid out for the Q-Link knobs, with a knob at the left of its box and the reading beside
 it. Touch a control to bring its row onto the knobs; double-tap a knob (or press Enter) for a large edit view.
 
@@ -98,6 +98,29 @@ and the heading goes faint in the engine where the knob does nothing. You should
 | Root | C … B | C | The note the scale is built on: the key of your music. |
 | Key | Fixed / Follow | Fixed | Where the root comes from. **Fixed** uses the Root knob, which is almost always what you want. **Follow** takes it from the phrase instead, which only lands right if you tend to start phrases on the tonic. |
 | Heard | – / C … B | – | Not a control: what the pitch detector made of the last phrase, or a dash if it found no pitch. |
+
+### Page 4: SWIRL
+
+Swirl sends the answer round your head: on headphones it circles from in front, to your right, behind you, to
+your left and back. It is the same stage as Undertow's Swirl, placed after Tone and before the reverb, so the room
+stays put while the answer moves. It touches only the answer; your dry signal never moves.
+
+| Control | Range | Default | What it does |
+|---|---|---|---|
+| Swirl | 0–100 % | 0 % (Off) | How much of the circling to hear, blended with the normal stereo answer. 0 switches it off and costs nothing. |
+| Mode | Free / Sync / Slice | Slice | **Slice**: the answer moves a fixed step round every Time (1/8 by default), so in Blocks each slice lands a step further round and the pattern spirals. It follows Time, and so the tempo when Time Mode is Sync. **Sync**: one turn per note length, locked to the song while the MPC is playing. **Free**: a speed in Hz. |
+| Rate | see Mode | 1/8 turn | One knob for all three modes. Slice: 1/24 to 3/8 of a turn per Time (1/8 turn on eighths = once round a bar). Sync: 16 bars to 1/8 per turn. Free: 0.02–4 Hz. Slice is capped at 8 turns a second, so a very short Time cannot turn it into a buzz. |
+| Direction | Clockwise / Counter | Clockwise | Seen from above: front, right, behind, left, or the other way round. |
+| Depth | 0–100 % | 70 % | The headphone cues. The far ear hears the answer up to 0.66 ms later and duller (your head is in the way), and behind you it is darker and a little quieter. At 0 it is a plain auto-pan with no delays, which is the setting for speakers or anything that ends up in mono. |
+| Width | 0–180° | 0° | How far apart the left and right sides of the answer sit on the circle. At 0 they travel together as one source: the clearest swirl, though it folds Spread's width into that one point. Turn it up to keep the cloud wide while it turns; at 180° the two sides sit opposite each other and the stereo image rotates. |
+| Spread, Mix | | | The same controls as on GRAINS and LISTEN, gathered here because they decide what goes round. |
+
+The **orbit** in the middle of the page is a dot that follows the swirl round the listener, with a short tail
+behind it showing the direction. It hides while Swirl is at 0.
+
+Turning Swirl up keeps the level within about 1.5 dB. Front and back over headphones is a suggestion, as it is
+for any binaural trick: left and right carry the motion, and the "behind you" darkening helps it along. On
+speakers you get an auto-pan with a gentle tone change; set Depth to 0 there.
 
 ### Pitch tracking, and what it buys
 
@@ -170,6 +193,15 @@ needs Sens up, or the detector waits for a silence that never comes. These two a
 | Sixteenth Gate | Blocks with Gap on Sync at a sixteenth, so the listening window follows the tempo: tight, rhythmic and quick to answer |
 | Trading Fours | Cloud with Trade at 100% and Repeats at 95%, Gap synced to an eighth, answering on the bar — it plays whenever you do not |
 
+**Swirl.** Best on headphones. Every other program leaves Swirl off.
+
+| Name | What it is |
+|---|---|
+| Circling Answer | Call and Answer going round you: an eighth of a turn every eighth note, so once round a bar |
+| Spiral Blocks | Chopped Reply with every sixteenth slice a sixth of a turn further round, counter-clockwise, scattering the shuffled pattern round the circle |
+| Halo | A continuous Cloud texture (Listen off) turning slowly overhead, about 8 s a turn, with the two sides 90° apart so it stays wide |
+| Orbiting Chords | The chord walk changing every bar, one turn every two bars, locked to the song |
+
 ## Tips
 
 - **Start with one note.** Play a single sustained note, stop, and listen. Everything Tidepools does is easier to
@@ -199,6 +231,9 @@ needs Sens up, or the detector waits for a silence that never comes. These two a
   is a continuous two-octave sweep, because each pass sets off from wherever the last one landed.
 - **Blocks wants a rhythmic source.** On a pad it sounds like a stutter; on a drum loop or a staccato line it
   rearranges the part.
+- **Swirl on Blocks with Mode on Slice** is the one to try first: every slice lands somewhere new on the circle,
+  so the rearranged pattern also moves round you. Steps of 1/3 or 3/8 turn throw consecutive slices across the
+  circle; 1/24 or 1/16 make a slow spiral.
 - **Use Hold as a performance control.** Listen on Hold, then tap Hold while a chord rings: the chord freezes
   and you can play over it.
 
@@ -232,7 +267,9 @@ About 0.06% of one core per instance on a desktop machine at default settings, m
 well inside the MPC's budget, with room for several instances. Sixteen grain voices, each a linear-interpolated
 buffer read, a windowing multiply and (in Bubbles only) one state-variable filter whose coefficients are set
 once when the grain starts, never per sample. The reverb is four delay lines with Hadamard mixing and one
-damping pole each. Memory is about 3 MB per instance, nearly all of it the 8-second stereo capture buffer.
+damping pole each. Swirl, while it is above 0, adds about 0.06% of one core (0.11% → 0.17% with Listen off
+and the grains running continuously): four short interpolated delays and four one-pole filters a sample, with
+its sines, cosines and exponentials worked out every 16 samples. At 0 it is skipped. Memory is about 3 MB per instance, nearly all of it the 8-second stereo capture buffer.
 
 Nothing allocates, locks or does I/O in the audio callback. Grain voices are a fixed pool; when they are all
 busy a new grain steals the one furthest through its life.

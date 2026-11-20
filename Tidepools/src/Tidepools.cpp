@@ -31,9 +31,9 @@
 //                              +---------+--> grain engine (16 voices) -----+     |
 //                                                Cloud / Blocks / Glide / Bubbles |
 //                                                        |                        |
-//                                          tone low-pass +-> reverb (4-line FDN) -+
-//                                                        |
-//                                                 trade ducking
+//                                   tone low-pass -> swirl -+-> reverb (4-line FDN) -+
+//                                                           |
+//                                                    trade ducking
 //
 // ============================================================================================
 // THE FOUR ENGINES
@@ -52,6 +52,23 @@
 //
 // Two knobs mean something slightly different in each engine, which is noted on every control:
 // Scatter is about position and order, Motion is about pitch and movement.
+//
+// ============================================================================================
+// SWIRL (1.1)
+// ============================================================================================
+//
+// The answer circles your head, the same stage Undertow 2.1 puts on its repeats. Each side of
+// the wet signal is a source on a circle round the listener, Width apart and centred on the
+// orbit position. A source at azimuth a is panned with a constant-power law on sin(a), and Depth
+// adds the cues that make it feel outside your head on headphones: the far ear hears it up to
+// 0.66 ms later and through a low-pass (head shadow), and behind you both ears hear it darker
+// and a little quieter. Depth 0 is a plain auto-pan with no delays, safe in mono.
+//
+// It sits after Tone and before the reverb, so the room stays put while the answer moves. The
+// speed is one of three things: Free = Hz; Sync = one turn per note length, locked to the song;
+// Slice = a fixed step round per Time, so in Blocks every slice lands a step further round and
+// the pattern spirals. The controls are worked out every 16 samples (a few sin/cos/exp) and
+// ramped, so the per-sample cost is a handful of multiplies. At Swirl 0 the stage is skipped.
 //
 // ============================================================================================
 // REALTIME
@@ -93,6 +110,8 @@ enum ParamIndex
     kSens,                   // appended: how readily the detector decides a phrase is over
     kChange,                 // appended: how often Chord moves to the next chord
     kGlideDir,               // appended: where Glide slides to
+    kSwirl, kSwirlMode, kSwirlRate, kSwirlDir, kSwirlWidth, kSwirlDepth,   // appended in 1.1: Swirl
+    kOrbit,                  // appended in 1.1: where the swirl is, for the display (read-only)
     kNumParams
 };
 
@@ -159,6 +178,84 @@ const ScaleDef kScales[] = {
     { "Whole Tone", 6, { 0, 2, 4, 6, 8, 10 } },
 };
 constexpr int kNumScales = (int)(sizeof(kScales) / sizeof(kScales[0]));
+
+// Swirl. Rate is one control with three meanings, like Time: Free = Hz; Sync = one turn per note
+// length; Slice = how far round it moves per Time. Sync and Slice share positions on the knob (10
+// each), so the middle of the knob is "1 bar" in Sync and "1/8 turn" in Slice.
+enum SwirlMode { kSwirlFree = 0, kSwirlSync, kSwirlSlice };
+constexpr int kNumSwirlSteps = 10;
+const char* const kSwirlSyncNames[kNumSwirlSteps] = {
+    "16 bars", "8 bars", "4 bars", "2 bars", "1 bar", "1/2D", "1/2", "1/4D", "1/4", "1/8" };
+constexpr double kSwirlSyncBeats[kNumSwirlSteps] = { 64.0, 32.0, 16.0, 8.0, 4.0, 3.0, 2.0, 1.5, 1.0, 0.5 };
+const char* const kSwirlStepNames[kNumSwirlSteps] = {
+    "1/24 turn", "1/16 turn", "1/12 turn", "1/10 turn", "1/8 turn", "1/6 turn", "1/5 turn", "1/4 turn",
+    "1/3 turn", "3/8 turn" };
+constexpr float kSwirlStepTurns[kNumSwirlSteps] = {
+    1.0f / 24.0f, 1.0f / 16.0f, 1.0f / 12.0f, 0.1f, 0.125f, 1.0f / 6.0f, 0.2f, 0.25f, 1.0f / 3.0f, 0.375f };
+constexpr float kSwirlMinHz = 0.02f, kSwirlMaxHz = 4.0f;
+constexpr float kSwirlSliceMaxHz = 8.0f;        // Slice at a tiny Time would otherwise spin into a buzz
+constexpr int   kSwirlDefaultStep = 4;          // 1/8 turn per slice (and 1 bar in Sync)
+constexpr int   kSwirlInterval = 16;            // samples between control updates
+// The head model, all scaled by Depth (0 = a plain constant-power pan, safe on speakers).
+constexpr float kSwirlItdSeconds = 0.00066f;    // the far ear hears a source at the side this much later
+constexpr float kSwirlFarFloor = 0.3f;          // ...and still hears it, round the head, at up to -10 dB
+constexpr float kSwirlShadowOct = 3.2f;         // head shadow: far ear low-passed by up to 3.2 octaves
+constexpr float kSwirlRearOct = 1.8f;           // behind you: both ears up to 1.8 octaves darker...
+constexpr float kSwirlRearDip = 0.2f;           // ...and up to 2 dB quieter
+// Each side of the answer is one source. Their sum is +1.5 dB for a centred mono answer and -1.5 dB
+// for a one-sided one at Width 0, so turning Swirl up keeps the level within 1.5 dB either way.
+constexpr float kSwirlSourceGain = 0.84f;
+constexpr int   kOrbitPositions = 32;           // positions of the dot in the orbit display; the film strip
+constexpr int   kOrbitFrames = 2 * kOrbitPositions;   // has them twice, tail trailing each way round
+
+// Swirl: one side of the answer placed somewhere on a circle round the listener's head. Per ear it
+// has a gain, a short delay (the far ear hears it later) and a one-pole low-pass (head shadow, and
+// the duller sound of something behind you). Targets are worked out every 16 samples and ramped
+// towards, so the movement is smooth while the per-sample work is a few multiplies.
+struct SwirlSource
+{
+    static constexpr int kLen = 256;            // > 0.66 ms at 192 kHz, power of two
+    float buf[kLen] = {};
+    int pos = 0;
+    float gain[2] = {}, gainInc[2] = {}, delay[2] = {}, delayInc[2] = {};
+    float coef[2] = { 1.0f, 1.0f }, coefInc[2] = {}, lp[2] = {};
+
+    void clear()
+    {
+        for (float& v : buf) v = 0.0f;
+        pos = 0;
+        for (int e = 0; e < 2; ++e) { gainInc[e] = delayInc[e] = coefInc[e] = 0.0f; lp[e] = 0.0f; }
+    }
+    // Ear e reaches gain g, delay d (samples, >= 0) and low-pass coefficient c over the next n
+    // samples (invN = 1 / n); snap jumps straight there.
+    void aim(int e, float g, float d, float c, float invN, bool snap)
+    {
+        if (snap) { gain[e] = g; delay[e] = d; coef[e] = c; gainInc[e] = delayInc[e] = coefInc[e] = 0.0f; return; }
+        gainInc[e] = (g - gain[e]) * invN;
+        delayInc[e] = (d - delay[e]) * invN;
+        coefInc[e] = (c - coef[e]) * invN;
+    }
+    void process(float x, float& l, float& r)
+    {
+        buf[pos] = x;
+        float o[2];
+        for (int e = 0; e < 2; ++e)
+        {
+            gain[e] += gainInc[e];
+            delay[e] += delayInc[e];
+            coef[e] += coefInc[e];
+            const float d = delay[e] < 0.0f ? 0.0f : (delay[e] > kLen - 2.0f ? kLen - 2.0f : delay[e]);
+            const int i = (int)d;
+            const float fr = d - (float)i;
+            const float a = buf[(pos - i) & (kLen - 1)], b = buf[(pos - i - 1) & (kLen - 1)];
+            lp[e] = flushDenormal(lp[e] + coef[e] * (a + (b - a) * fr - lp[e]));
+            o[e] = lp[e] * gain[e];
+        }
+        pos = (pos + 1) & (kLen - 1);
+        l = o[0];
+        r = o[1];
+    }
+};
 
 // A reverb line's length in samples at 44.1 kHz. Mutually prime-ish so the tail does not ring.
 constexpr int kFdnLines = 4;
@@ -294,6 +391,18 @@ public:
         addParam(mpc::floatParam ("sens",     "Sens",      0.0f, 100.0f, 50.0f, "%", 0));
         addParam(mpc::choiceParam("change",   "Change",   { "Off", "1 Bar", "2 Bars", "4 Bars" }, 1));
         addParam(mpc::choiceParam("glidedir", "Glide",    { "Down", "Up", "Mixed" }, kGlideMixed));
+        // 1.1: Swirl. Off by default, so existing projects and programs sound as they did.
+        addParam(mpc::floatParam ("swirl",    "Swirl",     0.0f, 100.0f,  0.0f,  "%", 0));
+        addParam(mpc::choiceParam("swmode",   "Swirl Mode", { "Free", "Sync", "Slice" }, kSwirlSlice));
+        addParam(mpc::logParam   ("swrate",   "Swirl Rate", kSwirlMinHz, kSwirlMaxHz,
+                                  swirlPositionHz(kSwirlDefaultStep), "", 2));   // text from formatValue
+        addParam(mpc::choiceParam("swdir",    "Swirl Dir", { "Clockwise", "Counter" }, 0));
+        addParam(mpc::floatParam ("swwidth",  "Swirl Width", 0.0f, 180.0f, 0.0f, "deg", 0));
+        addParam(mpc::floatParam ("swdepth",  "Swirl Depth", 0.0f, 100.0f, 70.0f, "%", 0));
+        mpc::Param orbit = mpc::floatParam("orbit", "Orbit", 0.0f, 1.0f, 0.0f, "", 2);   // written by the plugin
+        orbit.automatable = false; orbit.saved = false;
+        addParam(orbit);
+        if (numParams() != kNumParams) mpc::log("Tidepools: parameter count mismatch");
 
         addPrograms();
     }
@@ -331,6 +440,11 @@ public:
         output_.setTime(20.0f, sampleRate);
         input_.setTime(20.0f, sampleRate);
         wetTrim_.setTime(30.0f, sampleRate);
+        swirlAmt_.setTime(30.0f, sampleRate);
+        // Swirl's low-pass: the coefficient at "no filtering" is normalised to exactly 1, so Depth 0
+        // (and a source straight ahead) passes the answer untouched.
+        swirlW0_ = 6.2831853f * std::fmin(20000.0f, 0.45f * sr_) / sr_;
+        swirlNorm_ = 1.0f / (1.0f - std::exp(-swirlW0_));
 
         limAttack_  = 1.0f - std::exp(-1.0f / (0.0005f * sr_));  // 0.5 ms
         limRelease_ = 1.0f - std::exp(-1.0f / (0.120f * sr_));   // 120 ms
@@ -390,6 +504,10 @@ public:
         output_.snap(dbToGain(get(kOutput)));
         input_.snap(dbToGain(get(kInput)));
         wetTrim_.snap(1.0f);
+        swirlAmt_.snap(clampf(get(kSwirl) * 0.01f, 0.0f, 1.0f));
+        for (SwirlSource& s : swirl_) s.clear();
+        swirlPhase_ = 0.0f; swirlTick_ = 0; swirlSnap_ = true; swirlOn_ = false;
+        lastOrbitFrame_ = -1;
     }
 
     // --------------------------------------------------------------------------------------
@@ -434,6 +552,42 @@ public:
             ? clampf(divisionBeats(gapDivisionFromPosition(getNormalised(kGap))) * beatSamples,
                      kGapMinSeconds * sr_, kGapMaxSeconds * sr_)
             : get(kGap) * 0.001f * sr_;
+        // Swirl: speed (turns per second, signed by direction), song-position lock in Sync, the two
+        // sources' offsets either side of the orbit position. Skipped entirely while Swirl is at 0.
+        swirlAmt_.setTarget(clampf(get(kSwirl) * 0.01f, 0.0f, 1.0f));
+        const bool swirlOn = swirlAmt_.target() > 0.0f || swirlAmt_.value() > 1e-5f;
+        float swirlInc = 0.0f, swirlHalfWidth = 0.0f, swirlDepth = 0.0f;
+        if (swirlOn)
+        {
+            const int swMode = clampi(getInt(kSwirlMode), 0, 2);
+            const int step = swirlStepFromPosition(getNormalised(kSwirlRate));
+            float turnsPerSecond;
+            if (swMode == kSwirlSlice)       // one step per Time, whatever Time is doing
+                turnsPerSecond = std::fmin(kSwirlStepTurns[step] * sr_ / sliceSamples_, kSwirlSliceMaxHz);
+            else if (swMode == kSwirlSync)
+                turnsPerSecond = (float)(bpm / 60.0 / kSwirlSyncBeats[step]);
+            else
+                turnsPerSecond = clampf(get(kSwirlRate), kSwirlMinHz, kSwirlMaxHz);
+            swirlInc = (getInt(kSwirlDir) == 1 ? -turnsPerSecond : turnsPerSecond) / sr_;
+            if (swMode == kSwirlSync && ctx.transport.playing && ctx.transport.ppqValid)
+            {
+                const double turns = ctx.transport.ppqPos / kSwirlSyncBeats[step];
+                float target = (float)(turns - std::floor(turns));
+                if (swirlInc < 0.0f) target = target > 0.0f ? 1.0f - target : 0.0f;
+                float diff = target - swirlPhase_;
+                diff -= std::floor(diff + 0.5f);
+                if (std::fabs(diff) > 0.01f) swirlPhase_ = target;
+            }
+            swirlHalfWidth = clampf(get(kSwirlWidth), 0.0f, 180.0f) / 720.0f;   // degrees -> half the gap, in turns
+            swirlDepth = clampf(get(kSwirlDepth) * 0.01f, 0.0f, 1.0f);
+        }
+        else if (!swirlSnap_)
+        {
+            swirlSnap_ = true;     // when it comes back, start from clean buffers at the right place
+            for (SwirlSource& s : swirl_) s.clear();
+        }
+        swirlOn_ = swirlOn;
+
         const float toneHz = clampf(get(kTone), 100.0f, 0.45f * sr_);
         for (int c = 0; c < 2; ++c) tone_[c].set(toneHz, 0.1f);
 
@@ -637,6 +791,28 @@ public:
             // Tone, then the reverb, which is fed from the grains only.
             wetL = tone_[0].process(wetL, SVF::Mode::Lowpass);
             wetR = tone_[1].process(wetR, SVF::Mode::Lowpass);
+
+            // Swirl: the answer circles the listener's head. Each side is a source on the circle,
+            // Width apart, centred on the orbit position; Swirl crossfades from the plain stereo
+            // answer to the circling one. Before the reverb, so the room stays put while it moves.
+            if (swirlOn)
+            {
+                if (--swirlTick_ <= 0)
+                {
+                    swirlTick_ = kSwirlInterval;
+                    const float ahead = advanceSigned(swirlPhase_, swirlInc * (float)kSwirlInterval);
+                    swirlTargets(swirl_[0], ahead - swirlHalfWidth, swirlDepth, swirlSnap_);
+                    swirlTargets(swirl_[1], ahead + swirlHalfWidth, swirlDepth, swirlSnap_);
+                    swirlSnap_ = false;
+                }
+                swirlPhase_ = advanceSigned(swirlPhase_, swirlInc);
+                const float amt = swirlAmt_.process();
+                float l0, r0, l1, r1;
+                swirl_[0].process(wetL, l0, r0);
+                swirl_[1].process(wetR, l1, r1);
+                wetL += (l0 + l1 - wetL) * amt;
+                wetR += (r0 + r1 - wetR) * amt;
+            }
             if (space > 0.0f)
             {
                 float rL = 0.0f, rR = 0.0f;
@@ -701,6 +877,16 @@ public:
             out = divisionName(gapDivisionFromPosition(param(kGap).toNormalised(plainValue)));
             return true;
         }
+        if (index == kSwirl && plainValue < 0.5f) { out = "Off"; return true; }
+        if (index == kSwirlRate)
+        {
+            const int swMode = getInt(kSwirlMode);
+            const int step = swirlStepFromPosition(param(kSwirlRate).toNormalised(plainValue));
+            if (swMode == kSwirlSync) out = kSwirlSyncNames[step];
+            else if (swMode == kSwirlSlice) out = kSwirlStepNames[step];
+            else { std::snprintf(buf, sizeof(buf), "%.2f Hz", (double)plainValue); out = buf; }
+            return true;
+        }
         if (index == kInterval)
         {
             const int st = (int)std::lround(plainValue);
@@ -722,6 +908,42 @@ private:
     static int   gapDivisionFromPosition(float norm)
     {
         return clampi((int)std::lround(norm * kGapMaxDivision), 0, kGapMaxDivision);
+    }
+
+    // Swirl Rate works like Time: in Sync and Slice its 0..1 position picks one of 10 steps.
+    static int swirlStepFromPosition(float norm)
+    {
+        return clampi((int)std::lround(norm * (kNumSwirlSteps - 1)), 0, kNumSwirlSteps - 1);
+    }
+    static float swirlPositionHz(int step)   // plain Swirl Rate value at a step's position (defaults, programs)
+    {
+        return kSwirlMinHz * std::pow(kSwirlMaxHz / kSwirlMinHz, (float)step / (kNumSwirlSteps - 1));
+    }
+    static float advanceSigned(float phase, float inc)
+    {
+        phase += inc;
+        return phase - std::floor(phase);    // 0..1 either way round
+    }
+    // Where one source at azimuth `az` (turns: 0 = in front, 0.25 = right, 0.5 = behind, 0.75 =
+    // left) lands in each ear, reached over the next 16 samples. Depth scales the head cues; at 0
+    // this is a plain constant-power pan.
+    void swirlTargets(SwirlSource& s, float az, float depth, bool snap)
+    {
+        const float ang = 6.2831853f * az;
+        const float x = std::sin(ang), f = std::cos(ang);       // x: right (+) / left (-); f: front (+) / behind (-)
+        const float rear = std::fmax(0.0f, -f);
+        for (int e = 0; e < 2; ++e)
+        {
+            const float p = e == 0 ? -x : x;                    // 1 = the source is at this ear, -1 = at the other
+            const float far = std::fmax(0.0f, -p);
+            float g = std::cos(0.78539816f * (1.0f - p));       // constant-power pan
+            g += kSwirlFarFloor * depth * (1.0f - g);           // the far ear still hears it, round the head
+            g *= kSwirlSourceGain * (1.0f - kSwirlRearDip * depth * rear);
+            const float oct = depth * (kSwirlShadowOct * far + kSwirlRearOct * rear);
+            const float c = oct < 1e-4f ? 1.0f : (1.0f - std::exp(-swirlW0_ * std::exp2(-oct))) * swirlNorm_;
+            const float d = depth * kSwirlItdSeconds * sr_ * far;
+            s.aim(e, g, d, c, 1.0f / (float)kSwirlInterval, snap);
+        }
     }
 
     float readBuffer(int ch, double pos) const
@@ -1292,6 +1514,19 @@ private:
             set(kState, st);
             notifyHostParameterChanged(kState);
         }
+        // Orbit: where the swirl is, only when the dot moves. The skin hides the picture while
+        // Swirl is 0, so nothing needs sending then.
+        if (swirlOn_)
+        {
+            const int frame = (int)std::lround(swirlPhase_ * (float)kOrbitPositions) % kOrbitPositions
+                            + (getInt(kSwirlDir) == 1 ? kOrbitPositions : 0);
+            if (frame != lastOrbitFrame_)
+            {
+                lastOrbitFrame_ = frame;
+                setNormalised(kOrbit, (float)frame / (float)(kOrbitFrames - 1));
+                notifyHostParameterChanged(kOrbit);
+            }
+        }
     }
 
     // ----- programs ----------------------------------------------------------------------------
@@ -1381,6 +1616,31 @@ private:
         prog("Trading Fours",   { 0, 50, kCloud, 50, 50, 40, 30, 1, T4,  95, 8500, 40, 5.0f,
                                   kListenAuto, G8,  kAnswerBar,  40,  0, 0, 0, 100, 75, 0, 0 },
                                 { { kGapSync, 1.0f } });
+
+        // ---- Swirl (1.1): the answer circles your head. Best on headphones. -----------------
+        const float SW4 = swirlPositionHz(4), SW5 = swirlPositionHz(5), SW3 = swirlPositionHz(3);
+        // Circling Answer: the plain Cloud reply going round you once a bar (1/8 turn per 1/8).
+        prog("Circling Answer", { 0, 50, kCloud, 50, 45, 35, 30, 1, T8,  45, 9000,  30, 3.0f,
+                                  kListenAuto, 220, kAnswerBeat, 35,  0, 0, 0, 50, 70, 0, 0 },
+                                { { kSwirl, 100.0f }, { kSwirlMode, (float)kSwirlSlice }, { kSwirlRate, SW4 },
+                                  { kSwirlDepth, 80.0f } });
+        // Spiral Blocks: every sixteenth slice a sixth of a turn further round, counter-clockwise,
+        // so the shuffled pattern scatters round the circle.
+        prog("Spiral Blocks",   { 0, 55, kBlocks, 60, 30, 55, 45, 1, T16, 45, 8000,  22, 2.4f,
+                                  kListenAuto, 180, kAnswerBeat, 50,  0, 0, 0, 55, 80, 0, 0 },
+                                { { kSwirl, 100.0f }, { kSwirlMode, (float)kSwirlSlice }, { kSwirlRate, SW5 },
+                                  { kSwirlDir, 1.0f }, { kSwirlDepth, 75.0f } });
+        // Halo: a held texture turning slowly overhead (about 8 s a turn), the two sides 90 degrees
+        // apart so the cloud stays wide while it moves.
+        prog("Halo",            { 0, 45, kCloud, 60, 70, 50, 25, 1, T8,  60, 7000,  45, 5.0f,
+                                  kListenOff,  220, kAnswerNow,  25,  0, 0, 0,  0, 85, 0, 0 },
+                                { { kSwirl, 100.0f }, { kSwirlMode, (float)kSwirlFree }, { kSwirlRate, 0.12f },
+                                  { kSwirlWidth, 90.0f }, { kSwirlDepth, 70.0f } });
+        // Orbiting Chords: the chord walk, one turn every two bars, locked to the song.
+        prog("Orbiting Chords", { 0, 55, kChord, 35, 60, 30, 45, 1, T4,  90, 8000,  45, 5.0f,
+                                  kListenAuto, 280, kAnswerBar,  25,  0, 1, 0, 90, 70, 0, 0 },
+                                { { kChange, 1.0f }, { kSwirl, 80.0f }, { kSwirlMode, (float)kSwirlSync },
+                                  { kSwirlRate, SW3 }, { kSwirlWidth, 40.0f }, { kSwirlDepth, 70.0f } });
     }
 
     // The plain Gap whose normalised position selects this division, for programs that want
@@ -1402,7 +1662,7 @@ private:
         info.name         = "Tidepools";
         info.vendor       = "Groundswell";
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);
-        info.version      = 1000;
+        info.version      = 1100;            // 1.1.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -1470,6 +1730,13 @@ private:
     SVF            tone_[2];
     Fdn            fdn_[2];
     Smoother       mix_, output_, input_, wetTrim_;
+    SwirlSource    swirl_[2];        // the left and right sides of the answer
+    Smoother       swirlAmt_;
+    float          swirlPhase_ = 0.0f;   // orbit position in turns, clockwise from straight ahead
+    float          swirlW0_ = 1.0f, swirlNorm_ = 1.0f;
+    int            swirlTick_ = 0;
+    bool           swirlSnap_ = true, swirlOn_ = false;
+    int            lastOrbitFrame_ = -1;
     float          duck_ = 1.0f;
     float          limGain_ = 1.0f, limAttack_ = 0.1f, limRelease_ = 0.001f;
     Xorshift32     rng_;
