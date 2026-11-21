@@ -1,7 +1,8 @@
 // Does Hammerhead sound like hitting something? Checks the attack, the tuning, what hardness and
 // strike position do, decay times, muting and the pedal, re-strikes, voice stealing, the pitch
-// drop, chord headroom and CPU; and (1.1) that a new Model or Exciter takes effect on a ringing
-// note, and that Bow and Blow sustain in tune on every model. Then renders a demo WAV.
+// drop, chord headroom and CPU; (1.1) that a new Model or Exciter takes effect on a ringing note,
+// and that Bow and Blow sustain in tune on every model; (1.2) Buzz, the LFO and per-hit randomness.
+// Then renders a demo WAV.
 //
 //   mkdir -p tests/build
 //   clang++ -std=c++17 -O2 -I../../framework tests/listentest.cpp -o tests/build/listentest
@@ -61,7 +62,7 @@ static int activeVoices(Hammerhead& p) { int c = 0; for (auto& v : p.voices_) if
 static int ringingVoices(Hammerhead& p) { int c = 0; for (auto& v : p.voices_) if (v.stage == hammerhead::kOn) ++c; return c; }
 
 static void render(Hammerhead& p, std::vector<Ev> evs, double seconds, std::vector<float>& L, std::vector<float>& R,
-                   double* cpuSec = nullptr, int fixedBlock = 0)
+                   double* cpuSec = nullptr, int fixedBlock = 0, bool playing = false, double bpm = 120.0)
 {
     std::stable_sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.t < b.t; });
     const int total = (int)(seconds * SR);
@@ -86,6 +87,9 @@ static void render(Hammerhead& p, std::vector<Ev> evs, double seconds, std::vect
         ctx.outputs = outs; ctx.numInputs = 0; ctx.numOutputs = 2; ctx.numFrames = block;
         ctx.midi = blockEv.data(); ctx.numMidiEvents = (int)blockEv.size();
         ctx.sampleRate = SR;
+        ctx.transport.valid = ctx.transport.tempoValid = true; ctx.transport.bpm = bpm;
+        ctx.transport.playing = playing; ctx.transport.ppqValid = playing;
+        ctx.transport.ppqPos = pos / SR * bpm / 60.0;
         const auto t0 = std::chrono::steady_clock::now();
         p.process(ctx);
         cpu += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
@@ -634,6 +638,114 @@ int main(int argc, char** argv)
         }
     }
 
+    // ---- 8d. Buzz, LFO, randomness (1.2) ----------------------------------------------------------------
+    std::printf("\n== Buzz (1.2) ==\n");
+    {
+        // High-frequency energy (3..12 kHz) of a window, dB.
+        auto hfDb = [&](double t, int len) {
+            const auto sp = spectrum(L, R, t, len);
+            double e = 1e-30;
+            for (int k = (int)(3000 / binHz()); k < (int)(12000 / binHz()); ++k) e += std::pow(10.0, sp[k] / 10.0);
+            return (float)(10.0 * std::log10(e));
+        };
+        float early[2], late[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = make(3, {{H::kBuzz, i ? 60.0f : 0.0f}, {H::kRoom, 0}, {H::kBody, 0}, {H::kClick, 0}});   // Shell Kalimba, C5
+            render(*p, {on(0.0, 60, 110)}, 2.0, L, R);
+            early[i] = hfDb(0.01, 4096); late[i] = hfDb(1.2, 8192);
+        }
+        check(early[1] - early[0] > 8.0f, "Buzz 60 %% on a kalimba: %.1f dB more energy above 3 kHz while the note is loud", early[1] - early[0]);
+        check(late[1] - late[0] < 3.0f, "and it lets go as the ring decays: %.1f dB more 1.2 s later", late[1] - late[0]);
+        auto p = make(15, {{H::kBuzz, 100}});   // Barnacle Kalimba, buzz all the way up
+        std::vector<Ev> evs;
+        for (int n : {48, 52, 55, 59, 62, 67}) evs.push_back(on(0.0, n, 127));
+        render(*p, evs, 2.0, L, R);
+        size_t hot = 0;
+        for (size_t i = 0; i < L.size(); ++i) if (std::fabs(L[i]) > 0.7f || std::fabs(R[i]) > 0.7f) ++hot;
+        check(finite(L, R) && peakOf(L, R) < 0.98f && hot < L.size() / 200, "Buzz 100 %%, six-note chord at velocity 127: peak %.1f dBFS, %.2f%% in the limiter",
+              db(peakOf(L, R)), 100.0 * (double)hot / (double)L.size());
+    }
+
+    std::printf("\n== LFO and per-hit randomness (1.2) ==\n");
+    {
+        // Sync: the LFO follows the song position (1/16 at 120 bpm while playing).
+        auto p = make(17, {{H::kRoom, 0}});   // Tide Machine: S&H on 1/16
+        render(*p, {}, 1.37, L, R, nullptr, 0, true, 120.0);
+        const double ppq = (double)L.size() / SR * 2.0;
+        float expect = ppqPhase(ppq, 0.25f), got = p->lfoPhase_;
+        float err = std::fabs(got - expect); err = std::min(err, 1.0f - err);
+        check(err < 0.12f, "LFO Sync: locked to the song (phase %.2f, song says %.2f)", got, expect);
+
+        // LFO>Pos / LFO>Hard: every hit of a 1/16 roll lands somewhere else on the bar.
+        float lo[2] = {1, 1}, hi[2] = {0, 0};
+        for (int i = 0; i < 2; ++i)
+        {
+            auto q = make(17, {{H::kRoom, 0}, {H::kLfoPos, i ? 80.0f : 0.0f}});
+            for (int h = 0; h < 16; ++h)
+            {
+                render(*q, {on(0.0, 60, 100)}, 0.125, L, R, nullptr, 0, true, 120.0);
+                for (auto& v : q->voices_) if (v.stage == hammerhead::kOn && v.note == 60) { lo[i] = std::min(lo[i], v.pos); hi[i] = std::max(hi[i], v.pos); }
+            }
+        }
+        check(hi[1] - lo[1] > 0.3f && hi[0] - lo[0] < 1e-4f, "LFO>Pos 80 %% (S&H, 1/16): 16 hits land between %.0f %% and %.0f %% of the way out (all at %.0f %% without)",
+              100 * lo[1], 100 * hi[1], 100 * lo[0]);
+
+        // LFO>Stretch: a ringing glass's 2.32x mode moves with the LFO; the fundamental doesn't.
+        auto g = make(18, {{H::kRoom, 0}, {H::kLfoShape, hammerhead::kLfoSquare}, {H::kLfoRate, 0.5f}});   // Rip Current
+        render(*g, {on(0.0, 57, 100)}, 2.0, L, R);
+        const float fa = peakHz(spectrum(L, R, 0.3, 8192), 440 * 2.32f * 0.85f, 440 * 2.32f * 1.15f);
+        const float fb = peakHz(spectrum(L, R, 1.3, 8192), 440 * 2.32f * 0.85f, 440 * 2.32f * 1.15f);
+        const float f1a = peakHz(spectrum(L, R, 0.3, 8192), 400, 480), f1b = peakHz(spectrum(L, R, 1.3, 8192), 400, 480);
+        check(fa / fb > 1.1f && std::fabs(cents(f1a, f1b)) < 5.0f,
+              "LFO>Stretch: the glass's 2.32x mode swings %.0f -> %.0f Hz while the note rings; the fundamental stays (%+.1f ct)", fa, fb, cents(f1a, f1b));
+
+        // LFO>Press: a blown note swells and falls with the LFO (slowly: a 3 s glass smooths a fast breath out).
+        float swing[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto b = make(14, {{H::kRoom, 0}, {H::kLfoRate, 0.4f}, {H::kLfoPress, i ? 100.0f : 0.0f}, {H::kAir, 0}});   // Bottle Breath
+            render(*b, {on(0.0, 57, 100)}, 5.0, L, R);
+            float mn = 1e9f, mx = -1e9f;
+            for (double t = 1.5; t < 4.9; t += 0.05) { const float r = rmsDb(L, R, t, t + 0.05); mn = std::min(mn, r); mx = std::max(mx, r); }
+            swing[i] = mx - mn;
+        }
+        check(swing[1] > 4.0f && swing[0] < 1.5f, "LFO>Press 100 %% at 0.4 Hz on a blown note: the level swings %.1f dB (%.1f without)", swing[1], swing[0]);
+
+        // Rnd Pitch: twelve fresh notes, each detuned on its own, within +-25 cents.
+        float dmin[2] = {1e9f, 1e9f}, dmax[2] = {-1e9f, -1e9f};
+        for (int i = 0; i < 2; ++i)
+        {
+            auto q = make(0, {{H::kRoom, 0}, {H::kBody, 0}, {H::kDecay, 0.3f}, {H::kTube, 0}, {H::kRndPitch, i ? 100.0f : 0.0f}});
+            for (int h = 0; h < 12; ++h)
+            {
+                const int note = 57 + 2 * (h % 6);
+                render(*q, {on(0.0, note, 100)}, 0.4, L, R);
+                const float f0 = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
+                const float f = peakHz(spectrum(L, R, 0.0, 8192), f0 * 0.97f, f0 * 1.03f);
+                dmin[i] = std::min(dmin[i], cents(f, f0)); dmax[i] = std::max(dmax[i], cents(f, f0));
+            }
+        }
+        check(dmax[1] - dmin[1] > 15.0f && dmax[1] < 27.0f && dmin[1] > -27.0f && dmax[0] - dmin[0] < 2.0f,
+              "Rnd Pitch 100 %%: twelve notes land %+.1f .. %+.1f cents off (%.1f cents spread without)", dmin[1], dmax[1], dmax[0] - dmin[0]);
+
+        // Rnd Level: a roll of 12 hits varies in loudness.
+        float lspread[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto q = make(0, {{H::kRoom, 0}, {H::kDecay, 0.2f}, {H::kTube, 0}, {H::kRndLevel, i ? 100.0f : 0.0f}});
+            float mn = 1e9f, mx = -1e9f;
+            for (int h = 0; h < 12; ++h)
+            {
+                render(*q, {on(0.0, 60, 100)}, 0.5, L, R);
+                const float pk = db(peakOf(L, R, 0.0, 0.05));
+                mn = std::min(mn, pk); mx = std::max(mx, pk);
+            }
+            lspread[i] = mx - mn;
+        }
+        check(lspread[1] > 4.0f && lspread[0] < 1.5f, "Rnd Level 100 %%: hits vary over %.1f dB (%.1f dB without)", lspread[1], lspread[0]);
+    }
+
     // ---- 9. Chords: headroom in every program ----------------------------------------------------
     std::printf("\n== Six-note chord at velocity 127, every program ==\n");
     {
@@ -658,7 +770,7 @@ int main(int argc, char** argv)
     // ---- 10. CPU ------------------------------------------------------------------------------
     std::printf("\n== CPU (desktop, for orientation; the MPC is roughly 10-20x slower per core) ==\n");
     {
-        const int progs[4] = {1, 8, 10, 12};   // vibes, dulcimer; bowed vibes, bowed string (1.1)
+        const int progs[6] = {1, 8, 10, 12, 18, 15};   // vibes, dulcimer; bowed vibes, bowed string (1.1); LFO>Stretch, Buzz (1.2)
         for (int prog : progs)
         {
             auto p = make(prog, {{H::kDecay, 20}, {H::kMute, 0}});

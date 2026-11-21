@@ -34,7 +34,8 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   plus a tuned tube) and plucked or hammered strings (waveguide). Mallet hardness, strike position,
   click, decay/damping, mute and pedal, a pitch drop for log drums and toms, motor, body and room.
   16 voices, cheap enough for chords. Custom shark panel. 1.1 added Bow and Blow
-  exciters on every model (pressure, aftertouch, swell, vibrato). Still to come: kalimba buzz.
+  exciters on every model (pressure, aftertouch, swell, vibrato); 1.2 added Buzz, an LFO on
+  position, hardness, stretch and pressure, and per-hit randomness.
 
 ## Effects that listen and respond
 

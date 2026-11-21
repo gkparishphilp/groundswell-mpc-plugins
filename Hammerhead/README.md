@@ -12,7 +12,26 @@ gets brighter, not just louder. Roll on one pad and the bar keeps ringing while 
 enough to play chords on the MPC: 16 voices, about 0.2 % of a desktop core with all 16 ringing.
 
 Since 1.1 the same objects can also be **bowed** or **blown**: a bow or a breath keeps feeding the bar, glass or
-string for as long as you hold the note, so it sustains and sings, and pad pressure plays it.
+string for as long as you hold the note, so it sustains and sings, and pad pressure plays it. 1.2 adds **Buzz** (the
+rattle of kalimba bottle caps and balafon gourds) and **modulation**: an LFO on the four controls that change the
+sound most, and per-hit randomness, so a sequence of hits keeps moving.
+
+## New in 1.2
+
+- **Buzz**: a loose buzzer on the object (kalimba bottle caps, the spider-silk membranes on balafon gourds, a
+  sitar-like bridge). It rattles while the note is loud and cuts out as the ring decays, as the real thing does.
+  It works on every model and exciter. It's on the STRIKE page, where Drop was (Drop is still on PLAY).
+- **An LFO**, free (0.05–20 Hz) or locked to the song (4 bars to 1/16T), in six shapes (Sine, Triangle, Square,
+  Ramp, S&H, Drift). It has one depth knob for each of four destinations:
+  - **Position** and **Hardness** are read at each hit, so a groove walks across the bar and gets brighter and
+    darker. On a bowed bar the bow moves along it while the note sustains.
+  - **Stretch** bends the overtones while the note rings (glass that wobbles, bells that warp).
+  - **Pressure** makes bow and breath swell and fade.
+- **Per-hit randomness**: **Position**, **Hardness**, **Pitch** (up to ±25 cents per note) and **Level** (up to
+  ±6 dB), so repeated notes and Note Repeat rolls never sound copy-pasted.
+- A **MOD** page on the panel, and **five new programs**: Barnacle Kalimba, Coral Balafon, Tide Machine, Rip
+  Current, Undercurrent (20 in all).
+- 1.0 and 1.1 projects load unchanged: every new control starts at off.
 
 ## New in 1.1
 
@@ -132,6 +151,32 @@ velocity, so short Swell settings speak at once. A long Swell makes the push sma
   mode speaks first, and short-lived upper modes only take over when you push hard (overblowing). A bowed or
   blown **bell** sings at the note; its hum, an octave below, is left out.
 
+### Buzz (1.2)
+
+A loose buzzer touches the object whenever it swings past a threshold, a fraction of the note's own peak. The
+part of the wave beyond the threshold, roughened by contact noise and high-passed at 1.2 kHz, is the rattle, and
+it is added to the note. So it rattles while the note is loud and stops by itself as the ring decays below the
+threshold. More **Buzz** is louder and lowers the threshold, so it buzzes for longer. Soft notes buzz less,
+because the threshold never drops below that of a medium-strength hit.
+
+### Modulation (1.2)
+
+One LFO for the whole instrument (not one per note), so all the voices move together, like one player.
+
+- **LFO Sync**: Free (**LFO Rate**, 0.05–20 Hz) or Sync (**LFO Div**, 4 bars … 1/16T, locked to the song position
+  while the MPC plays; at the project tempo otherwise).
+- **LFO Shape**: Sine, Triangle, Square, Ramp (falling), S&H (a new random value each cycle), Drift (glides from one
+  random value to the next).
+- **LFO>Pos** and **LFO>Hard** (±50 % of the range at full depth) are read at each hit. With S&H on 1/16, a roll on
+  one pad lands somewhere new each time. On a bowed or blown modal note, LFO>Pos also moves the bow or mouth
+  along the bar while it sounds.
+- **LFO>Stretch** (±100 % of Stretch at full depth) bends the overtones of every ringing modal note. The note's own
+  mode stays put, so the pitch holds while the timbre warps.
+- **LFO>Press** (±50 %) moves bow and breath pressure. A long-ringing object smooths a fast swell (the measured
+  swing at 1 Hz on a 3 s glass is about 3 dB; at 0.4 Hz it is about 6 dB).
+- **Rnd Pos**, **Rnd Hard**, **Rnd Pitch** (±25 cents, chosen once per note) and **Rnd Level** (±6 dB) are picked
+  fresh for every hit.
+
 ### After the voices
 
 **Motor** (the vibraphone's spinning discs: tremolo depth, plus **Motor Rate**; the mod wheel adds depth) →
@@ -173,6 +218,19 @@ Parameter IDs and order are permanent; new parameters will be added at the end.
 | 25 | Swell | 5 ms–3 s | 150 ms | How long the bow or breath takes to build up (1.1). |
 | 26 | Air | 0–100 % | 25 % | Rosin scratch (Bow) or breath noise (Blow) (1.1). |
 | 27 | Vibrato | 0–100 % | 0 % | Pitch vibrato, up to ±35 cents at Motor Rate (1.1). |
+| 28 | Buzz | 0–100 % | 0 % | A buzzer's rattle while the note is loud (1.2). |
+| 29 | LFO Sync | Free / Sync | Free | LFO in Hz, or locked to the song (1.2). |
+| 30 | LFO Rate | 0.05–20 Hz | 0.5 Hz | LFO speed when Free (1.2). |
+| 31 | LFO Div | 4 bars … 1/16T | 1 bar | LFO cycle when Synced: 4 bars, 2 bars, 1 bar, 1/2, 1/4, 1/8, 1/16, 1/4T, 1/8T, 1/16T (1.2). |
+| 32 | LFO Shape | Sine … Drift | Sine | Sine, Triangle, Square, Ramp, S&H, Drift (1.2). |
+| 33 | LFO>Pos | −100…+100 % | 0 | LFO to Strike Pos, read at each hit; moves a bow while it sounds (1.2). |
+| 34 | LFO>Hard | −100…+100 % | 0 | LFO to Hardness, read at each hit (1.2). |
+| 35 | LFO>Stretch | −100…+100 % | 0 | LFO to Stretch on ringing notes (1.2). |
+| 36 | LFO>Press | −100…+100 % | 0 | LFO to bow and breath Pressure (1.2). |
+| 37 | Rnd Pos | 0–100 % | 0 % | Random strike position per hit (1.2). |
+| 38 | Rnd Hard | 0–100 % | 0 % | Random hardness per hit (1.2). |
+| 39 | Rnd Pitch | 0–100 % | 0 % | Random detune per note, up to ±25 cents (1.2). |
+| 40 | Rnd Level | 0–100 % | 0 % | Random level per hit, up to ±6 dB (1.2). |
 
 Pitch bend is ±2 semitones and bends ringing notes too.
 
@@ -183,9 +241,10 @@ one Q-Link row: two boxes of two controls, either side of the shark. The panel i
 
 | Page | Rows (left box \| right box) |
 |---|---|
-| STRIKE | MALLET: Hardness, Position \| RING: Decay, Damping · IMPACT: Click, Drop \| BAR: Resonator, Mute · BODY: Body, Size \| ROOM: Room, Size · MODEL: Model, Exciter \| OUTPUT: Width, Volume |
+| STRIKE | MALLET: Hardness, Position \| RING: Decay, Damping · IMPACT: Click, Buzz \| BAR: Resonator, Mute · BODY: Body, Size \| ROOM: Room, Size · MODEL: Model, Exciter \| OUTPUT: Width, Volume |
 | PLAY | DROP: Drop, Time \| MOTOR: Motor, Rate · VELOCITY: Level, Hardness (Vel>Hard) \| TUNING: Octave, Fine · OVERTONES: Stretch, Damping \| DAMPER: Mute, Decay |
 | BOW/BLOW | SOURCE: Exciter (Mallet / Bow / Blow buttons), Pressure \| BREATH: Swell, Air · VIBRATO: Vibrato, Rate \| RING: Decay, Mute · MODEL: Model, Position \| TUNING: Octave, Fine |
+| MOD | LFO: Sync (Free / Sync buttons), Shape \| SPEED: Rate (free), Div (synced) · LFO TO: Position, Hardness \| LFO TO: Stretch, Pressure · RANDOM: Position, Hardness \| RANDOM: Pitch, Level |
 
 Model and Exciter on the STRIKE page are knobs that open their lists when touched.
 
@@ -208,6 +267,11 @@ Model and Exciter on the STRIKE page are knobs that open their lists when touche
 | Kelp Cello | A bowed string near the bridge in a big body, with vibrato (1.1). |
 | Conch | The metal string as a blown air column: breathy and round, with vibrato (1.1). |
 | Bottle Breath | Glass, blown: lots of breath noise, like blowing across a bottle (1.1). |
+| Barnacle Kalimba | Kalimba with bottle-cap buzz, a little random position, hardness and level on each hit (1.2). |
+| Coral Balafon | Marimba bars with buzzing gourds and a loose, human feel: random position, hardness, pitch and level (1.2). |
+| Tide Machine | Marimba with an S&H LFO locked to 1/16 on strike position and hardness: hold Note Repeat (1.2). |
+| Rip Current | Glass whose overtones bend slowly with a triangle LFO on Stretch (1.2). |
+| Undercurrent | Bowed vibes with a drifting LFO moving the bow along the bar and swelling its pressure (1.2). |
 
 ## Tips
 
@@ -222,6 +286,11 @@ Model and Exciter on the STRIKE page are knobs that open their lists when touche
 - **Bowed and blown on the pads**: press harder into a held pad to push the bow or breath (aftertouch). Swell
   sets how fast a note grows; short swells speak at once, long ones bloom. Hold the sustain pedal to keep bowing
   after you let go.
+- **Modulation on the pads**: Tide Machine with Note Repeat at 1/16 is the quickest way to hear it. Each repeat
+  lands somewhere new on the bar. Then try S&H or Drift on LFO>Pos with any program, and a little Rnd Level and
+  Rnd Pos to humanise rolls.
+- **Buzz** suits kalimba, marimba (a balafon) and plucked strings (a sitar-ish jangle). Set it high with a short
+  Decay for a snare-like rattle.
 - **Changing Model or Exciter** affects the next note. A pad that is still ringing switches over on its next hit.
 - **Polyphony**: 16 notes ring at once. A 17th note takes over the quietest one, which fades out over 8 ms in a
   spare slot, so the new note is not delayed and nothing clicks.
@@ -239,13 +308,20 @@ sample at a time. 16 bowed bars take **0.94 %** of a desktop core (about 0.06 % 
 **0.34 %**. On the MPC a bowed bar is roughly **1 %** of a core per note, so a held chord of four to six is fine.
 All 16 bowed at once could reach 10–20 % on the slower MPCs. These are estimates from the desktop.
 
+Buzz costs a few operations per sample per voice while it is on (16 buzzing kalimba voices: **0.28 %**). LFO>Stretch
+re-tunes the ringing modes every 32 samples (16 voices with it on: **0.20 %**).
+
 How it stays cheap: `exp`, `cos` and `pow` run once per note, every 32 samples while a note's pitch is moving
 (Drop, pitch bend, vibrato), or when a knob that changes the ring moves. They never run per sample. A voice is retired once
 it has been below −90 dB for 100 ms, so a finished note costs nothing.
 
 ## What is not in this version
 
-- **No buzz or rattle**: no kalimba buzzers or snare-wire sizzle (a nonlinear rattle is a possible addition).
+- **Buzz takes no energy from the note**: a real buzzer shortens the ring a little; here the ring is the same with
+  or without it.
+- **One LFO, four destinations, shared by all the notes.** There is no envelope or velocity routing beyond the
+  built-in ones (Vel>Hard, aftertouch to Pressure, mod wheel to Motor), and no per-note LFO. LFO>Stretch does
+  nothing on the two string models.
 - **No scraping or rubbing**: Bow is a single bow on one point; there is no rubbed rim (glass harmonica finger) or
   scraper. Bow pressure, not bow speed, is what you play (velocity sets the starting bow speed).
 - **The string Blow is a simple air column**: no reed, and no separate jet delay, so it doesn't jump registers
@@ -273,7 +349,7 @@ tests/build/listentest build/hammerhead-demo.wav
 ```
 
 host_sim: 19 passed, 0 warnings, 0 failures (also at 48 and 96 kHz). `tests/listentest.cpp` renders with random
-block sizes (32–512) and checks (121 checks):
+block sizes (32–512) and checks (151 checks):
 
 - **every mallet program** is percussive: within 5 ms of the strike it is within 0–5 dB of its peak. A single
   note at velocity 100 peaks between −14 and −22 dBFS, and the voice frees itself when the ring dies. **Every
@@ -298,11 +374,16 @@ block sizes (32–512) and checks (121 checks):
   steady, plays A3 within 1 cent (by autocorrelation), and rings away after release;
 - (1.1) **Swell** 50 ms is within 1 dB of full after 0.1 s, and 1.5 s is still 38 dB under; full **aftertouch**
   blows 6 dB harder; **Vibrato** 100 % swings the pitch over about 160 cents;
+- (1.2) **Buzz** 60 % adds 13 dB above 3 kHz to a loud kalimba note and nothing once it has decayed (1.2 s
+  later), and a six-note chord with Buzz at 100 % stays under 0 dBFS; the **LFO** in Sync follows the song
+  position; LFO>Pos (S&H, 1/16) spreads 16 hits from 5 % to 73 % of the way out; LFO>Stretch swings a ringing
+  glass's 2.32× mode 1123 → 928 Hz while the fundamental holds; LFO>Press swings a blown note 6 dB; **Rnd Pitch**
+  lands twelve notes within ±24 cents; **Rnd Level** varies hits over 12 dB;
 - (1.1.1) **Air** on a bowed or blown bar: at 25 % the noise is 35 dB under the tone (about 1 dB more than with no
   air); at 100 % it is 24 dB under, centred near 830 Hz, with only −32 dB of it above 3 kHz;
 - CPU as above.
 
-It then writes `build/hammerhead-demo.wav` (73 s): each of the 15 programs in turn plays a short pentatonic
+It then writes `build/hammerhead-demo.wav` (96 s): each of the 20 programs in turn plays a short pentatonic
 phrase and a chord (Hull Drum plays a little groove; the bowed and blown programs play it legato), each ringing
 into the next.
 
@@ -316,7 +397,7 @@ into the next.
 - `art/plate-src.webp`: the background art. `art/mock-reference.webp`: the mock-up of the look (reference only).
 - `art/knob_small.webp`, `art/pill_on.webp`, `art/pill_off.webp`: the shared Groundswell knob and button art.
 - `skins/`: the rendered panel (TUI.json, Q-Links.json, page backgrounds, knob images).
-- `ui.json`: a stock-kit fallback layout (amber, the same three pages), unused while `skins/` exists.
+- `ui.json`: a stock-kit fallback layout (amber, the same four pages), unused while `skins/` exists.
 - `tests/listentest.cpp`: the offline sound, tuning, feature, click, level and CPU checks, and the demo.
 
 ## Licence

@@ -25,7 +25,7 @@
           "widget": "fader"
         },
         {
-          "param": "Drop",
+          "param": "Buzz",
           "widget": "knob"
         },
         {
@@ -180,6 +180,73 @@
           "param": "Fine",
           "widget": "knob",
           "polarity": "bipolar"
+        }
+      ]
+    },
+    {
+      "name": "MOD",
+      "controls": [
+        {
+          "param": "LFO Sync",
+          "widget": "switch"
+        },
+        {
+          "param": "LFO Shape",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO Rate",
+          "widget": "knob",
+          "visibleWhen": {
+            "param": "LFO Sync",
+            "choice": "Free"
+          }
+        },
+        {
+          "param": "LFO Div",
+          "widget": "slider",
+          "overlay": "menu",
+          "visibleWhen": {
+            "param": "LFO Sync",
+            "choice": "Sync"
+          }
+        },
+        {
+          "param": "LFO>Pos",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>Hard",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>Stretch",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO>Press",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Rnd Pos",
+          "widget": "knob"
+        },
+        {
+          "param": "Rnd Hard",
+          "widget": "knob"
+        },
+        {
+          "param": "Rnd Pitch",
+          "widget": "knob"
+        },
+        {
+          "param": "Rnd Level",
+          "widget": "knob"
         }
       ]
     }

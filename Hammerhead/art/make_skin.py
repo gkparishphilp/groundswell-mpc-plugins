@@ -12,12 +12,13 @@ Source art:
     knob_small.webp         knob with skirt, pointer at 12 o'clock (shared with Abyss, Krill, Wipeout, Largemouth)
     pill_on/off.webp        button pill (shared likewise; no page uses a switch yet)
 
-Layout: three tabs. Each row is one Q-Link row: two boxes of two controls, one either side, so the shark swims
+Layout: four tabs. Each row is one Q-Link row: two boxes of two controls, one either side, so the shark swims
 through the middle.
 
     STRIKE    MALLET | RING,  IMPACT | BAR,  BODY | ROOM,  MODEL | OUTPUT
     PLAY      DROP | MOTOR,  VELOCITY | TUNING,  OVERTONES | DAMPER
     BOW/BLOW  SOURCE | BREATH,  VIBRATO | RING,  MODEL | TUNING          (1.1)
+    MOD       LFO | SPEED,  LFO TO | LFO TO,  RANDOM | RANDOM            (1.2; Buzz replaced Drop on STRIKE)
 
 The skin binds to parameter indices, so it must be regenerated if the parameter list changes (the script checks its
 parameter table against build/params.json when that exists). The drawing machinery is a copy of Abyss's
@@ -50,12 +51,18 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 NAMES = ["vol", "model", "hard", "pos", "click", "decay", "damp", "mute", "stretch", "tube", "body", "bodysize",
          "motor", "motorrate", "width", "room", "roomsize", "velocity", "velhard", "octave", "fine", "drop", "droptime",
          # 1.1
-         "exciter", "pressure", "swell", "air", "vibrato"]
+         "exciter", "pressure", "swell", "air", "vibrato",
+         # 1.2
+         "buzz", "lfosync", "lforate", "lfodiv", "lfoshape", "lfopos", "lfohard", "lfostretch", "lfopress",
+         "rndpos", "rndhard", "rndpitch", "rndlevel"]
 P = {n: i for i, n in enumerate(NAMES)}
 
 CHOICES = {P["model"]: ["Marimba", "Vibes", "Xylophone", "Glock", "Kalimba", "Bell", "Glass", "Steel Pan", "Pluck",
                         "Dulcimer"],
-           P["exciter"]: ["Mallet", "Bow", "Blow"]}
+           P["exciter"]: ["Mallet", "Bow", "Blow"],
+           P["lfosync"]: ["Free", "Sync"],
+           P["lfodiv"]: ["4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4T", "1/8T", "1/16T"],
+           P["lfoshape"]: ["Sine", "Triangle", "Square", "Ramp", "S&H", "Drift"]}
 
 # Knob geometry: Wipeout's (a 76 px box so a heading fits above each row).
 KNOB = dict(src="knob_small.webp", crop=300, knob=58, arc_r=34, arc_w=4, frame=76, frames=100)
@@ -263,7 +270,7 @@ PAGES = [
     page("STRIKE", [
         (("MALLET", [knob("hard", "HARDNESS"), knob("pos", "POSITION")]),
          ("RING", [knob("decay", "DECAY"), knob("damp", "DAMPING")])),
-        (("IMPACT", [knob("click", "CLICK"), knob("drop", "DROP")]),
+        (("IMPACT", [knob("click", "CLICK"), knob("buzz", "BUZZ")]),
          ("BAR", [knob("tube", "RESONATOR"), knob("mute", "MUTE")])),
         (("BODY", [knob("body", "BODY"), knob("bodysize", "SIZE")]),
          ("ROOM", [knob("room", "ROOM"), knob("roomsize", "SIZE")])),
@@ -285,6 +292,14 @@ PAGES = [
          ("RING", [knob("decay", "DECAY"), knob("mute", "MUTE")])),
         (("MODEL", [knob("model", "MODEL"), knob("pos", "POSITION")]),
          ("TUNING", [knob("octave", "OCTAVE", True), knob("fine", "FINE", True)])),
+    ]),
+    page("MOD", [
+        (("LFO", [pills("lfosync", "SYNC"), knob("lfoshape", "SHAPE")]),
+         ("SPEED", [knob("lforate", "FREE"), knob("lfodiv", "SYNCED")])),
+        (("LFO TO", [knob("lfopos", "POSITION", True), knob("lfohard", "HARDNESS", True)]),
+         ("LFO TO", [knob("lfostretch", "STRETCH", True), knob("lfopress", "PRESSURE", True)])),
+        (("RANDOM", [knob("rndpos", "POSITION"), knob("rndhard", "HARDNESS")]),
+         ("RANDOM", [knob("rndpitch", "PITCH"), knob("rndlevel", "LEVEL")])),
     ]),
 ]
 TAB_NAMES = [p["name"] for p in PAGES]

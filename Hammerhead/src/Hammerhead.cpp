@@ -61,6 +61,17 @@
 //                overblows: brighter, and it can jump to an upper mode.
 //   "Vibrato" bends the pitch at "Motor Rate", fading in over 0.4 s after each note starts.
 //
+// BUZZ (1.2): a loose buzzer (kalimba bottle caps, the membranes on balafon gourds, a sitar-ish
+//   bridge) touches the vibrating object whenever it swings past a threshold, a fraction of the
+//   note's own peak: the part of the wave beyond it, roughened by contact noise and high-passed, is
+//   added to the voice. So it rattles while the note is loud and cuts out as the ring decays.
+//
+// MODULATION (1.2): one LFO (free in Hz, or locked to the song; Sine, Triangle, Square, Ramp,
+//   S&H, Drift) with a depth knob per destination: Strike Pos and Hardness (read at each hit, so
+//   a sequence of hits walks across the bar; a bow moves along it), Stretch (the overtones bend
+//   while the note rings) and Pressure (bow and breath swell). Plus per-hit randomness: position,
+//   hardness, pitch and level, so repeated notes never sound copy-pasted.
+//
 // OUTPUT   voices -> "Motor" tremolo (the vibraphone's spinning discs; mod wheel adds to it)
 //          -> "Body" (four resonant band-passes, a wooden box; "Body Size" moves them)
 //          -> "Room" (8-line feedback delay network, "Room Size" = T60)
@@ -70,6 +81,7 @@
 #include "dsp/math.h"
 #include "dsp/smoother.h"
 #include "dsp/svf.h"
+#include "dsp/tempo.h"
 
 #include <algorithm>
 #include <cmath>
@@ -89,6 +101,10 @@ constexpr float kVoiceGain = 0.30f; // overall voice level (calibrated by tests/
 
 enum Engine  { kModal = 0, kString };
 enum Excite  { kMallet = 0, kBow, kBlow };
+enum LfoShape { kLfoSine = 0, kLfoTri, kLfoSquare, kLfoRamp, kLfoSH, kLfoDrift };
+static const char* const kLfoDivNames[] = {"4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4T", "1/8T", "1/16T"};
+static const float kLfoDivBeats[] = {16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 2.0f / 3.0f, 1.0f / 3.0f, 1.0f / 6.0f};
+constexpr int kNumLfoDivs = 10;
 constexpr float kBowGain   = 40.0f;   // modal bow: friction force gain (x 1 / the note's mode)
 constexpr float kOutBowModal = 1.8f, kOutBlowModal = 0.85f, kOutBowString = 2.1f, kOutBlowString = 0.9f;
 enum PosType { kPosBeam = 0, kPosTilt };
@@ -258,6 +274,14 @@ struct Voice
     uint32_t nrng = 1u; float nlp1 = 0.0f, nlp2 = 0.0f;   // bow / breath noise
     float aLp = 0.0f, aBp = 0.0f;                          // the audible air's band-pass (follows the note)
     float vibFade = 0.0f, vibCents = 0.0f;
+    // 1.2
+    float rndCents = 0.0f;           // per-note random detune (Rnd Pitch)
+    float lnTab[kModes] = {};        // ln(table ratio): LFO>Stretch bends ratio by exp(lnTab * 0.25 * dStretch)
+    float strMul[kModes] = {1, 1, 1, 1, 1, 1, 1, 1};
+    float pos = 0.25f;               // strike / bow position used for this note (after LFO and random)
+    float posRnd = 0.0f;             // this hit's random position offset (Rnd Pos)
+    float buzzRef = 0.1f, buzzPk = 0.0f, bzH = 0.0f;   // buzz: floor for the peak, the note's peak, high-pass state
+    uint32_t brng = 7u;
 
     // string
     float* buf = nullptr; int size = 0, mask = 0, wpos = 0;
@@ -285,6 +309,9 @@ public:
         kDrop, kDropTime,
         // 1.1
         kExciter, kPressure, kSwell, kAir, kVibrato,
+        // 1.2
+        kBuzz, kLfoSync, kLfoRate, kLfoDiv, kLfoShape, kLfoPos, kLfoHard, kLfoStretch, kLfoPress,
+        kRndPos, kRndHard, kRndPitch, kRndLevel,
         kNumParams
     };
 
@@ -294,7 +321,7 @@ public:
         i.name = "Hammerhead";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'v', 'P', 'T');   // == "uid" in plugin.json. Never change.
-        i.version = 1110;
+        i.version = 1200;
         i.isInstrument = true;
         i.numInputs = 0;
         i.numOutputs = 2;
@@ -356,6 +383,26 @@ public:
         addParam(floatParam ("air",      "Air", 0.0f, 100.0f, 25.0f, "%", 0));
         // Pitch vibrato at Motor Rate, up to +-35 cents, fading in after each note starts.
         addParam(floatParam ("vibrato",  "Vibrato", 0.0f, 100.0f, 0.0f, "%", 0));
+        // ---- 1.2: appended, so 1.0 and 1.1 projects load unchanged (all of these start at "off"). ----
+        // A loose buzzer on the object (kalimba bottle caps, balafon membranes): rattles while the note is loud.
+        addParam(floatParam ("buzz",     "Buzz", 0.0f, 100.0f, 0.0f, "%", 0));
+        // The LFO: free (LFO Rate) or locked to the song (LFO Div), and its shape.
+        addParam(choiceParam("lfosync",  "LFO Sync", {"Free", "Sync"}, 0));
+        addParam(logParam   ("lforate",  "LFO Rate", 0.05f, 20.0f, 0.5f, "Hz", 2));
+        std::vector<std::string> divs;
+        for (const char* d : kLfoDivNames) divs.push_back(d);
+        addParam(choiceParam("lfodiv",   "LFO Div", divs, 2));
+        addParam(choiceParam("lfoshape", "LFO Shape", {"Sine", "Triangle", "Square", "Ramp", "S&H", "Drift"}, kLfoSine));
+        // How far the LFO moves each destination (bipolar). Position and Hardness are read at each hit.
+        addParam(floatParam ("lfopos",   "LFO>Pos", -100.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("lfohard",  "LFO>Hard", -100.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("lfostretch","LFO>Stretch", -100.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("lfopress", "LFO>Press", -100.0f, 100.0f, 0.0f, "%", 0));
+        // Per-hit randomness.
+        addParam(floatParam ("rndpos",   "Rnd Pos", 0.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("rndhard",  "Rnd Hard", 0.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("rndpitch", "Rnd Pitch", 0.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("rndlevel", "Rnd Level", 0.0f, 100.0f, 0.0f, "%", 0));
 
         if (numParams() != kNumParams) mpc::log("Hammerhead: parameter count mismatch (%d vs %d)", numParams(), (int)kNumParams);
 
@@ -400,6 +447,22 @@ public:
                           {kMotorRate, 5}, {kRoom, 40}, {kRoomSize, 3}});
         program("Bottle Breath", {{kModel, 6}, {kExciter, kBlow}, {kPressure, 30}, {kSwell, 0.2f}, {kAir, 55}, {kPos, 30},
                                   {kDecay, 3}, {kDamp, 40}, {kTube, 30}, {kBody, 0}, {kRoom, 30}, {kRoomSize, 1.8f}});
+        // 1.2: buzz and modulation
+        program("Barnacle Kalimba", {{kModel, 4}, {kBuzz, 55}, {kHard, 55}, {kPos, 40}, {kClick, 25}, {kDecay, 2.8f}, {kDamp, 50},
+                                     {kTube, 20}, {kBody, 45}, {kBodySize, 125}, {kRoom, 18}, {kOctave, 1},
+                                     {kRndPos, 20}, {kRndHard, 15}, {kRndLevel, 15}});
+        program("Coral Balafon", {{kModel, 0}, {kBuzz, 40}, {kHard, 60}, {kPos, 20}, {kClick, 35}, {kDecay, 1.4f}, {kDamp, 75},
+                                  {kTube, 70}, {kBody, 20}, {kRoom, 22}, {kRndPos, 25}, {kRndHard, 20}, {kRndPitch, 10},
+                                  {kRndLevel, 20}});
+        program("Tide Machine", {{kModel, 0}, {kHard, 50}, {kPos, 35}, {kClick, 30}, {kDecay, 1.2f}, {kDamp, 70}, {kTube, 50},
+                                 {kLfoSync, 1}, {kLfoDiv, 6}, {kLfoShape, kLfoSH}, {kLfoPos, 80}, {kLfoHard, 60},
+                                 {kRndLevel, 10}, {kRoom, 25}});
+        program("Rip Current", {{kModel, 6}, {kHard, 70}, {kPos, 50}, {kClick, 10}, {kDecay, 6}, {kDamp, 15}, {kTube, 0},
+                                {kBody, 0}, {kLfoShape, kLfoTri}, {kLfoRate, 0.15f}, {kLfoStretch, 45}, {kRoom, 45},
+                                {kRoomSize, 3.5f}, {kOctave, 1}});
+        program("Undercurrent", {{kModel, 1}, {kExciter, kBow}, {kPressure, 45}, {kSwell, 0.4f}, {kAir, 15}, {kPos, 30},
+                                 {kDecay, 6}, {kDamp, 30}, {kTube, 45}, {kBody, 0}, {kLfoShape, kLfoDrift}, {kLfoRate, 0.3f},
+                                 {kLfoPos, 60}, {kLfoPress, 40}, {kRoom, 40}, {kRoomSize, 2.5f}, {kOctave, 1}});
 
         // Per-model normalisation: the modes' strengths add up to the same power in every model.
         for (int m = 0; m < kNumModels; ++m)
@@ -453,6 +516,8 @@ public:
         }
         chanAT_ = 0.0f;
         vibPhase_ = 0.0f;
+        lfoPhase_ = 0.0f; lfoSH_ = lfoDriftT_ = lfoDrift_ = lfoDStr_ = 0.0f;
+        rng_ = 0x2545F491u;
         std::fill(strBuf_.begin(), strBuf_.end(), 0.0f);
         for (auto& b : fdnBuf_) std::fill(b.begin(), b.end(), 0.0f);
         for (float& l : fdnLp_) l = 0.0f;
@@ -492,10 +557,15 @@ public:
             tuneDirty_ = false;
             for (Voice& v : voices_) if (v.stage != kOff) tune(v, false);
         }
+        // LFO: in Sync, locked to the song position while the MPC plays.
+        const mpc::Transport& tr = ctx.transport;
+        lfoBeats_ = kLfoDivBeats[s_.lfoDiv];
+        lfoHz_ = s_.lfoSync ? beatsToHz(lfoBeats_, tr.tempoValid ? tr.bpm : 120.0) : s_.lfoRate;
+        if (s_.lfoSync && tr.playing && tr.ppqValid) setLfoPhase(ppqPhase(tr.ppqPos, lfoBeats_));
         for (Voice& v : voices_)
         {
             v.peak = 0.0f;
-            v.press = clamp(s_.pressure + std::max(chanAT_, v.polyAT), 0.0f, 1.0f);
+            v.press = clamp(s_.pressure + std::max(chanAT_, v.polyAT) + 0.5f * s_.lfoPress * lfoVal_, 0.0f, 1.0f);
         }
 
         // Voices: segments break at MIDI events and at control ticks.
@@ -649,6 +719,10 @@ private:
         float fine = 0.0f, drop = 0.0f, dropTime = 0.06f;
         int exc = kMallet;
         float pressure = 0.5f, swell = 0.15f, air = 0.25f, vibrato = 0.0f;
+        float buzz = 0.0f;
+        bool lfoSync = false; float lfoRate = 0.5f; int lfoDiv = 2, lfoShape = 0;
+        float lfoPos = 0.0f, lfoHard = 0.0f, lfoStretch = 0.0f, lfoPress = 0.0f;
+        float rndPos = 0.0f, rndHard = 0.0f, rndPitch = 0.0f, rndLevel = 0.0f;
     };
     // Everything a ringing voice's coefficients depend on.
     struct CoefKey { float decay, damp, stretch, tube, mute, fine; int octave; };
@@ -688,6 +762,20 @@ private:
         // Air taper (1.1.1): x^1.5, so the lower half of the knob is a hint and the top is still breathy.
         s_.air = std::pow(get(kAir) * 0.01f, 1.5f);
         s_.vibrato = get(kVibrato) * 0.01f;
+        s_.buzz = get(kBuzz) * 0.01f;
+        s_.lfoSync = getInt(kLfoSync) == 1;
+        s_.lfoRate = clamp(get(kLfoRate), 0.05f, 20.0f);
+        s_.lfoDiv = clamp(getInt(kLfoDiv), 0, kNumLfoDivs - 1);
+        s_.lfoShape = clamp(getInt(kLfoShape), 0, 5);
+        s_.lfoPos = get(kLfoPos) * 0.01f;
+        s_.lfoHard = get(kLfoHard) * 0.01f;
+        s_.lfoStretch = get(kLfoStretch) * 0.01f;
+        s_.lfoPress = get(kLfoPress) * 0.01f;
+        s_.rndPos = get(kRndPos) * 0.01f;
+        s_.rndHard = get(kRndHard) * 0.01f;
+        s_.rndPitch = get(kRndPitch) * 0.01f;
+        s_.rndLevel = get(kRndLevel) * 0.01f;
+        bzK_ = 1.0f - std::exp(-kTwoPi * 1200.0f / sr_);
         kSwell_ = 1.0f - std::exp(-3.0f / (s_.swell * sr_));
         kLift_ = 1.0f - std::exp(-3.0f / (0.06f * sr_));
         nk1_ = 1.0f - std::exp(-kTwoPi * std::min(900.0f + 2600.0f * s_.pressure, 0.45f * sr_) / sr_);
@@ -830,13 +918,18 @@ private:
         }
         float pan = s_.width * clamp((float)(note - 60) / 24.0f, -1.0f, 1.0f) * 0.85f;
         equalPowerPan(pan, v.gL, v.gR);
-        v.beta = clamp(0.5f - 0.46f * s_.pos, 0.04f, 0.5f);   // bowed string: the bow point
+        // Per-note randomness that has to be known before the coefficients: detune and the contact point.
+        v.rndCents = (rnd() - 0.5f) * 50.0f * s_.rndPitch;             // +-25 cents at 100 %
+        v.posRnd = (rnd() - 0.5f) * 0.8f * s_.rndPos;
+        v.pos = notePos(v);
+        v.beta = clamp(0.5f - 0.46f * v.pos, 0.04f, 0.5f);   // bowed string: the bow point
+        v.buzzPk = 0.0f; v.bzH = 0.0f; v.brng = (uint32_t)(note * 2654435761u) | 1u;
         computeCoeffs(v, true);
-        strike(v, vel01);
+        strike(v, vel01, true);
     }
 
     // A new hit (or a new bow stroke or breath) on a voice: velocity, mallet, contact point, pitch drop.
-    void strike(Voice& v, float vel01)
+    void strike(Voice& v, float vel01, bool fresh = false)
     {
         const ModelDef& m = kModels[v.model];
         v.order = ++orderCounter_;
@@ -847,38 +940,24 @@ private:
         const float jitT = 1.0f + 0.05f * ((float)((seed >> 18) & 1023) / 511.5f - 1.0f);
 
         v.level = (1.0f - s_.velSens * (1.0f - std::pow(vel01, 1.4f))) * kVoiceGain * m.gain * jitA;
-        const float h = clamp(s_.hard + s_.velHard * (vel01 - 0.6f), 0.0f, 1.0f);
+        // 1.2: per-hit randomness and the LFO (Rnd Level is +-6 dB at 100 %).
+        v.level *= std::exp2((rnd() - 0.5f) * 2.0f * s_.rndLevel);
+        const float hardNow = clamp(s_.hard + (rnd() - 0.5f) * s_.rndHard + 0.5f * s_.lfoHard * lfoVal_, 0.0f, 1.0f);
+        if (!fresh)
+        {
+            v.posRnd = (rnd() - 0.5f) * 0.8f * s_.rndPos;
+            v.pos = notePos(v);
+        }
+        v.buzzPk = 0.0f;
+        v.buzzRef = 0.35f * kVoiceGain * m.gain;
+        const float h = clamp(hardNow + s_.velHard * (vel01 - 0.6f), 0.0f, 1.0f);
 
         v.dropSt = s_.drop * (0.35f + 0.65f * vel01);
         if (v.muted) { v.muted = v.choked = false; computeCoeffs(v); }
         else tune(v, false);
 
         // How strongly each mode is driven at the contact point (modal models).
-        if (m.engine == kModal)
-        {
-            const float norm = ampNorm_[v.model];
-            const float d = 0.33f * s_.pos;          // beam: distance of the strike from the centre
-            const float t = 2.0f * s_.pos - 1.0f;    // tilt: -1 dark .. +1 bright
-            v.gmax = 0.05f;
-            for (int k = 0; k < kModes; ++k)
-            {
-                if (!v.alive[k]) { v.gpos[k] = 0.0f; continue; }
-                float g = 1.0f;
-                if (m.posType == kPosBeam)
-                {
-                    const int bn = m.beam[k];
-                    if (bn > 0)
-                    {
-                        const float a = kPi * ((float)bn + 0.5f) * d;
-                        const float s = (bn & 1) ? std::cos(a) : std::sin(a);
-                        g = 0.12f + 0.88f * std::fabs(s);
-                    }
-                }
-                else g = clamp(std::pow(v.ratio[k], 0.6f * t), 0.1f, 4.0f);
-                v.gpos[k] = m.amp[k] * norm * g;
-                v.gmax = std::max(v.gmax, v.gpos[k]);
-            }
-        }
+        if (m.engine == kModal) modeWeights(v, v.pos);
 
         if (v.exc != kMallet)
         {
@@ -954,7 +1033,7 @@ private:
         {
             // The strike point: the force goes in again, inverted, after the time it takes to
             // reach the strike point and back (a comb filter on the excitation).
-            const float beta = 0.5f - 0.46f * s_.pos;
+            const float beta = 0.5f - 0.46f * v.pos;
             const float N = sr_ / (f1 * bendRatio_ * std::exp2(v.dropSt / 12.0f));
             v.exB = x;
             v.exB.wait = std::max(1, (int)std::lround(beta * N));
@@ -984,7 +1063,7 @@ private:
     void computeCoeffs(Voice& v, bool snap = false)
     {
         const ModelDef& m = kModels[v.model];
-        v.hz = clamp(midiToHz((float)v.note + 12.0f * (float)s_.octave + 0.01f * s_.fine), 20.0f, 0.4f * sr_);
+        v.hz = clamp(midiToHz((float)v.note + 12.0f * (float)s_.octave + 0.01f * (s_.fine + v.rndCents)), 20.0f, 0.4f * sr_);
         const float keyT = clamp(std::pow(262.0f / v.hz, 0.4f), 0.3f, 2.5f);   // high notes ring shorter
         const float muteT = v.choked ? 0.03f : 0.06f * std::pow(40.0f, 1.0f - s_.mute);
         float T0 = s_.decay * keyT;
@@ -998,6 +1077,8 @@ private:
                 const float ratio = std::pow(m.ratio[k], str);
                 const float fk = v.hz * ratio;
                 v.ratio[k] = ratio;
+                v.lnTab[k] = std::log(m.ratio[k]);
+                v.strMul[k] = lfoDStr_ != 0.0f ? std::exp(v.lnTab[k] * 0.25f * lfoDStr_) : 1.0f;
                 v.alive[k] = fk < nyq && m.amp[k] > 0.0f;
                 v.w[k] = kTwoPi * std::min(fk, nyq) / sr_;
                 float T = T0 * m.dec[k] * std::pow(ratio, -dampExp) / (1.0f + (fk / 9000.0f) * (fk / 9000.0f));
@@ -1048,7 +1129,7 @@ private:
         {
             for (int k = 0; k < kModes; ++k)
             {
-                float th = v.w[k] * ratioNow;
+                float th = v.w[k] * ratioNow * v.strMul[k];
                 if (th > 2.8f)
                 {
                     // Pushed towards Nyquist by the drop: drop this mode for the rest of the note.
@@ -1057,7 +1138,7 @@ private:
                 v.a1[k] = 2.0f * v.r[k] * std::cos(th);
                 if (v.exc != kMallet) v.cinv[k] = 0.5f / std::max(std::sin(0.5f * th), 1e-4f);
             }
-            v.ta1 = 2.0f * v.tr * std::cos(std::min(v.tw * ratioNow, 2.8f));
+            v.ta1 = 2.0f * v.tr * std::cos(std::min(v.tw * ratioNow * v.strMul[0], 2.8f));
         }
         else
         {
@@ -1082,8 +1163,78 @@ private:
         }
     }
 
+    // ----- LFO ------------------------------------------------------------------------------------------
+    void lfoWrap()
+    {
+        lfoSH_ = 2.0f * rnd() - 1.0f;
+        lfoDriftT_ = 2.0f * rnd() - 1.0f;
+    }
+    void setLfoPhase(float ph)
+    {
+        if (ph < lfoPhase_ - 0.5f) lfoWrap();          // crossed the start of a cycle
+        lfoPhase_ = ph;
+        lfoVal_ = lfoShape(lfoPhase_);
+    }
+    float lfoShape(float ph) const
+    {
+        switch (s_.lfoShape)
+        {
+            case kLfoTri:    return ph < 0.5f ? -1.0f + 4.0f * ph : 3.0f - 4.0f * ph;
+            case kLfoSquare: return ph < 0.5f ? 1.0f : -1.0f;
+            case kLfoRamp:   return 1.0f - 2.0f * ph;
+            case kLfoSH:     return lfoSH_;
+            case kLfoDrift:  return lfoDrift_;
+            default:         return fastSin01(ph);
+        }
+    }
+    void lfoTick()
+    {
+        const float inc = lfoHz_ * (float)kCtrl / sr_;
+        lfoPhase_ += inc;
+        if (lfoPhase_ >= 1.0f) { lfoPhase_ -= std::floor(lfoPhase_); lfoWrap(); }
+        lfoDrift_ += (lfoDriftT_ - lfoDrift_) * std::min(1.0f, 4.0f * inc);   // Drift glides to each new random point
+        lfoVal_ = lfoShape(lfoPhase_);
+    }
+
+    // Where this note is hit (or bowed): Strike Pos + its per-hit random offset + the LFO.
+    float notePos(const Voice& v) const { return clamp(s_.pos + v.posRnd + 0.5f * s_.lfoPos * lfoVal_, 0.0f, 1.0f); }
+
+    // How strongly each mode is driven at contact point `pos` (modal models).
+    void modeWeights(Voice& v, float pos)
+    {
+        const ModelDef& m = kModels[v.model];
+        const float norm = ampNorm_[v.model];
+        const float d = 0.33f * pos;          // beam: distance of the strike from the centre
+        const float t = 2.0f * pos - 1.0f;    // tilt: -1 dark .. +1 bright
+        v.gmax = 0.05f;
+        for (int k = 0; k < kModes; ++k)
+        {
+            if (!v.alive[k]) { v.gpos[k] = 0.0f; continue; }
+            float g = 1.0f;
+            if (m.posType == kPosBeam)
+            {
+                const int bn = m.beam[k];
+                if (bn > 0)
+                {
+                    const float a = kPi * ((float)bn + 0.5f) * d;
+                    const float sn = (bn & 1) ? std::cos(a) : std::sin(a);
+                    g = 0.12f + 0.88f * std::fabs(sn);
+                }
+            }
+            else g = clamp(std::pow(v.ratio[k], 0.6f * t), 0.1f, 4.0f);
+            v.gpos[k] = m.amp[k] * norm * g;
+            v.gmax = std::max(v.gmax, v.gpos[k]);
+        }
+    }
+
     void controlTick()
     {
+        lfoTick();
+        // LFO>Stretch bends every ringing modal voice's overtones; LFO>Pos moves a bow along the bar.
+        const float dStr = s_.lfoStretch * lfoVal_;
+        const bool strMoved = std::fabs(dStr - lfoDStr_) > 1e-3f || (dStr == 0.0f && lfoDStr_ != 0.0f);
+        if (strMoved) lfoDStr_ = dStr;
+        const bool bowMoves = s_.lfoPos != 0.0f;
         vibPhase_ = wrapPhase(vibPhase_ + s_.motorRate * (float)kCtrl / sr_);
         const float vibSin = fastSin01(vibPhase_);
         const float fadeInc = (float)kCtrl / (0.4f * sr_);
@@ -1091,6 +1242,20 @@ private:
         {
             if (v.stage == kOff) continue;
             bool retune = false;
+            if (kModels[v.model].engine == kModal)
+            {
+                if (strMoved)
+                {
+                    for (int k = 0; k < kModes; ++k) v.strMul[k] = std::exp(v.lnTab[k] * 0.25f * lfoDStr_);
+                    retune = true;
+                }
+                if (bowMoves && v.exc != kMallet)
+                {
+                    v.pos = notePos(v);
+                    modeWeights(v, v.pos);
+                    setSustainB(v);
+                }
+            }
             if (v.dropSt > 0.0f)
             {
                 v.dropSt *= dropK_;
@@ -1380,6 +1545,37 @@ private:
         v.aLp = flushDenormal(aLp); v.aBp = flushDenormal(aBp);
     }
 
+    // Buzz: a loose buzzer touches the object whenever it swings past a threshold (a fraction of the
+    // note's peak, lower with more Buzz). The part of the wave beyond it, roughened by contact noise
+    // and high-passed at 1.2 kHz, is the rattle. It stops by itself as the ring decays below the
+    // threshold. Soft notes buzz less: the peak is never taken as less than a medium hit's.
+    void applyBuzz(Voice& v, float* mono, int n)
+    {
+        const float b = s_.buzz;
+        const float frac = 0.55f - 0.5f * b;
+        const float gain = 1.6f * b;
+        const float k = bzK_;
+        float pk = v.buzzPk, h = v.bzH;
+        uint32_t r = v.brng;
+        const float ref = v.buzzRef;
+        for (int i = 0; i < n; ++i)
+        {
+            const float x = mono[i], a = std::fabs(x);
+            pk = std::max(pk, a);
+            const float e = a - frac * std::max(pk, ref);
+            float rattle = 0.0f;
+            if (e > 0.0f)
+            {
+                r ^= r << 13; r ^= r >> 17; r ^= r << 5;
+                const float nz = (float)(int32_t)r * 4.656613e-10f;
+                rattle = (x > 0.0f ? e : -e) * (0.6f + 1.4f * nz);
+            }
+            h += k * (rattle - h);
+            mono[i] = x + (rattle - h) * gain;
+        }
+        v.buzzPk = pk; v.bzH = flushDenormal(h); v.brng = r;
+    }
+
     void renderVoice(Voice& v, float* L, float* R, int n)
     {
         const bool string = kModels[v.model].engine == kString;
@@ -1422,6 +1618,9 @@ private:
             else renderModal<false>(v, nullptr, mono, n);
         }
 
+        if (haveClk) for (int i = 0; i < n; ++i) mono[i] += clk[i];
+        if (s_.buzz > 0.0f) applyBuzz(v, mono, n);
+
         float peak = v.peak;
         const float gL = v.gL, gR = v.gR;
         if (v.stage == kSteal)
@@ -1430,7 +1629,7 @@ private:
             for (int i = 0; i < n; ++i)
             {
                 const float g = 1.0f - u * u * (3.0f - 2.0f * u);
-                const float s = (mono[i] + (haveClk ? clk[i] : 0.0f)) * g;
+                const float s = mono[i] * g;
                 u = std::min(1.0f, u + v.fadeStep);
                 L[i] += s * gL;
                 if (R) R[i] += s * gR;
@@ -1445,7 +1644,7 @@ private:
         }
         for (int i = 0; i < n; ++i)
         {
-            const float s = mono[i] + (haveClk ? clk[i] : 0.0f);
+            const float s = mono[i];
             peak = std::max(peak, std::fabs(s));
             L[i] += s * gL;
             if (R) R[i] += s * gR;
@@ -1461,6 +1660,11 @@ private:
     float bendRatio_ = 1.0f, dropK_ = 0.9f;
     float kSwell_ = 0.01f, kLift_ = 0.01f, nk1_ = 0.3f, nk2_ = 0.04f, hpK_ = 0.004f;
     float chanAT_ = 0.0f, vibPhase_ = 0.0f;
+    // 1.2: LFO and randomness
+    float lfoHz_ = 0.5f, lfoPhase_ = 0.0f, lfoVal_ = 0.0f, lfoSH_ = 0.0f, lfoDriftT_ = 0.0f, lfoDrift_ = 0.0f, lfoBeats_ = 4.0f;
+    float lfoDStr_ = 0.0f, bzK_ = 0.15f;
+    uint32_t rng_ = 0x2545F491u;
+    float rnd() { rng_ ^= rng_ << 13; rng_ ^= rng_ >> 17; rng_ ^= rng_ << 5; return (float)(rng_ >> 8) * (1.0f / 16777216.0f); }
     float ampNorm_[kNumModels] = {};
     Voice voices_[kNumSlots];
     std::vector<float> strBuf_;

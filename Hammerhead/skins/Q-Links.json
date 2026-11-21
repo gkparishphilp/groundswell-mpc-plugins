@@ -21,7 +21,7 @@
                     "Q-Link 7": 15,
                     "Q-Link 8": 16,
                     "Q-Link 9": 4,
-                    "Q-Link 10": 21,
+                    "Q-Link 10": 28,
                     "Q-Link 11": 9,
                     "Q-Link 12": 7,
                     "Q-Link 13": 2,
@@ -74,6 +74,29 @@
                     "Q-Link 14": 24,
                     "Q-Link 15": 25,
                     "Q-Link 16": 26
+                }
+            },
+            {
+                "Tab": 4,
+                "SubTab": 1,
+                "Bank Direction": "RowTopDown",
+                "Q-Links": {
+                    "Q-Link 1": -1,
+                    "Q-Link 2": -1,
+                    "Q-Link 3": -1,
+                    "Q-Link 4": -1,
+                    "Q-Link 5": 37,
+                    "Q-Link 6": 38,
+                    "Q-Link 7": 39,
+                    "Q-Link 8": 40,
+                    "Q-Link 9": 33,
+                    "Q-Link 10": 34,
+                    "Q-Link 11": 35,
+                    "Q-Link 12": 36,
+                    "Q-Link 13": 29,
+                    "Q-Link 14": 32,
+                    "Q-Link 15": 30,
+                    "Q-Link 16": 31
                 }
             }
         ]
