@@ -83,6 +83,20 @@ Init 808, Deep 808, Sub Anchor, Rolling Pluck, Acid Line, Reese Garage, Dub Step
 Roughly 2–4% of one MPC core. On a desktop the whole plugin takes about 0.35% of real time with the
 Reese voice. The chord analysis is spread over several audio blocks so no single block pays for it.
 
+## The panel
+
+A custom skin made from the artwork in `art/`: four tabs (GROOVE, NOTES, SOUND, MIX), controls down
+either side of the fish, and on every tab a strip under it that shows a light on each kick, the key
+it found, how sure it is, and the chord the bass is on. Chord Len is greyed out while Changes is
+Follow or Tonic. `ui.json` is not used while `skins/` exists.
+
+The skin binds to parameter numbers, so after changing parameters, render it before building:
+
+```
+python3 plugins/Largemouth/art/make_skin.py      # writes skins/ and build/skin-preview-*.png
+python3 tools/build.py plugins/Largemouth
+```
+
 ## Testing
 
 `tests/listentest.cpp` renders a boom-bap loop with an Am–F–G–Am pad and checks that the plugin
