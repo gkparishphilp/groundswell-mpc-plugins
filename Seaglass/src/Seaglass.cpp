@@ -8,8 +8,9 @@
 //            (freeze a note, play the next, tap Add, and so on: a frozen chord). "Live" sets how much
 //            of the normal reverb you still hear while the pad holds. Switching Freeze off lets the
 //            whole pad die away at the Decay time.
-//   SHIMMER  a pitch shifter in the feedback loop: the tail is shifted up an octave (or a fifth,
-//            two octaves, or down an octave) and fed back in, so every pass rises and sparkles.
+//   SHIMMER  a pitch shifter in the feedback loop: the tail is shifted by "Shift" (up or down by up
+//            to two octaves in semitones, or by a few cents near the centre of the dial) and fed
+//            back in, so every pass rises (or sinks, or slowly drifts) and sparkles.
 //   SWELL    ducks the tail while you play and lets it bloom back in the gaps ("Rise" seconds,
 //            S-shaped), the way Tidepools waits for you to stop.
 //
@@ -79,11 +80,40 @@ static const float kDiffCoef[4] = {0.75f, 0.75f, 0.625f, 0.625f};
 // parameter enum inside the class (Abyss 1.0 shipped two dead knobs because of exactly that).
 enum IntervalChoice { kIvOctave = 0, kIvFifth, kIvTwoOct, kIvOctDown };
 static const char* const kIntervalNames[] = {"Octave", "Fifth", "2 Oct", "Oct Down"};
-static const float kIntervalRatio[] = {2.0f, 1.5f, 4.0f, 0.5f};
-constexpr float kGrainSec = 0.07f;       // pitch shifter window (70 ms)
+static const float kIntervalSemis[] = {12.0f, 7.0f, 24.0f, -12.0f};
+
+// Shift (1.2): one bipolar dial u in [-1, 1]. The middle fifth of its travel (|u| <= 0.2) is cents,
+// on a square curve so the very centre is finest (+-100 ct at the edge of the zone); beyond that it
+// steps through whole semitones 1..24, so intervals land exactly in tune.
+constexpr float kShiftCentsZone = 0.2f;
+constexpr int kShiftMaxSemis = 24;
+inline float shiftToSemis(float u)
+{
+    const float a = std::fabs(u);
+    const float sgn = u < 0.0f ? -1.0f : 1.0f;
+    if (a <= kShiftCentsZone)
+    {
+        const float t = a / kShiftCentsZone;
+        return sgn * t * t;                       // semitones (up to 1 = 100 ct)
+    }
+    const float step = (1.0f - kShiftCentsZone) / (float)kShiftMaxSemis;
+    const int k = std::min(kShiftMaxSemis, 1 + (int)((a - kShiftCentsZone) / step));
+    return sgn * (float)k;
+}
+// The dial position at the middle of semitone k's step (k >= 1), e.g. +12 for the default.
+constexpr float shiftForSemis(int k)
+{
+    return (k < 0 ? -1.0f : 1.0f) * (kShiftCentsZone + ((float)(k < 0 ? -k : k) - 0.5f) * (1.0f - kShiftCentsZone) / (float)kShiftMaxSemis);
+}
+constexpr float kShiftDefault = shiftForSemis(12);
+
+// The pitch shifter's window: 70 ms, longer for big shifts so each grain lasts at least ~45 ms.
+constexpr float kGrainSec = 0.07f;
+constexpr float kGrainMinLife = 0.045f;
+constexpr float kGrainMaxSec = 0.14f;
 
 constexpr float kWetTrim = 1.0f;         // wet level so a held sound's tail is about as loud as the input
-constexpr float kShimCeiling = 0.3f;     // the shimmer feed backs off when the wet RMS passes this
+constexpr float kShimCeiling = 0.3f;     // the shimmer feed shuts down as the wet RMS passes this
 constexpr float kShimMaxFeed = 1.1f;     // shimmer feed at 100 %
 
 inline float smooth01(float x)
@@ -193,6 +223,8 @@ public:
         kSwell, kRise, kSense,
         // 1.1
         kAdd, kLive,
+        // 1.2
+        kShift,
         kNumParams
     };
 
@@ -202,7 +234,7 @@ public:
         i.name = "Seaglass";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'v', 'X', 'f');   // == "uid" in plugin.json. Never change.
-        i.version = 1100;
+        i.version = 1200;
         i.isInstrument = false;
         i.numInputs = 2;
         i.numOutputs = 2;
@@ -237,6 +269,8 @@ public:
         addParam(logParam   ("fade",     "Fade", 20.0f, 4000.0f, 250.0f, "", 0));    // text from formatValue
         // Pitch-shifted feedback: how strongly the tail climbs, and by what interval.
         addParam(floatParam ("shimmer",  "Shimmer", 0.0f, 100.0f, 0.0f, "%", 0));
+        // (1.0/1.1: the shimmer interval. Replaced on the panel by Shift in 1.2; it still applies while
+        // Shift sits at its default, so older projects keep their sound.)
         addParam(choiceParam("interval", "Interval", intervals, kIvOctave));
         // Swell: how far the tail ducks while you play, how long it takes to bloom back, and the
         // input level that counts as playing.
@@ -248,6 +282,9 @@ public:
         addParam(boolParam  ("add",      "Add", false));                                 // text from formatValue
         // How much of the normal reverb plays alongside the pad while Freeze is on.
         addParam(floatParam ("live",     "Live", 0.0f, 100.0f, 100.0f, "%", 0));
+        // ---- 1.2 ----
+        // The shimmer's shift on each trip round the loop: cents near the centre, semitones beyond.
+        addParam(floatParam ("shift",    "Shift", -1.0f, 1.0f, kShiftDefault, "", 3));   // text from formatValue
 
         if (numParams() != kNumParams) mpc::log("Seaglass: parameter count mismatch (%d vs %d)", numParams(), (int)kNumParams);
 
@@ -261,15 +298,18 @@ public:
         program("Seaglass", {});
         program("Frosted Shore", {{kMix, 30}, {kDecay, 2.8f}, {kPreDelay, 30}, {kTone, 9500}, {kMotion, 30}, {kLowCut, 180}});
         program("Wave-Worn", {{kMix, 45}, {kDecay, 12}, {kTone, 2600}, {kLowCut, 70}, {kMotion, 60}, {kPreDelay, 40}});
-        program("Tumbled Light", {{kMix, 45}, {kDecay, 10}, {kTone, 8000}, {kShimmer, 55}, {kInterval, kIvOctave}, {kMotion, 45}});
-        program("Moon Pool", {{kMix, 50}, {kDecay, 14}, {kTone, 6500}, {kShimmer, 45}, {kInterval, kIvFifth}, {kMotion, 55}, {kPreDelay, 60}});
-        program("Kelp Shadow", {{kMix, 40}, {kDecay, 9}, {kTone, 3800}, {kShimmer, 40}, {kInterval, kIvOctDown}, {kLowCut, 60}, {kWidth, 85}});
+        program("Tumbled Light", {{kMix, 45}, {kDecay, 10}, {kTone, 8000}, {kShimmer, 55}, {kMotion, 45}});
+        program("Moon Pool", {{kMix, 50}, {kDecay, 14}, {kTone, 6500}, {kShimmer, 45}, {kShift, shiftForSemis(7)}, {kMotion, 55}, {kPreDelay, 60}});
+        program("Kelp Shadow", {{kMix, 40}, {kDecay, 9}, {kTone, 3800}, {kShimmer, 40}, {kShift, shiftForSemis(-12)}, {kLowCut, 60}, {kWidth, 85}});
         program("Cobalt Bloom", {{kMix, 50}, {kDecay, 8}, {kSwell, 85}, {kRise, 2.5f}, {kShimmer, 20}, {kTone, 7500}});
         program("Ghost Tide", {{kMix, 60}, {kDecay, 18}, {kSwell, 100}, {kRise, 4.0f}, {kShimmer, 30}, {kTone, 5500}, {kMotion, 55}});
         program("Endless Shoal", {{kMix, 60}, {kDecay, 20}, {kFade, 1200}, {kTone, 6000}, {kMotion, 45}, {kPreDelay, 10}, {kLive, 30}});
         // 1.1: built for Freeze + Add.
         program("Glass Chord", {{kMix, 70}, {kDecay, 6}, {kFade, 400}, {kLive, 60}, {kTone, 7000}, {kMotion, 45}});
         program("Shore Layers", {{kMix, 55}, {kDecay, 10}, {kFade, 900}, {kLive, 100}, {kShimmer, 25}, {kTone, 6500}, {kMotion, 50}});
+        // 1.2: Shift.
+        program("Drift Glass", {{kMix, 55}, {kDecay, 16}, {kShimmer, 70}, {kShift, 0.075f}, {kTone, 6000}, {kMotion, 30}, {kWidth, 100}});   // +14 ct
+        program("Bell Buoy", {{kMix, 45}, {kDecay, 9}, {kShimmer, 45}, {kShift, shiftForSemis(19)}, {kTone, 9500}, {kLowCut, 250}, {kPreDelay, 35}});
     }
 
     // ----- lifecycle ------------------------------------------------------------------------------
@@ -292,9 +332,8 @@ public:
         }
         preL_.allocate((int)(0.26f * sr_) + 8);
         preR_.allocate((int)(0.26f * sr_) + 8);
-        window_ = kGrainSec * sr_;
-        shiftL_.r.allocate((int)window_ + 8);
-        shiftR_.r.allocate((int)window_ + 8);
+        shiftL_.r.allocate((int)(kGrainMaxSec * sr_) + 8);
+        shiftR_.r.allocate((int)(kGrainMaxSec * sr_) + 8);
         envAtt_ = 1.0f - std::exp(-1.0f / (0.003f * sr_));
         envRel_ = 1.0f - std::exp(-1.0f / (0.12f * sr_));
         // Loudness guard: 6 dB per second. A line's gain applies once per trip round it, so the per-line
@@ -322,6 +361,7 @@ public:
         env_ = 0.0f;
         wetRms_ = 0.0f;
         for (int j = 0; j < 4; ++j) modPhase_[j] = kModPhase[j];
+        window_ = windowFor(shiftRatio());
 
         // Snap every smoothed value to its target, so a reset does not glide.
         decaySm_ = get(kDecay);
@@ -426,13 +466,21 @@ public:
         double padSq = 0.0;
 
         // Shimmer: interval, filters, and a feed level that backs off when the tail gets loud.
-        const int iv = clamp(getInt(kInterval), 0, 3);
-        const float ratio = kIntervalRatio[iv];
+        const float ratio = shiftRatio();
+        // The window glides (100 ms) when a big change of Shift needs a longer one: a smooth pitch bend
+        // in the shimmer path, never a jump in its read position.
+        const float winStart = window_;
+        window_ += (windowFor(ratio) - window_) * std::min(1.0f, fn / (0.1f * sr_));
+        const float winStep = (window_ - winStart) * invN;
+        float win = winStart;
         const float shRate = (1.0f - ratio) / window_;
         const float shLpHz = ratio > 1.0f ? std::min(get(kTone), 12000.0f / ratio) : get(kTone);
         const float shLpC = 1.0f - std::exp(-kTwoPi * clamp(shLpHz, 200.0f, 0.4f * sr_) / sr_);
         const float shHpC = 1.0f - std::exp(-kTwoPi * clamp(std::max(get(kLowCut), 60.0f), 10.0f, 0.2f * sr_) / sr_);
-        const float limit = wetRms_ > kShimCeiling ? kShimCeiling / wetRms_ : 1.0f;
+        // The feed closes completely as the tail passes the ceiling (fully shut 30 % above it). A
+        // proportional easing is not enough near Shift 0, where the shimmer is plain extra feedback
+        // and the reverb's resonances can give the loop a very high gain.
+        const float limit = clamp(1.0f - (wetRms_ - kShimCeiling) / (0.3f * kShimCeiling), 0.0f, 1.0f);
         shimGain_.setTarget(get(kShimmer) * 0.01f * kShimMaxFeed * limit, n);
         const bool shimOn = shimGain_.value() > 0.0f || shimGain_.target() > 0.0f;
 
@@ -561,8 +609,9 @@ public:
                 shLp1L_ += shLpC * (lwl - shLp1L_);     shLp1R_ += shLpC * (lwr - shLp1R_);
                 shLp2L_ += shLpC * (shLp1L_ - shLp2L_); shLp2R_ += shLpC * (shLp1R_ - shLp2R_);
                 shHpL_ += shHpC * (shLp2L_ - shHpL_);   shHpR_ += shHpC * (shLp2R_ - shHpR_);
-                shOutL_ = shiftL_.process(shLp2L_ - shHpL_, shRate, window_);
-                shOutR_ = shiftR_.process(shLp2R_ - shHpR_, shRate, window_);
+                win += winStep;
+                shOutL_ = shiftL_.process(shLp2L_ - shHpL_, shRate, win);
+                shOutR_ = shiftR_.process(shLp2R_ - shHpR_, shRate, win);
             }
 
             // Wet: width, swell duck, mix, output, ceiling.
@@ -634,6 +683,18 @@ public:
             if (v >= 1000.0f) std::snprintf(buf, sizeof(buf), "%.1f kHz", (double)v * 0.001);
             else std::snprintf(buf, sizeof(buf), "%.0f Hz", (double)v);
             break;
+        case kShift:
+        {
+            const float st = shiftToSemis(v);
+            if (std::fabs(st) < 1.0f)
+            {
+                const int ct = (int)std::lround(st * 100.0f);
+                if (ct == 0) std::snprintf(buf, sizeof(buf), "0 ct");
+                else std::snprintf(buf, sizeof(buf), "%+d ct", ct);
+            }
+            else std::snprintf(buf, sizeof(buf), "%+d st", (int)std::lround(st));
+            break;
+        }
         case kAdd:
         {
             const int layers = layers_.load();
@@ -750,6 +811,21 @@ private:
         stage_.active = true;
         stageStart_ = liveGain_;
         capT_ = 0.0f;
+    }
+
+    // The shimmer's pitch ratio. Shift decides, except that a project from before 1.2 (Shift still at its
+    // default) with a non-octave Interval keeps that Interval.
+    float shiftSemis() const
+    {
+        const float u = get(kShift);
+        const int iv = clamp(getInt(kInterval), 0, 3);
+        if (iv != kIvOctave && std::fabs(u - kShiftDefault) < 1e-4f) return kIntervalSemis[iv];
+        return shiftToSemis(u);
+    }
+    float shiftRatio() const { return std::pow(2.0f, shiftSemis() * (1.0f / 12.0f)); }
+    float windowFor(float ratio) const
+    {
+        return clamp(std::max(kGrainSec, kGrainMinLife * std::fabs(1.0f - ratio)), kGrainSec, kGrainMaxSec) * sr_;
     }
 
     // Loop gains for a decay time (RT60) and the damping coefficient for Tone; the input gain keeps a

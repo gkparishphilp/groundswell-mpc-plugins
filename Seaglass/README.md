@@ -4,13 +4,28 @@
 
 Seaglass is a smooth hall-style reverb with three extra tricks. **Freeze** holds whatever is in the tail as an
 endless pad and lets it go without a click; **Add** layers the next note on top, so you can build a frozen chord
-one note at a time, and **Live** keeps the normal reverb playing beside the pad. **Shimmer** pitch-shifts the tail up an
-octave inside the feedback loop, so every pass rises and the tail sparkles (or climbs by a fifth or two octaves,
-or sinks an octave). **Swell** keeps the tail down while you play and lets it bloom back in the gaps, the way
+one note at a time, and **Live** keeps the normal reverb playing beside the pad. **Shimmer** pitch-shifts the tail inside
+the feedback loop, so every pass rises and the tail sparkles: by any interval up to two octaves up or down
+(**Shift**), or by a few cents for a slow, drifting wash. **Swell** keeps the tail down while you play and lets it bloom back in the gaps, the way
 Tidepools waits for you to stop.
 
 It picks up where Abyss left off: Abyss's README lists a reverb freeze and a true shimmer tail as still to come,
 and Seaglass is built on Abyss's reverb.
+
+## New in 1.2
+
+- **Shift** replaces Interval: one bipolar dial for the shimmer's pitch. The centre is no shift; the middle fifth
+  of its travel is cents (up to ±100, finest at the centre) for a slowly rising or sinking, chorus-like wash; beyond
+  that it steps through whole semitones up to ±24, so every interval lands exactly (+7 st is a fifth, +12 an
+  octave, -5 a fourth down, +19 an octave and a fifth). It reads "+15 ct" or "+7 st".
+- For big shifts the shifter's grains get longer (at least ~45 ms each), so ±2 octaves sounds smoother than 1.1's
+  2 Oct did.
+- The shimmer's limiter now shuts the feed completely as the tail passes its ceiling, so even Shift at 0 (where the
+  shimmer is plain extra feedback) can't run away.
+- Two new programs: **Drift Glass** (+14 ct: a slow detuned wash) and **Bell Buoy** (+19 st: an octave and a
+  fifth). Moon Pool and Kelp Shadow now use Shift (+7 and -12) and sound as before.
+- **Projects saved before 1.2** keep their Interval: while Shift sits at its default (+12) and the old Interval is
+  Fifth, 2 Oct or Oct Down, that Interval still applies. Move Shift and Shift takes over.
 
 ## New in 1.1
 
@@ -60,12 +75,14 @@ in -+------------------------------------------------------------------- dry ---
   dies away with the current Decay time. Nothing is ever switched, only blended, so even a 20 ms Fade does not
   click. A tap (or Freeze off) that arrives while a capture is still fading in waits for it to finish (at most
   one Fade); taps that pile up meanwhile count as one.
-- **Shimmer** takes the tail, filters it (two low-passes so the shifted copy doesn't alias, a high-pass so the
-  octave-down mode doesn't pile up mud), shifts it with a cheap two-grain pitch shifter (two read heads 70 ms
-  apart, crossfaded) and feeds it back into the reverb input. Each trip round the loop shifts it again, so an
-  octave climbs to two octaves, then three, until Tone and the filters roll it off. A limiter backs the shimmer
-  feed off when the tail gets loud, and a soft clip guards the feed, so even Decay 30 s with Shimmer 100 % stays
-  bounded (it peaks around -16 dBFS RMS and fades away).
+- **Shimmer** takes the live tail, filters it (two low-passes so the shifted copy doesn't alias, a high-pass so
+  downward shifts don't pile up mud), shifts it by **Shift** with a cheap two-grain pitch shifter (two read heads
+  half a window apart, crossfaded; the window is 70 ms, longer for big shifts) and feeds it back into the reverb
+  input. Each trip round the loop shifts it again, so an octave climbs to two octaves, then three, until Tone and
+  the filters roll it off; a few cents drift the whole tail slowly up or down. A limiter shuts the shimmer feed as
+  the tail passes about -10 dBFS RMS, and a soft clip guards the feed, so every setting stays bounded (with
+  Decay 30 s and Shimmer 100 % a shifted tail peaks around -16 dBFS RMS and fades away; at Shift 0, where the
+  shimmer is just extra feedback, it holds steady at about -8 dBFS RMS).
 - **Swell** follows the level of the input. While it is above **Sense**, the wet signal is ducked (by up to the
   **Swell** amount, in 60 ms). When you stop, it comes back over **Rise** seconds on an S-curve, so the tail
   blooms in. The reverb keeps filling while it is ducked, so the full tail is there to bloom.
@@ -87,7 +104,8 @@ in -+------------------------------------------------------------------- dry ---
 | | Fade | 20 ms–4 s (250 ms) | How long a capture keeps soaking up what you play, and how long the pad takes to let go. Long values swell into the freeze. |
 | | Live | 0–100 % (100) | How loud the normal reverb is beside the pad while Freeze is on. 0 % = only the pad. |
 | SHIMMER | Shimmer | 0–100 % (0) | How strongly the pitch-shifted tail is fed back. 30–60 % is a classic shimmer. |
-| | Interval | Octave / Fifth / 2 Oct / Oct Down | The shift on each trip round the loop. |
+| | Shift | -24 to +24 st (+12 st) | The shimmer's pitch change on each trip round the loop. Centre = none; the middle fifth of the dial is cents (±100 ct), beyond it whole semitones. |
+| (hidden) | Interval | Octave / Fifth / 2 Oct / Oct Down | 1.0/1.1's shift. Not on the panel; applies only while Shift sits at its default (old projects). |
 | SWELL | Swell | 0–100 % (0) | How far the tail ducks while you play. 100 % = gone while you play. |
 | | Rise | 0.1–8 s (1.5 s) | How long the tail takes to bloom back once you stop. |
 | | Sense | -60 to -12 dB (-36) | Input level that counts as playing. Raise it for loud material, lower it for quiet pads. |
@@ -129,7 +147,7 @@ in the middle. Knob arcs are seafoam and headings lavender, taken from the glass
 |---|---|---|---|---|
 | SEA | 1 | SPACE: Mix, Decay | TAIL: Pre-Delay, Tone | 13–16 |
 | | 2 | FREEZE: Freeze (Off / On buttons), Add (tap button + layer count) | PAD: Fade, Live | 9–12 |
-| | 3 | SHIMMER: Shimmer, Interval (tap for a menu) | SWELL: Swell, Rise | 5–8 |
+| | 3 | SHIMMER: Shimmer, Shift (bipolar knob) | SWELL: Swell, Rise | 5–8 |
 | | 4 | COLOUR: Low Cut, Motion | OUTPUT: Width, Output | 1–4 |
 | DETAIL | 1 | SWELL: Swell, Rise | SENSE: Sense | 13–15 |
 | | 2 | COLOUR: Low Cut, Motion | OUTPUT: Width, Output | 9–12 |
@@ -146,13 +164,15 @@ layout changes (the build copies `skins/` as it is). `ui.json` is a stock-kit fa
 | Frosted Shore | Short, bright and airy (2.8 s), for drums and vocals. |
 | Wave-Worn | Long and dark (12 s, Tone 2.6 kHz), lots of motion. |
 | Tumbled Light | Classic octave shimmer (55 %), 10 s. |
-| Moon Pool | Shimmer up a fifth over a long, wide 14 s tail with 60 ms pre-delay. |
-| Kelp Shadow | Shimmer an octave down: a dark tail that sinks. |
+| Moon Pool | Shimmer up a fifth (Shift +7) over a long, wide 14 s tail with 60 ms pre-delay. |
+| Kelp Shadow | Shimmer an octave down (Shift -12): a dark tail that sinks. |
 | Cobalt Bloom | Swell 85 %: the tail waits for gaps, with a touch of shimmer. |
 | Ghost Tide | Swell 100 % with a slow 4 s rise over an 18 s shimmering tail. |
 | Endless Shoal | Ready to freeze: 20 s decay, 1.2 s Fade, Mix 60 %, Live 30 %. |
 | Glass Chord | Built for Freeze + Add: 6 s decay, 400 ms Fade, Mix 70 %, Live 60 %. |
 | Shore Layers | Freeze + Add with the reverb fully live and a touch of shimmer: 10 s, 900 ms Fade, Mix 55 %. |
+| Drift Glass | Shift +14 ct, Shimmer 70 %, 16 s: the tail slowly rises and smears like a detuned chorus. |
+| Bell Buoy | Shift +19 st (an octave and a fifth), Shimmer 45 %, bright, Low Cut 250 Hz: bell-like overtones. |
 
 ## Tips
 
@@ -169,8 +189,8 @@ layout changes (the build copies `skins/` as it is). `ui.json` is a stock-kit fa
 
 ## CPU
 
-On a desktop, Seaglass takes about **0.14 % of real time** as a plain reverb, **0.21 %** averaged over the 64 s
-demo (pad, shimmer and swell in use), and **0.53 %** in the worst case: a capture fading in over a held pad with
+On a desktop, Seaglass takes about **0.14 % of real time** as a plain reverb, **0.20 %** averaged over the 80 s
+demo (pad, shimmer and swell in use), and **about 0.5 %** in the worst case: a capture fading in over a held pad with
 Shimmer on, which runs all three networks at once (for at most one Fade). By the ratio seen with the other
 Groundswell plugins that should be roughly **1–2 % of one MPC core** normally and **up to about 5 %** during a
 capture. These are estimates from the desktop, not yet measured on the hardware. The pad network runs only while
@@ -199,13 +219,19 @@ allpasses, and, only while Shimmer is above 0, the shimmer path (6 one-pole filt
 - **No hold-to-freeze button yet**: Freeze is a toggle on the screen and a half-way threshold on the knob. The MPC's
   skin format documents a momentary handle (`ResetOnGestureEnd`) that could make an on-screen button freeze only
   while held; not tried yet.
-- **Shimmer is a simple two-grain shifter**, not a formant-preserving one: it has a light 14 Hz grain flutter on
-  its own, which the reverb smears into the tail. The 2 Oct setting is the roughest (its grains are shortest).
+- **Shimmer is a simple two-grain shifter**, not a formant-preserving one. Its grains flutter lightly (at 14 Hz
+  for an octave), its two heads act as a gentle comb (a few dB of ripple every ~28 Hz), and its output comes in
+  lines spaced at the grain rate, the strongest within about half that rate of the exact interval (for an octave
+  from 440 Hz, up to ~7 Hz off; for cents, almost exact). The reverb smears all of this into the tail, but the
+  shimmer is a sparkle, not a precise harmoniser.
 - **Shimmer at 100 % and the longest Decay doesn't sustain forever**: energy climbs out of range and the tail fades.
   For an endless shimmer pad, let it bloom, then Freeze.
 - **Swell watches the input level only**, not the tempo or the notes. It is not locked to the song.
-- **Changing Interval while the shimmer is sounding** jumps the shift ratio at once (a pitch change in the shimmer,
-  not a click).
+- **Turning Shift through the semitones** steps the shimmer's pitch at once at each semitone (a pitch change in
+  the shimmer, not a click; tested). Big changes also glide the grain window over 100 ms.
+- **At Shift 0 (or within a cent or two) with Shimmer high and a long Decay**, the shimmer is extra feedback and
+  the tail can hold indefinitely, kept at about -8 dBFS by the limiter. Use it as a soft hold, or move Shift off
+  the centre.
 
 ## Testing
 
@@ -216,10 +242,10 @@ All checks run on the computer:
 - `.sdk-tools/host_sim plugins/Seaglass/build/native/seaglass.dylib test --seconds 6` (and `--block 32`, `--block 512`):
   20 pass, 0 warn, 0 fail. host_sim has no option to feed a file, so it uses its own test signal (a 220 Hz sine
   and a noise burst, mono); the stereo material is in the listen test below.
-- `tests/listentest.cpp` (89 checks) feeds synthesised stereo material: a pad chord detuned between left and
+- `tests/listentest.cpp` (115 checks) feeds synthesised stereo material: a pad chord detuned between left and
   right, a sine, steady noise and a drum loop with hats panned left and right. It checks:
   - every program is finite, under 0 dBFS and leaves a tail;
-  - every one of the 17 controls changes the sound on its own (Freeze and Add switched during the render);
+  - every one of the 18 controls changes the sound on its own (Freeze and Add switched during the render);
   - Freeze (Live 0 %) holds a chord for 31 s (1 s windows within 1.5 dB, no drift, spectrum steady). With noise
     playing straight through, engaging holds the level and releasing is smooth (Fade 250 ms and 20 ms); with
     Live 100 % the pad and the refilling live reverb settle about 2.6 dB above the reverb alone, reached smoothly.
@@ -233,14 +259,18 @@ All checks run on the computer:
     loud chord are held down to about -12 dBFS; a released pad stops running; a project loaded with Freeze and
     Add on adds nothing;
   - Shimmer puts energy at 440 Hz (Octave), 330 Hz (Fifth), 880 Hz (2 Oct) and 110 Hz (Oct Down) from a 220 Hz
-    tone, and the octave keeps climbing to 880 Hz. At Decay 30 s and Shimmer 100 % with a loud chord and drums,
-    every interval stays bounded and finite;
+    tone (the old Interval, still honoured), and the octave keeps climbing to 880 Hz. Shift: the pitch shifter on
+    its own lands within its grain tolerance of the exact interval for +3, +5, +7, +12, +19, -5, -7 and -12 st and
+    ±50 ct (cents almost exactly); in the reverb, energy builds at +7, +3, -5 and +19 st; ±50 ct drift a chord's
+    tail down and up; the dial reads "0 ct", "+25 ct", "+7 st", "-12 st", "±24 st"; a moved Shift overrides an old
+    Interval. At Decay 30 s and Shimmer 100 % with a loud chord and drums, Shift +12, +7, ±24, -12, -1 st, +10 ct
+    and 0 all stay bounded and finite, and turning Shift through its whole range while a tail rings is click-free;
   - Swell 100 % keeps the tail down while a chord plays (gone), 50 % ducks part way, the tail blooms back over
     Rise after the chord stops, and on drums with gaps it is held 58 dB down under the hits and fully back in
     the gaps;
   - random parameter changes every 50 ms stay finite and under 0 dBFS, at 44.1, 48 and 96 kHz;
-  - a 64 s demo: drums and chords → a chord built one note at a time with Freeze and Add → a melody over it
-    with the live reverb → release → shimmer → swell on chord stabs.
+  - an 80 s demo: drums and chords → a chord built one note at a time with Freeze and Add → a melody over it
+    with the live reverb → release → shimmer → swell on chord stabs → a +14 ct drifting wash.
 
 ```
 cd plugins/Seaglass

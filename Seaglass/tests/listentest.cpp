@@ -408,6 +408,7 @@ int main(int argc, char** argv)
             {SG::kSense, -60, -20, {{SG::kMix, 60}, {SG::kSwell, 100}}, {}},
             {SG::kAdd, 0, 0, {{SG::kMix, 60}, {SG::kLive, 0}}, {{1.0, SG::kFreeze, 1}}, {{4.0, SG::kAdd, 1}}},
             {SG::kLive, 0, 100, {{SG::kMix, 60}}, {{1.0, SG::kFreeze, 1}}},
+            {SG::kShift, 0.0f, shiftForSemis(7), {{SG::kMix, 60}, {SG::kShimmer, 70}}, {}},
         };
         check((int)ctls.size() == SG::kNumParams, "the control list covers all %d parameters", (int)SG::kNumParams);
         for (const Ctl& c : ctls)
@@ -665,27 +666,99 @@ int main(int argc, char** argv)
         const double up2 = (bandDb(on, 836, 924) - bandDb(on, 200, 240)) - (bandDb(off, 836, 924) - base);
         check(up2 > 12.0, "Shimmer 70%%, Octave: the tail climbs on to 880 Hz too (+%.1f dB)", up2);
 
+        // Shift (1.2). First the pitch shifter on its own, fed a pure sine: a two-grain shifter's output
+        // comes in lines spaced at its grain rate, the strongest within about half a grain rate of the
+        // exact interval (which line depends on the input frequency). So the check is: the energy centre
+        // around the target is within 0.7 grain rates (+1 Hz) of it, which also proves the dial's
+        // semitones and cents reach the shifter correctly.
+        auto centreAround = [](const std::vector<double>& pw, double lo, double hi) {
+            const int N = 8192; double e = 0.0, ef = 0.0;
+            for (int k = (int)(lo * N / SR); k <= (int)(hi * N / SR); ++k) { e += pw[(size_t)k]; ef += pw[(size_t)k] * k * SR / N; }
+            return ef / (e + 1e-30);
+        };
+        for (float u : {shiftForSemis(3), shiftForSemis(5), shiftForSemis(7), shiftForSemis(12), shiftForSemis(19),
+                        shiftForSemis(-5), shiftForSemis(-7), shiftForSemis(-12), 0.1414f, -0.1414f})
+        {
+            Seaglass q; q.prepare(SR, 512); q.set(SG::kShift, u); q.reset();
+            const float ratio = q.shiftRatio(), W = q.windowFor(ratio);
+            Shifter sh; sh.r.allocate((int)W + 16);
+            Stereo o = silence(12.0);
+            for (size_t i = 0; i < o.L.size(); ++i)
+                o.L[i] = o.R[i] = sh.process((float)std::sin(2.0 * M_PI * 220.0 * i / SR), (1.0f - ratio) / W, W);
+            const double target = 220.0 * ratio, grain = std::fabs(1.0 - ratio) / W * SR;
+            const double got = centreAround(spectrum(o, 2.0, 12.0), target * 0.95, target * 1.05);
+            std::string txt; q.formatValue(SG::kShift, u, txt);
+            check(std::fabs(got - target) <= 0.7 * grain + 1.0, "shifter at Shift %-7s: %.1f Hz from 220 Hz (exact %.1f Hz, grain rate %.1f Hz)",
+                  txt.c_str(), got, target, grain);
+        }
+        // Then in the reverb: from a 220 Hz tone, energy builds up at the dialled interval.
+        for (int st : {7, 3, -5, 19})
+        {
+            auto ps = make(0, {{SG::kMix, 100}, {SG::kDecay, 8}, {SG::kShimmer, 70}, {SG::kShift, shiftForSemis(st)}});
+            const auto pw = spectrum(render(*ps, in), 3.5, 6.5);
+            const double target = 220.0 * std::pow(2.0, st / 12.0);
+            const double gain = (bandDb(pw, target * 0.97, target * 1.03) - bandDb(pw, 200, 240)) - (bandDb(off, target * 0.97, target * 1.03) - base);
+            check(gain > 12.0, "Shimmer 70%%, Shift %+3d st: energy at %.0f Hz rises %.1f dB relative to the 220 Hz tone", st, target, gain);
+        }
+        // Cents, in the reverb: on a rich chord the tail's brightness drifts up or down with the dial.
+        {
+            Stereo pad = silence(9.0);
+            addChord(pad, {48, 55, 60, 64, 67}, 0.0, 2.5, 0.07f);
+            auto centroidOf = [&](float u) {
+                auto ps = make(0, {{SG::kMix, 100}, {SG::kDecay, 8}, {SG::kShimmer, 70}, {SG::kShift, u}});
+                const auto pw = spectrum(render(*ps, pad), 4.0, 8.0);
+                return centreAround(pw, 80.0, 6000.0);
+            };
+            const double down = centroidOf(-0.1414f), zero = centroidOf(0.0f), up = centroidOf(0.1414f);
+            check(down < zero && zero < up, "Shift -50 / 0 / +50 ct: the tail's spectral centre drifts down and up (%.0f / %.0f / %.0f Hz)",
+                  down, zero, up);
+        }
+        auto peakNear = [&](const std::vector<double>& pw, double hz) { return centreAround(pw, hz * 0.95, hz * 1.05); };
+        // The dial's text, and the 1.0/1.1 Interval: it still applies while Shift is at its default, and not otherwise.
+        {
+            Seaglass q; std::string t[6];
+            const float us[6] = {0.0f, 0.1f, shiftForSemis(7), shiftForSemis(-12), 1.0f, -1.0f};
+            for (int k = 0; k < 6; ++k) q.formatValue(SG::kShift, us[k], t[k]);
+            check(t[0] == "0 ct" && t[1] == "+25 ct" && t[2] == "+7 st" && t[3] == "-12 st" && t[4] == "+24 st" && t[5] == "-24 st",
+                  "Shift reads %s, %s, %s, %s, %s, %s", t[0].c_str(), t[1].c_str(), t[2].c_str(), t[3].c_str(), t[4].c_str(), t[5].c_str());
+            auto pl = make(0, {{SG::kMix, 100}, {SG::kDecay, 8}, {SG::kShimmer, 70}, {SG::kInterval, kIvFifth}, {SG::kShift, shiftForSemis(3)}});
+            const double got = peakNear(spectrum(render(*pl, in), 3.5, 6.5), 261.6);
+            check(std::fabs(got / 261.6 - 1.0) < 0.03 && std::fabs(got / 329.6 - 1.0) > 0.1,
+                  "a Shift away from its default wins over an old Interval (Fifth + Shift +3 st: the shimmer is around %.1f Hz, not 330)", got);
+        }
+
         // Bounded at maximum decay and shimmer, for every interval, fed a loud chord and drums.
         Stereo loud = silence(60.0);
         addChord(loud, {48, 55, 60, 64, 67, 71}, 0.0, 5.0, 0.06f);
         addDrums(loud, 0.0, 5.0, 96.0, 0.7f);
         std::printf("INFO  loud material peaks at %.2f dBFS\n", db(peakOf(loud)));
-        for (int iv = 0; iv < 4; ++iv)
+        struct Sh { const char* name; float u; };
+        const Sh shifts[] = {{"Octave", shiftForSemis(12)}, {"+7 st", shiftForSemis(7)}, {"+24 st", 1.0f}, {"-24 st", -1.0f},
+                             {"-12 st", shiftForSemis(-12)}, {"-1 st", shiftForSemis(-1)}, {"+10 ct", 0.0632f}, {"0 ct", 0.0f}};
+        for (const Sh& sh : shifts)
         {
-            auto p = make(0, {{SG::kMix, 100}, {SG::kDecay, 30}, {SG::kShimmer, 100}, {SG::kInterval, (float)iv}});
+            auto p = make(0, {{SG::kMix, 100}, {SG::kDecay, 30}, {SG::kShimmer, 100}, {SG::kShift, sh.u}});
             Stereo out = render(*p, loud);
             float top = -200.0f;
             for (double t = 5.0; t + 1.0 <= 60.0; t += 1.0) top = std::max(top, db(rmsOf(out, t, t + 1.0)));
             const float late = db(rmsOf(out, 50.0, 60.0)), mid = db(rmsOf(out, 30.0, 40.0));
             check(finite(out) && peakOf(out) < 1.0f && top < -3.0f && late < mid + 1.0f,
-                  "Decay 30 s + Shimmer 100%%, %-8s: bounded (peak %.2f dBFS, loudest second %.1f dBFS, 50-60 s %.1f vs 30-40 s %.1f dBFS)",
-                  kIntervalNames[iv], db(peakOf(out)), top, late, mid);
+                  "Decay 30 s + Shimmer 100%%, Shift %-7s: bounded (peak %.2f dBFS, loudest second %.1f dBFS, 50-60 s %.1f vs 30-40 s %.1f dBFS)",
+                  sh.name, db(peakOf(out)), top, late, mid);
         }
         // Shimmer on a pad tail stays click-free.
         Stereo padIn = silence(14.0);
         addChord(padIn, {52, 59, 64, 66, 71}, 0.0, 4.0, 0.08f);
         auto p = make(0, {{SG::kMix, 100}, {SG::kDecay, 10}, {SG::kShimmer, 60}});
         checkClicks(render(*p, padIn), "shimmer tail on a pad");
+        // Turning Shift through cents and semitones while the tail rings (a change every 100 ms).
+        auto pt = make(0, {{SG::kMix, 100}, {SG::kDecay, 10}, {SG::kShimmer, 60}});
+        std::vector<Pc> turn;
+        for (int k = 0; k < 80; ++k) turn.push_back({2.0 + 0.1 * k, SG::kShift, -0.3f + 1.3f * (float)k / 79.0f});
+        for (int k = 0; k < 40; ++k) turn.push_back({10.2 + 0.05 * k, SG::kShift, 1.0f - 2.0f * (float)k / 39.0f});
+        Stereo tt = render(*pt, padIn, turn);
+        checkClicks(tt, "turning Shift from -6 st through cents to +24 st and back to -24 st while the tail rings");
+        check(finite(tt) && peakOf(tt) < 1.0f, "...finite, peak %.2f dBFS", db(peakOf(tt)));
     }
 
     // ---- 5. Swell ------------------------------------------------------------------------------------
@@ -758,7 +831,8 @@ int main(int argc, char** argv)
         // 32 s     Freeze off: the chord lets go
         // 35-47 s  shimmer (Octave 55 %, Decay 10 s) on slow chords
         // 48-64 s  swell (100 %, Rise 2 s) on chord stabs: the tail blooms in the gaps
-        Stereo in = silence(64.0);
+        // 66-80 s  Shift +14 ct (the Drift Glass program's wash) on a held chord: a slow, rising smear
+        Stereo in = silence(80.0);
         addDrums(in, 0.0, 13.0, 92.0, 0.8f);
         addChord(in, {48, 55, 59, 62, 64}, 0.0, 4.2, 0.06f);
         addChord(in, {45, 52, 57, 60, 64}, 4.4, 8.6, 0.06f);
@@ -774,6 +848,7 @@ int main(int argc, char** argv)
             const int root = (k % 2) ? 45 : 48;
             addChord(in, {root, root + 7, root + 12, root + 16}, 48.0 + k * 2.6, 48.0 + k * 2.6 + 0.5, 0.08f, 0.03, 0.15);
         }
+        addChord(in, {50, 57, 62, 66, 69}, 66.0, 70.0, 0.07f, 0.6, 1.0);
         auto p = make(0, {{SG::kMix, 40}, {SG::kDecay, 6}});
         std::vector<Pc> pcs = {
             {13.5, SG::kMix, 75}, {13.5, SG::kLive, 60}, {13.5, SG::kFade, 400},
@@ -781,16 +856,17 @@ int main(int argc, char** argv)
             {32.0, SG::kFreeze, 0},
             {34.0, SG::kShimmer, 55}, {34.0, SG::kDecay, 10}, {34.0, SG::kMix, 50},
             {47.0, SG::kShimmer, 15}, {47.0, SG::kSwell, 100}, {47.0, SG::kRise, 2.0f}, {47.0, SG::kDecay, 8},
+            {64.0, SG::kSwell, 0}, {64.0, SG::kShimmer, 70}, {64.0, SG::kShift, 0.075f}, {64.0, SG::kDecay, 16}, {64.0, SG::kMix, 55},
         };
         double cpu = 0.0;
         Stereo out = render(*p, in, pcs, &cpu);
         const char* path = argc > 1 ? argv[1] : "build/seaglass-demo.wav";
         writeWav(path, out.L, out.R);
-        std::printf("INFO  demo: %s (64 s, peak %.2f dBFS)\n", path, db(peakOf(out)));
-        std::printf("INFO  CPU: 64 s rendered in %.3f s on this computer (%.2f%% of real time, desktop; the MPC is several times slower)\n",
-                    cpu, 100.0 * cpu / 64.0);
+        std::printf("INFO  demo: %s (80 s, peak %.2f dBFS)\n", path, db(peakOf(out)));
+        std::printf("INFO  CPU: 80 s rendered in %.3f s on this computer (%.2f%% of real time, desktop; the MPC is several times slower)\n",
+                    cpu, 100.0 * cpu / 80.0);
         check(finite(out) && peakOf(out) < 1.0f, "demo under 0 dBFS, no NaN");
-        checkClicks(out, "demo after the drums stop (chord built with Add, melody over it, release, shimmer, swell)", 13.5);
+        checkClicks(out, "demo after the drums stop (chord built with Add, melody over it, release, shimmer, swell, cents wash)", 13.5);
 
         // Worst case for CPU: all three networks running (a capture fading in over a held pad) with Shimmer on.
         auto pw = make(0, {{SG::kShimmer, 50}, {SG::kFade, 4000}});

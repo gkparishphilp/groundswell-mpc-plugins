@@ -44,8 +44,9 @@
           "widget": "fader"
         },
         {
-          "param": "Interval",
-          "widget": "switch"
+          "param": "Shift",
+          "widget": "knob",
+          "polarity": "bipolar"
         },
         {
           "param": "Swell",

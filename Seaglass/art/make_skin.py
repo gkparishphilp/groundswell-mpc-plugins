@@ -15,6 +15,8 @@ Layout: two tabs. Each row is one Q-Link row: two boxes of two controls, one eit
 wave and the glass on the beach stay in view in the middle.
 
     SEA      SPACE | TAIL,  FREEZE | PAD,  SHIMMER | SWELL,  COLOUR | OUTPUT
+             (SHIMMER's Shift is a bipolar knob, centre = no shift; Interval, its 1.0/1.1 predecessor,
+             is no longer on the panel)
     DETAIL   SWELL | SENSE,  COLOUR | OUTPUT
 
 ADD is a single tap button (a Toggle: every tap flips the parameter, and every flip adds a layer) with the
@@ -51,7 +53,9 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 NAMES = ["mix", "decay", "predelay", "tone", "lowcut", "motion", "width", "output",
          "freeze", "fade", "shimmer", "interval", "swell", "rise", "sense",
          # 1.1
-         "add", "live"]
+         "add", "live",
+         # 1.2
+         "shift"]
 P = {n: i for i, n in enumerate(NAMES)}
 
 CHOICES = {P["freeze"]: ["Off", "On"],
@@ -269,7 +273,7 @@ PAGES = [
          ("TAIL", [knob("predelay", "PRE-DELAY"), knob("tone", "TONE")])),
         (("FREEZE", [pills("freeze", "FREEZE"), tap("add", "ADD", "ADD")]),
          ("PAD", [knob("fade", "FADE"), knob("live", "LIVE")])),
-        (("SHIMMER", [knob("shimmer", "SHIMMER"), knob("interval", "INTERVAL")]),
+        (("SHIMMER", [knob("shimmer", "SHIMMER"), knob("shift", "SHIFT", True)]),
          ("SWELL", [knob("swell", "SWELL"), knob("rise", "RISE")])),
         (("COLOUR", [knob("lowcut", "LOW CUT"), knob("motion", "MOTION")]),
          ("OUTPUT", [knob("width", "WIDTH"), knob("output", "OUTPUT")])),

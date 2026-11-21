@@ -1,7 +1,7 @@
 {
   "name": "Seaglass",
   "manufacturer": "Groundswell",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "format": "vst2",
   "kind": "effect",
   "uid": "GvXf",
@@ -10,7 +10,7 @@
   "category": "Effect",
   "file32": "VST/seaglass-arm32.so",
   "file64": "VST/seaglass-arm64.so",
-  "description": "A lush stereo reverb you can freeze: Freeze holds the sound as an endless pad and Add layers the next note on top, so you can build a frozen chord one note at a time, with the live reverb still playing beside it (Live); Shimmer pitch-shifts the tail up an octave (or a fifth, two octaves, or down an octave) inside the feedback loop so it rises and sparkles; Swell ducks the tail while you play and lets it bloom back in the gaps. 11 programs.",
+  "description": "A lush stereo reverb you can freeze: Freeze holds the sound as an endless pad and Add layers the next note on top, so you can build a frozen chord one note at a time, with the live reverb still playing beside it (Live); Shimmer pitch-shifts the tail inside the feedback loop by any interval up to two octaves either way, or by a few cents for a slowly drifting wash (Shift), so it rises and sparkles; Swell ducks the tail while you play and lets it bloom back in the gaps. 13 programs.",
   "author": "Groundswell",
   "url": "",
   "license": "MIT"

@@ -26,8 +26,9 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   octaves or an octave down) so it rises and sparkles; Swell ducks the tail while you play and
   lets it bloom back in the gaps, the way Tidepools waits for you. Built on Abyss's FDN reverb.
   1.1 added Add (layer note after note onto the frozen pad: a frozen chord) and Live (the normal
-  reverb keeps playing beside the pad). Still to come: a Size control, per-layer release, and an
-  on-screen hold-to-freeze button.
+  reverb keeps playing beside the pad). 1.2 added Shift (the shimmer by any interval up to two
+  octaves either way, or by cents for a drifting wash). Still to come: a Size control, per-layer
+  release, and an on-screen hold-to-freeze button.
 - **Hammerhead** (was "Kelp"): struck and plucked physical modelling, built to be percussive:
   marimba, vibes, xylophone and glock bars, kalimba, bell, glass, steel pan (8-mode resonator bank
   plus a tuned tube) and plucked or hammered strings (waveguide). Mallet hardness, strike position,
