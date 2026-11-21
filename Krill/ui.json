@@ -1,0 +1,69 @@
+{
+  "kit": "lime",
+  "pages": [
+    { "name": "MAIN",
+      "controls": [
+        { "param": "Volume",     "widget": "fader" },
+        { "param": "Bits",       "widget": "knob" },
+        { "param": "Resample",   "widget": "knob" },
+        { "param": "Tone",       "widget": "knob" },
+        { "param": "Play Mode",  "widget": "switch" },
+        { "param": "Voices",     "widget": "switch" },
+        { "param": "Arp",        "widget": "slider", "overlay": "menu" },
+        { "param": "Chord",      "widget": "slider", "overlay": "menu" },
+        { "param": "Attack",     "widget": "fader" },
+        { "param": "Decay",      "widget": "fader" },
+        { "param": "Sustain",    "widget": "fader" },
+        { "param": "Release",    "widget": "fader" },
+        { "param": "Step Env",   "widget": "switch" },
+        { "param": "Velocity",   "widget": "knob" },
+        { "param": "Glide",      "widget": "knob" },
+        { "param": "Bend Range", "widget": "knob" }
+      ] },
+    { "name": "OSC",
+      "controls": [
+        { "param": "Wave A",     "widget": "switch" },
+        { "param": "Duty A",     "widget": "switch" },
+        { "param": "Level A",    "widget": "fader" },
+        { "param": "Noise Mode", "widget": "switch" },
+        { "param": "Wave B",     "widget": "switch" },
+        { "param": "Duty B",     "widget": "switch" },
+        { "param": "Level B",    "widget": "fader" },
+        { "param": "Osc Mod",    "widget": "switch" },
+        { "param": "B Semi",     "widget": "knob", "polarity": "bipolar" },
+        { "param": "B Detune",   "widget": "knob", "polarity": "bipolar" },
+        "empty",
+        { "widget": "text", "text": "Osc B tuning" },
+        { "param": "Sweep",      "widget": "knob", "polarity": "bipolar" },
+        { "param": "Sweep Time", "widget": "knob" },
+        { "param": "Sweep To",   "widget": "switch" },
+        { "widget": "text", "text": "Pitch sweep" }
+      ] },
+    { "name": "MOTION",
+      "controls": [
+        { "param": "Arp",         "widget": "slider", "overlay": "menu" },
+        { "param": "Chord",       "widget": "slider", "overlay": "menu" },
+        { "param": "Arp Speed",   "widget": "knob" },
+        { "param": "Frame Rate",  "widget": "switch" },
+        { "param": "Arp Div",     "widget": "slider", "overlay": "menu" },
+        { "param": "Arp Octaves", "widget": "knob" },
+        { "param": "Arp Gate",    "widget": "fader" },
+        { "widget": "text", "text": "Tempo arp" },
+        { "param": "Vib Depth",   "widget": "knob" },
+        { "param": "Vib Speed",   "widget": "knob" },
+        { "param": "Vib Delay",   "widget": "knob" },
+        { "param": "Glide",       "widget": "knob" }
+      ] },
+    { "name": "VOX+DRUM",
+      "controls": [
+        { "param": "Talk",       "widget": "fader" },
+        { "param": "Word",       "widget": "slider", "overlay": "menu" },
+        { "param": "Talk Speed", "widget": "knob" },
+        { "param": "Formant",    "widget": "knob", "polarity": "bipolar" },
+        { "param": "Drum Tune",  "widget": "knob", "polarity": "bipolar" },
+        { "param": "Drum Decay", "widget": "knob" },
+        { "param": "Drum Sweep", "widget": "knob" },
+        { "param": "Drum Level", "widget": "fader" }
+      ] }
+  ]
+}

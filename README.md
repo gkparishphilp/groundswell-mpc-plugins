@@ -12,6 +12,7 @@ it costs in CPU; anything borrowed is credited there with its licence.
 | [Bearings](Bearings/) | Effect: places a sound on a plane in front of you (pan, distance, head cues, room, a touch of Doppler) and moves it round song-locked paths — circle, figure 8, pendulum, ping-pong, drift, tide, step and scatter on hits — with a loudness follower, a Throw control and a three-band split; 18 programs | Original design | MIT |
 | [Whalesong](Whalesong/) | Effect: an accompanist — infers the key from what you play by pitch-class histogram, then plays along on its own synth as a bass, lead, counter-melody, pad or arpeggio | Original design | MIT |
 | [Largemouth](Largemouth/) | Effect: a bass player that listens to your drums — learns the kick pattern and plays a bassline on it (Sub, 808, Pluck, Acid, Reese), on the chord it hears or a progression in the key; 8 programs | Original design | MIT |
+| [Krill](Krill/) | Instrument: an old-school chip synth — stepped pulse, 4-bit triangle and LFSR noise, ring mod and sync, bit and sample-rate crunch, a lo-fi talking voice, the 50/60 Hz one-finger chord arpeggio and tempo arps, 16 pitch-sweep drums on the pads, tracker-style vibrato and glide; 8 voices, 8 programs, custom skin | Original design | MIT |
 
 ## Installing on an MPC
 

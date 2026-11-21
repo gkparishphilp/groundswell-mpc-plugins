@@ -1,0 +1,17 @@
+{
+  "name": "Krill",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "instrument",
+  "uid": "GFvq",
+  "numInputs": 0,
+  "numOutputs": 2,
+  "category": "Synth",
+  "file32": "VST/krill-arm32.so",
+  "file64": "VST/krill-arm64.so",
+  "description": "An old-school chip instrument: stepped pulse, 4-bit triangle and LFSR noise, ring mod and hard sync, bit and sample-rate crunch, a lo-fi talking voice, the fast frame-rate chord arpeggio plus tempo arps, pitch-sweep drums on the pads, and tracker-style vibrato and glide.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}
