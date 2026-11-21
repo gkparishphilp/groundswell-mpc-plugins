@@ -1,0 +1,176 @@
+{
+  "kit": "violet",
+  "pages": [
+    {
+      "name": "PLACE",
+      "controls": [
+        {
+          "param": "Pan",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Distance",
+          "widget": "knob"
+        },
+        {
+          "param": "Depth",
+          "widget": "knob"
+        },
+        {
+          "param": "Doppler",
+          "widget": "knob"
+        },
+        {
+          "param": "Room",
+          "widget": "knob"
+        },
+        {
+          "param": "Room Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Mix",
+          "widget": "fader"
+        },
+        {
+          "param": "Output",
+          "widget": "fader"
+        },
+        {
+          "param": "Mono Safe",
+          "widget": "switch"
+        },
+        "empty",
+        "empty",
+        "empty"
+      ]
+    },
+    {
+      "name": "MOTION",
+      "controls": [
+        {
+          "param": "Path",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Sync",
+          "widget": "switch"
+        },
+        {
+          "param": "Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "Direction",
+          "widget": "switch"
+        },
+        {
+          "param": "Size X",
+          "widget": "knob"
+        },
+        {
+          "param": "Size Y",
+          "widget": "knob"
+        },
+        {
+          "param": "Phase",
+          "widget": "knob"
+        },
+        {
+          "param": "Glide",
+          "widget": "knob"
+        },
+        {
+          "param": "Step Angle",
+          "widget": "knob"
+        },
+        {
+          "param": "Hit Sens",
+          "widget": "knob"
+        },
+        "empty",
+        "empty"
+      ]
+    },
+    {
+      "name": "REACT",
+      "controls": [
+        {
+          "param": "Fol Attack",
+          "widget": "knob"
+        },
+        {
+          "param": "Fol Release",
+          "widget": "knob"
+        },
+        {
+          "param": "Fol Gain",
+          "widget": "knob"
+        },
+        {
+          "param": "Throw",
+          "widget": "knob"
+        },
+        {
+          "param": "Fol>Size",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fol>Rate",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fol>Push",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        "empty"
+      ]
+    },
+    {
+      "name": "BANDS",
+      "controls": [
+        {
+          "param": "Split",
+          "widget": "switch"
+        },
+        {
+          "param": "Low Xover",
+          "widget": "knob"
+        },
+        {
+          "param": "High Xover",
+          "widget": "knob"
+        },
+        "empty",
+        {
+          "param": "Low Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Mid Size",
+          "widget": "knob"
+        },
+        {
+          "param": "High Size",
+          "widget": "knob"
+        },
+        "empty",
+        "empty",
+        {
+          "param": "Mid Phase",
+          "widget": "knob"
+        },
+        {
+          "param": "High Phase",
+          "widget": "knob"
+        },
+        "empty"
+      ]
+    }
+  ]
+}

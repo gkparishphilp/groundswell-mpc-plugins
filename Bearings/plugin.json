@@ -1,0 +1,17 @@
+{
+  "name": "Bearings",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GDHt",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/bearings-arm32.so",
+  "file64": "VST/bearings-arm64.so",
+  "description": "Places a sound on a plane in front of you and moves it there: pan, distance (level, air, room and a touch of Doppler) and real head cues, with circle, figure 8, pendulum, ping-pong, drift, tide, step and scatter paths locked to the song, a loudness follower, a Throw control and a three-band split mode.",
+  "author": "Groundswell",
+  "url": "https://github.com/gkparishphilp/groundswell-mpc-plugins/tree/main/Bearings",
+  "license": "MIT"
+}
