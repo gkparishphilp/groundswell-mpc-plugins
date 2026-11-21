@@ -398,7 +398,7 @@ private:
         info.name         = "Largemouth";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1000;
+        info.version      = 1100;            // 1.1.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
