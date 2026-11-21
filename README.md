@@ -11,6 +11,7 @@ it costs in CPU; anything borrowed is credited there with its licence.
 | [Fathom](Fathom/) | Effect: a filter that breathes with the music — two filters (wah, LP, BP, HP, notch, vowel; in series, or in parallel and panned apart) moved by a slow envelope follower, two tempo-synced LFOs and a swelling transient envelope, with inertia, drift and a Q-Link pedal; 23 programs | Original design | MIT |
 | [Bearings](Bearings/) | Effect: places a sound on a plane in front of you (pan, distance, head cues, room, a touch of Doppler) and moves it round song-locked paths — circle, figure 8, pendulum, ping-pong, drift, tide, step and scatter on hits — with a loudness follower, a Throw control and a three-band split; 18 programs | Original design | MIT |
 | [Whalesong](Whalesong/) | Effect: an accompanist — infers the key from what you play by pitch-class histogram, then plays along on its own synth as a bass, lead, counter-melody, pad or arpeggio | Original design | MIT |
+| [Largemouth](Largemouth/) | Effect: a bass player that listens to your drums — learns the kick pattern and plays a bassline on it (Sub, 808, Pluck, Acid, Reese), on the chord it hears or a progression in the key; 8 programs | Original design | MIT |
 
 ## Installing on an MPC
 

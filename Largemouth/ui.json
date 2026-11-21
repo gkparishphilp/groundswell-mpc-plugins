@@ -1,0 +1,61 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "GROOVE",
+      "controls": [
+        { "param": "Follow",    "widget": "switch" },
+        { "param": "Kick Sens", "widget": "knob" },
+        { "param": "Bass",      "widget": "fader" },
+        { "param": "Output",    "widget": "fader" },
+
+        { "param": "Busy",      "widget": "knob" },
+        { "param": "Rate",      "widget": "switch" },
+        { "param": "Swing",     "widget": "knob" },
+        { "param": "Vary",      "widget": "knob" }
+      ]
+    },
+    {
+      "name": "NOTES",
+      "controls": [
+        { "param": "Changes",   "widget": "slider", "overlay": "menu" },
+        { "param": "Chord Len", "widget": "switch" },
+        { "param": "Walk",      "widget": "knob" },
+        { "param": "Oct Jump",  "widget": "knob" },
+
+        { "param": "Listen",    "widget": "switch" },
+        { "param": "Key",       "widget": "slider", "overlay": "menu" },
+        { "param": "Scale",     "widget": "slider", "overlay": "menu" },
+        { "param": "Octave",    "widget": "knob" }
+      ]
+    },
+    {
+      "name": "SOUND",
+      "controls": [
+        { "param": "Voice",     "widget": "slider", "overlay": "menu" },
+        { "param": "Tone",      "widget": "knob" },
+        { "param": "Reso",      "widget": "knob" },
+        { "param": "Drive",     "widget": "knob" },
+
+        { "param": "Decay",     "widget": "knob" },
+        { "param": "Punch",     "widget": "knob" },
+        { "param": "Glide",     "widget": "knob" },
+        { "param": "Length",    "widget": "knob" }
+      ]
+    },
+    {
+      "name": "MIX",
+      "controls": [
+        { "param": "Duck",      "widget": "knob" },
+        { "param": "Duck Time", "widget": "knob" },
+        { "param": "Bass Only", "widget": "switch" },
+        "empty",
+
+        { "param": "Found",     "widget": "slider" },
+        { "param": "Sure",      "widget": "knob" },
+        { "param": "Chord",     "widget": "slider" },
+        { "param": "Kick",      "widget": "knob" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Largemouth",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "G72X",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/largemouth-arm32.so",
+  "file64": "VST/largemouth-arm64.so",
+  "description": "A bass player that listens to your drums: plays a bassline on its own synth (Sub, 808, Pluck, Acid, Reese) locked to the kick, in the key and on the chord it hears, with Busy, Walk, Swing and duck-under-the-kick controls.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}
