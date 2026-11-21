@@ -388,7 +388,8 @@ int main(int argc, char** argv)
     // ---- 2. Every control on its own changes the sound --------------------------------------------
     std::printf("\n== 2. Every control does something on its own ==\n");
     {
-        struct Ctl { int param; float a, b; std::vector<std::pair<int, float>> ctx; std::vector<Pc> pcs; };
+        // pcsB: parameter changes for the second render only (for Add, which acts on a change, not a value).
+        struct Ctl { int param; float a, b; std::vector<std::pair<int, float>> ctx; std::vector<Pc> pcs; std::vector<Pc> pcsB = {}; };
         const std::vector<Ctl> ctls = {
             {SG::kMix, 10, 90, {}, {}},
             {SG::kDecay, 1, 15, {{SG::kMix, 60}}, {}},
@@ -398,13 +399,15 @@ int main(int argc, char** argv)
             {SG::kMotion, 0, 100, {{SG::kMix, 60}}, {}},
             {SG::kWidth, 0, 100, {{SG::kMix, 60}}, {}},
             {SG::kOutput, -12, 0, {}, {}},
-            {SG::kFreeze, 0, 1, {{SG::kMix, 60}}, {}},
+            {SG::kFreeze, 0, 0, {{SG::kMix, 60}, {SG::kLive, 0}}, {}, {{3.0, SG::kFreeze, 1}}},
             {SG::kFade, 20, 3000, {{SG::kMix, 60}}, {{3.0, SG::kFreeze, 1}}},
             {SG::kShimmer, 0, 80, {{SG::kMix, 60}}, {}},
             {SG::kInterval, kIvOctave, kIvFifth, {{SG::kMix, 60}, {SG::kShimmer, 70}}, {}},
             {SG::kSwell, 0, 100, {{SG::kMix, 60}}, {}},
             {SG::kRise, 0.2f, 6.0f, {{SG::kMix, 60}, {SG::kSwell, 100}}, {}},
             {SG::kSense, -60, -20, {{SG::kMix, 60}, {SG::kSwell, 100}}, {}},
+            {SG::kAdd, 0, 0, {{SG::kMix, 60}, {SG::kLive, 0}}, {{1.0, SG::kFreeze, 1}}, {{4.0, SG::kAdd, 1}}},
+            {SG::kLive, 0, 100, {{SG::kMix, 60}}, {{1.0, SG::kFreeze, 1}}},
         };
         check((int)ctls.size() == SG::kNumParams, "the control list covers all %d parameters", (int)SG::kNumParams);
         for (const Ctl& c : ctls)
@@ -416,22 +419,29 @@ int main(int argc, char** argv)
                 for (const auto& o : c.ctx) p->set(o.first, o.second);
                 p->set(c.param, side ? c.b : c.a);
                 p->reset();
-                outs[side] = render(*p, mixIn, c.pcs);
+                std::vector<Pc> pcs = c.pcs;
+                if (side) pcs.insert(pcs.end(), c.pcsB.begin(), c.pcsB.end());
+                outs[side] = render(*p, mixIn, pcs);
             }
             const double d = diffRatioDb(outs[0], outs[1], 0.0, 10.0);
-            check(d > -30.0, "%-10s %g -> %g changes the output by %.1f dB (relative)", probe.param(c.param).name.c_str(),
-                  (double)c.a, (double)c.b, d);
+            if (c.pcsB.empty())
+                check(d > -30.0, "%-10s %g -> %g changes the output by %.1f dB (relative)", probe.param(c.param).name.c_str(),
+                      (double)c.a, (double)c.b, d);
+            else
+                check(d > -30.0, "%-10s switched during the render changes the output by %.1f dB (relative)",
+                      probe.param(c.param).name.c_str(), d);
         }
     }
 
     // ---- 3. Freeze -----------------------------------------------------------------------------------
     std::printf("\n== 3. Freeze ==\n");
     {
-        // Wet only. A chord plays from 0 to 6 s; Freeze goes on at 3 s and off at 36 s.
+        // Wet only, Live 0 % (only the pad is heard while frozen, as in 1.0). A chord plays from 0 to 6 s;
+        // Freeze goes on at 3 s and off at 36 s.
         Stereo in = silence(46.0);
         addChord(in, {50, 57, 60, 65, 69}, 0.0, 6.0, 0.08f);
         auto run = [&](float fadeMs, std::vector<Pc> extra, const Stereo& input) {
-            auto p = make(0, {{SG::kMix, 100}, {SG::kFade, fadeMs}});
+            auto p = make(0, {{SG::kMix, 100}, {SG::kFade, fadeMs}, {SG::kLive, 0}});
             std::vector<Pc> pcs = {{3.0, SG::kFreeze, 1}, {36.0, SG::kFreeze, 0}};
             for (const Pc& e : extra) pcs.push_back(e);
             return render(*p, input, pcs);
@@ -447,24 +457,40 @@ int main(int argc, char** argv)
         const float sd = shapeDistance(shapeOf(out, 4.0, 7.0), shapeOf(out, 32.0, 35.0));
         check(sd < 1.5f, "the spectrum holds too (third-octave shape moves %.2f dB on average)", sd);
         // Engaging and releasing: no level jump. Steady noise plays straight through, so the reverb
-        // sits at a steady level; freezing holds that level and releasing returns to it.
+        // sits at a steady level. With Live 0 freezing holds that level; releasing brings the live
+        // reverb (which kept listening) back up while the pad dies away, so the level may rise by up to
+        // 3 dB (two uncorrelated reverbs) before it settles - smoothly. With Live 100 the live reverb
+        // refills beside the pad, so the level rises smoothly by about 3 dB.
         {
             Stereo nz = silence(40.0);
             addNoise(nz, 0.0, 39.0);
             for (float fadeMs : {250.0f, 20.0f})
             {
-                auto pn = make(0, {{SG::kMix, 100}, {SG::kFade, fadeMs}});
+                auto pn = make(0, {{SG::kMix, 100}, {SG::kFade, fadeMs}, {SG::kLive, 0}});
                 Stereo o = render(*pn, nz, {{10.0, SG::kFreeze, 1}, {30.0, SG::kFreeze, 0}});
                 const float ref = db(rmsOf(o, 6.0, 10.0));
-                float dev = 0.0f;
+                float dev = 0.0f, lo = 0.0f, hi = 0.0f;
                 for (double t = 8.0; t + 0.1 <= 14.0; t += 0.1) dev = std::max(dev, std::fabs(db(rmsOf(o, t, t + 0.1)) - ref));
-                for (double t = 26.0; t + 0.1 <= 34.0; t += 0.1) dev = std::max(dev, std::fabs(db(rmsOf(o, t, t + 0.1)) - ref));
+                for (double t = 26.0; t + 0.1 <= 34.0; t += 0.1) { const float v = db(rmsOf(o, t, t + 0.1)) - ref; lo = std::min(lo, v); hi = std::max(hi, v); }
+                const float settled = db(rmsOf(o, 36.0, 39.0)) - ref;
                 const float steady = maxStepDb(o, 15.0, 25.0), eng = maxStepDb(o, 9.0, 12.0), rel = maxStepDb(o, 29.0, 32.0);
-                check(dev < 1.5f && eng < steady + 0.5f && rel < steady + 0.5f,
-                      "Fade %3.0f ms, noise playing through: no level jump (100 ms windows within %.2f dB of the level before; largest step engaging %.2f, releasing %.2f, while held %.2f dB)",
-                      fadeMs, dev, eng, rel, steady);
-                checkClicks(o, fadeMs > 100.0f ? "freeze in and out with noise playing (Fade 250 ms)" : "freeze in and out with noise playing (Fade 20 ms)");
+                check(dev < 1.5f && eng < steady + 0.5f,
+                      "Fade %4.0f ms, Live 0, noise playing through: engaging holds the level (100 ms windows within %.2f dB; largest step %.2f, while held %.2f dB)",
+                      fadeMs, dev, eng, steady);
+                // (Over a 20 ms Fade the returning live reverb rises within one window: a fade, not a click.)
+                check(rel < (fadeMs > 100.0f ? 1.5f : 3.5f) && lo > -1.5f && hi < 3.5f && std::fabs(settled) < 1.5f,
+                      "Fade %4.0f ms, Live 0: releasing is smooth (largest step %.2f dB, level %+.1f .. %+.1f dB, settles at %+.1f dB)",
+                      fadeMs, rel, lo, hi, settled);
+                checkClicks(o, fadeMs > 100.0f ? "freeze in and out with noise playing (Fade 250 ms, Live 0)" : "freeze in and out with noise playing (Fade 20 ms, Live 0)");
             }
+            auto pl = make(0, {{SG::kMix, 100}});
+            Stereo o = render(*pl, nz, {{10.0, SG::kFreeze, 1}, {30.0, SG::kFreeze, 0}});
+            const float ref = db(rmsOf(o, 6.0, 10.0)), both = db(rmsOf(o, 14.0, 29.0)) - ref;
+            const float eng = maxStepDb(o, 9.0, 14.0), rel = maxStepDb(o, 29.0, 34.0);
+            check(eng < 1.5f && rel < 1.5f && both > 2.0f && both < 4.0f,
+                  "Live 100, noise playing through: pad + live reverb sit %+.1f dB over the reverb alone, reached smoothly (largest step %.2f dB in, %.2f dB out)",
+                  both, eng, rel);
+            checkClicks(o, "freeze in and out with noise playing (Live 100)");
         }
         // Releases: the pad then decays with the Decay time (5 s RT60).
         const float fall = db(rmsOf(out, 41.0, 42.0)) - db(rmsOf(out, 35.0, 36.0));
@@ -473,13 +499,13 @@ int main(int argc, char** argv)
         // A hard 20 ms Fade is still click-free.
         Stereo fast = run(20, {}, in);
         checkClicks(fast, "freeze with Fade at 20 ms");
-        // While frozen, the input is shut out: drums from 10 to 20 s leave the frozen pad untouched.
+        // While frozen, the input is shut out of the pad: with Live 0, drums from 10 to 20 s leave it untouched.
         Stereo withDrums = in; addDrums(withDrums, 10.0, 20.0);
         Stereo out2 = run(250, {}, withDrums);
         const double leak = diffRatioDb(out, out2, 10.0, 34.0);
-        check(leak < -60.0, "input is muted while frozen (drums change the frozen pad by %.1f dB)", leak);
+        check(leak < -60.0, "the pad ignores new input (drums change the frozen pad by %.1f dB)", leak);
         // Freeze with Shimmer up: the shimmer is muted inside the frozen loop, so it holds too.
-        auto ps = make(0, {{SG::kMix, 100}, {SG::kShimmer, 70}});
+        auto ps = make(0, {{SG::kMix, 100}, {SG::kShimmer, 70}, {SG::kLive, 0}});
         Stereo outS = render(*ps, in, {{3.0, SG::kFreeze, 1}, {36.0, SG::kFreeze, 0}});
         lo = 1e9f; hi = -1e9f;
         for (double t = 5.0; t + 1.0 <= 35.0; t += 1.0) { const float v = db(rmsOf(outS, t, t + 1.0)); lo = std::min(lo, v); hi = std::max(hi, v); }
@@ -510,6 +536,107 @@ int main(int argc, char** argv)
         auto pz = make(0, {{SG::kFreeze, 1}});
         Stereo z = render(*pz, silence(2.0));
         check(finite(z) && peakOf(z) == 0.0f, "loaded with Freeze on: silent and finite");
+    }
+
+    // ---- 3b. Freeze + Add: a frozen chord, one note at a time ------------------------------------------
+    std::printf("\n== 3b. Freeze + Add ==\n");
+    {
+        // C4, then E4, then G4, each played alone for 1.6 s. Freeze at 1.2 s, Add at 3.2 s and at 5.2 s
+        // (the switch goes on, then off: every change adds).
+        Stereo in = silence(30.0);
+        addChord(in, {60}, 0.0, 1.6, 0.15f);
+        addChord(in, {64}, 2.0, 3.6, 0.15f);
+        addChord(in, {67}, 4.0, 5.6, 0.15f);
+        const std::vector<Pc> build = {{1.2, SG::kFreeze, 1}, {3.2, SG::kAdd, 1}, {5.2, SG::kAdd, 0}};
+        auto pc = make(0, {{SG::kMix, 100}, {SG::kLive, 0}});
+        Stereo chord = render(*pc, in, build);
+        auto p1 = make(0, {{SG::kMix, 100}, {SG::kLive, 0}});
+        Stereo single = render(*p1, in, {{1.2, SG::kFreeze, 1}});
+        const auto sc = spectrum(chord, 8.0, 28.0), s1 = spectrum(single, 8.0, 28.0);
+        const double hz[3] = {261.6, 329.6, 392.0};
+        const int notes[3] = {60, 64, 67};
+        const double at[3] = {1.2, 3.2, 5.2};
+        double lv[3], lv1[3], alone[3];
+        for (int k = 0; k < 3; ++k)
+        {
+            lv[k] = bandDb(sc, hz[k] * 0.98, hz[k] * 1.02); lv1[k] = bandDb(s1, hz[k] * 0.98, hz[k] * 1.02);
+            // The same note frozen on its own at the same moment. (Notes differ among themselves by several
+            // dB even in the plain reverb: an 8-line network colours pure tones. What matters is that Add
+            // holds each note as strongly as freezing it alone would.)
+            Stereo one = silence(30.0);
+            addChord(one, {notes[k]}, at[k] - 1.2, at[k] + 0.4, 0.15f);
+            auto pa = make(0, {{SG::kMix, 100}, {SG::kLive, 0}});
+            alone[k] = bandDb(spectrum(render(*pa, one, {{at[k], SG::kFreeze, 1}}), 8.0, 28.0), hz[k] * 0.98, hz[k] * 1.02);
+        }
+        float worst = 0.0f;
+        for (int k = 0; k < 3; ++k) worst = std::max(worst, (float)std::fabs(lv[k] - alone[k]));
+        check(worst < 3.0f, "three notes frozen one at a time are each held as strongly as frozen alone (C %+.1f, E %+.1f, G %+.1f dB)",
+              lv[0] - alone[0], lv[1] - alone[1], lv[2] - alone[2]);
+        check(lv[1] - lv1[1] > 25.0 && lv[2] - lv1[2] > 25.0,
+              "without Add only the first note is held (E and G are %.0f / %.0f dB weaker)", lv[1] - lv1[1], lv[2] - lv1[2]);
+        float lo = 1e9f, hi = -1e9f;
+        for (double t = 7.0; t + 1.0 <= 29.0; t += 1.0) { const float v = db(rmsOf(chord, t, t + 1.0)); lo = std::min(lo, v); hi = std::max(hi, v); }
+        check(hi - lo < 1.5f, "the frozen chord holds for 22 s (1 s windows within %.2f dB)", hi - lo);
+        check(finite(chord) && peakOf(chord) < 1.0f, "frozen chord finite, peak %.2f dBFS", db(peakOf(chord)));
+        checkClicks(chord, "building a chord with Freeze + Add (Live 0)");
+        std::string txt; pc->formatValue(SG::kAdd, 0.0f, txt);
+        check(pc->layers_.load() == 3 && txt == "3 layers", "Add's display counts the layers (\"%s\")", txt.c_str());
+
+        // The same with Live 100: the reverb keeps playing beside the pad.
+        auto pl = make(0, {{SG::kMix, 100}});
+        Stereo chordL = render(*pl, in, build);
+        checkClicks(chordL, "building a chord with Freeze + Add (Live 100)");
+        check(finite(chordL) && peakOf(chordL) < 1.0f, "Live 100 chord finite, peak %.2f dBFS", db(peakOf(chordL)));
+
+        // Live: over the frozen chord, a new note (A4) at 10 s is heard through the reverb in proportion to Live.
+        Stereo over = in; addChord(over, {69}, 10.0, 11.0, 0.15f);
+        double a440[3];
+        const float lives[3] = {0.0f, 50.0f, 100.0f};
+        for (int k = 0; k < 3; ++k)
+        {
+            auto pv = make(0, {{SG::kMix, 100}, {SG::kLive, lives[k]}});
+            a440[k] = bandDb(spectrum(render(*pv, over, build), 11.6, 13.6), 431.0, 449.0);
+        }
+        check(a440[2] - a440[0] > 20.0 && a440[1] > a440[0] + 6.0 && a440[1] < a440[2] - 3.0,
+              "Live sets how loud the reverb of new playing is over the pad (A4 tail: 0%% %.1f, 50%% %+.1f, 100%% %+.1f dB)",
+              0.0, a440[1] - a440[0], a440[2] - a440[0]);
+
+        // Add does nothing while Freeze is off.
+        auto pa = make(0, {{SG::kMix, 100}}), pb = make(0, {{SG::kMix, 100}});
+        const Stereo oa = render(*pa, in, {{2.0, SG::kAdd, 1}, {4.0, SG::kAdd, 0}}), ob = render(*pb, in);
+        check(diffRatioDb(oa, ob, 0.0, 30.0) < -200.0, "Add while Freeze is off changes nothing");
+
+        // Taps in quick succession, while a capture is still fading in (Fade 1 s): each waits for the one
+        // before to finish, and taps that pile up meanwhile count once. Smooth and finite.
+        auto pq = make(0, {{SG::kMix, 100}, {SG::kFade, 1000}});
+        Stereo quick = render(*pq, in, {{1.2, SG::kFreeze, 1}, {2.3, SG::kAdd, 1}, {2.35, SG::kAdd, 0}, {2.45, SG::kAdd, 1}, {4.3, SG::kAdd, 0}, {4.32, SG::kAdd, 1}});
+        checkClicks(quick, "quick taps while captures are still fading in");
+        check(finite(quick) && peakOf(quick) < 1.0f && pq->layers_.load() >= 4 && pq->layers_.load() <= 5,
+              "quick taps: finite, peak %.2f dBFS, %d layers (6 taps; those during a capture wait and pile up as one)",
+              db(peakOf(quick)), pq->layers_.load());
+
+        // Loudness guard: a loud chord with Add tapped every half second, ten times.
+        Stereo loud = silence(20.0);
+        addChord(loud, {48, 55, 60, 64, 67, 72}, 0.0, 7.0, 0.09f);
+        std::vector<Pc> taps = {{1.0, SG::kFreeze, 1}};
+        for (int k = 0; k < 10; ++k) taps.push_back({1.5 + 0.5 * k, SG::kAdd, (float)((k + 1) % 2)});
+        auto pg = make(0, {{SG::kMix, 100}, {SG::kLive, 0}});
+        Stereo g = render(*pg, loud, taps);
+        float gTop = -200.0f;
+        for (double t = 9.0; t + 1.0 <= 20.0; t += 1.0) gTop = std::max(gTop, db(rmsOf(g, t, t + 1.0)));
+        const float gEnd = db(rmsOf(g, 18.0, 20.0));
+        check(finite(g) && peakOf(g) < 1.0f && gTop < -7.0f && gEnd > -16.0f,
+              "eleven stacked layers of a loud chord are held down (loudest second %.1f dBFS, 18-20 s %.1f dBFS, peak %.2f dBFS)",
+              gTop, gEnd, db(peakOf(g)));
+
+        // After Freeze off the pad dies away and stops running.
+        auto ps = make(0, {{SG::kMix, 100}, {SG::kDecay, 2}});
+        Stereo sd = render(*ps, in, {{1.2, SG::kFreeze, 1}, {6.0, SG::kFreeze, 0}});
+        check(!ps->pad_.active && !ps->stage_.active, "once released and silent, the pad network stops running");
+        // A project loaded with Freeze and Add already on holds an empty pad and adds nothing.
+        auto pz = make(0, {{SG::kFreeze, 1}, {SG::kAdd, 1}});
+        Stereo z = render(*pz, silence(1.0));
+        check(pz->layers_.load() == 0 && peakOf(z) == 0.0f, "loaded with Freeze and Add on: nothing added, silent");
     }
 
     // ---- 4. Shimmer ----------------------------------------------------------------------------------
@@ -625,37 +752,52 @@ int main(int argc, char** argv)
     // ---- 7. Demo -------------------------------------------------------------------------------------
     std::printf("\n== 7. Demo ==\n");
     {
-        // 0-16 s   drums and chords through "Seaglass" (Mix 40 %); Freeze goes on at 11 s (Fade 1.2 s)
-        // 16-24 s  the input stops: the frozen pad alone; Freeze off at 22 s, it lets go
-        // 26-40 s  shimmer (Octave 55 %, Decay 10 s) on slow chords
-        // 41-58 s  swell (100 %, Rise 2 s) on chord stabs: the tail blooms in the gaps
-        Stereo in = silence(60.0);
-        addDrums(in, 0.0, 16.0, 92.0, 0.8f);
-        addChord(in, {48, 55, 59, 62, 64}, 0.0, 5.0, 0.06f);
-        addChord(in, {45, 52, 57, 60, 64}, 5.2, 10.4, 0.06f);
-        addChord(in, {41, 48, 55, 57, 64}, 10.6, 15.6, 0.06f);
-        addChord(in, {52, 59, 64, 66, 71}, 26.0, 30.0, 0.07f, 0.4, 0.8);
-        addChord(in, {49, 56, 61, 64, 68}, 31.0, 34.0, 0.07f, 0.4, 0.8);
+        // 0-13 s   drums and chords through the default program (Mix 40 %)
+        // 14-23 s  a chord built one note at a time: C, E, G, B, each frozen in turn (Freeze, then Add)
+        // 23-31 s  a melody over the frozen chord, with the live reverb (Live 60 %) still on it
+        // 32 s     Freeze off: the chord lets go
+        // 35-47 s  shimmer (Octave 55 %, Decay 10 s) on slow chords
+        // 48-64 s  swell (100 %, Rise 2 s) on chord stabs: the tail blooms in the gaps
+        Stereo in = silence(64.0);
+        addDrums(in, 0.0, 13.0, 92.0, 0.8f);
+        addChord(in, {48, 55, 59, 62, 64}, 0.0, 4.2, 0.06f);
+        addChord(in, {45, 52, 57, 60, 64}, 4.4, 8.6, 0.06f);
+        addChord(in, {41, 48, 55, 57, 64}, 8.8, 12.6, 0.06f);
+        const int build[4] = {48, 52, 55, 59};
+        for (int k = 0; k < 4; ++k) addChord(in, {build[k]}, 14.0 + 2.2 * k, 15.4 + 2.2 * k, 0.13f, 0.15, 0.4);
+        const int melody[8] = {67, 71, 72, 74, 72, 71, 67, 64};
+        for (int k = 0; k < 8; ++k) addChord(in, {melody[k]}, 23.5 + 0.9 * k, 24.0 + 0.9 * k, 0.08f, 0.04, 0.3);
+        addChord(in, {52, 59, 64, 66, 71}, 35.0, 39.0, 0.07f, 0.4, 0.8);
+        addChord(in, {49, 56, 61, 64, 68}, 40.0, 43.0, 0.07f, 0.4, 0.8);
         for (int k = 0; k < 6; ++k)
         {
             const int root = (k % 2) ? 45 : 48;
-            addChord(in, {root, root + 7, root + 12, root + 16}, 41.0 + k * 2.6, 41.0 + k * 2.6 + 0.5, 0.08f, 0.03, 0.15);
+            addChord(in, {root, root + 7, root + 12, root + 16}, 48.0 + k * 2.6, 48.0 + k * 2.6 + 0.5, 0.08f, 0.03, 0.15);
         }
-        auto p = make(0, {{SG::kMix, 40}, {SG::kFade, 1200}, {SG::kDecay, 6}});
+        auto p = make(0, {{SG::kMix, 40}, {SG::kDecay, 6}});
         std::vector<Pc> pcs = {
-            {11.0, SG::kFreeze, 1}, {16.0, SG::kMix, 70}, {22.0, SG::kFreeze, 0},
-            {25.0, SG::kShimmer, 55}, {25.0, SG::kDecay, 10}, {25.0, SG::kMix, 50},
-            {40.0, SG::kShimmer, 15}, {40.0, SG::kSwell, 100}, {40.0, SG::kRise, 2.0f}, {40.0, SG::kDecay, 8},
+            {13.5, SG::kMix, 75}, {13.5, SG::kLive, 60}, {13.5, SG::kFade, 400},
+            {15.2, SG::kFreeze, 1}, {17.4, SG::kAdd, 1}, {19.6, SG::kAdd, 0}, {21.8, SG::kAdd, 1},
+            {32.0, SG::kFreeze, 0},
+            {34.0, SG::kShimmer, 55}, {34.0, SG::kDecay, 10}, {34.0, SG::kMix, 50},
+            {47.0, SG::kShimmer, 15}, {47.0, SG::kSwell, 100}, {47.0, SG::kRise, 2.0f}, {47.0, SG::kDecay, 8},
         };
         double cpu = 0.0;
         Stereo out = render(*p, in, pcs, &cpu);
         const char* path = argc > 1 ? argv[1] : "build/seaglass-demo.wav";
         writeWav(path, out.L, out.R);
-        std::printf("INFO  demo: %s (60 s, peak %.2f dBFS)\n", path, db(peakOf(out)));
-        std::printf("INFO  CPU: 60 s rendered in %.3f s on this computer (%.2f%% of real time, desktop; the MPC is several times slower)\n",
-                    cpu, 100.0 * cpu / 60.0);
+        std::printf("INFO  demo: %s (64 s, peak %.2f dBFS)\n", path, db(peakOf(out)));
+        std::printf("INFO  CPU: 64 s rendered in %.3f s on this computer (%.2f%% of real time, desktop; the MPC is several times slower)\n",
+                    cpu, 100.0 * cpu / 64.0);
         check(finite(out) && peakOf(out) < 1.0f, "demo under 0 dBFS, no NaN");
-        checkClicks(out, "demo after the drums stop (frozen pad, release, shimmer, swell)", 16.5);
+        checkClicks(out, "demo after the drums stop (chord built with Add, melody over it, release, shimmer, swell)", 13.5);
+
+        // Worst case for CPU: all three networks running (a capture fading in over a held pad) with Shimmer on.
+        auto pw = make(0, {{SG::kShimmer, 50}, {SG::kFade, 4000}});
+        Stereo nz = silence(12.0); addNoise(nz, 0.0, 12.0);
+        double cpuW = 0.0;
+        render(*pw, nz, {{1.0, SG::kFreeze, 1}, {5.0, SG::kAdd, 1}, {9.0, SG::kAdd, 0}}, &cpuW);
+        std::printf("INFO  CPU worst case (live + pad + capture + shimmer): %.2f%% of real time on this computer\n", 100.0 * cpuW / 12.0);
     }
 
     std::printf("\n%s  (%d failure%s)\n", failures ? "FAIL" : "PASS", failures, failures == 1 ? "" : "s");

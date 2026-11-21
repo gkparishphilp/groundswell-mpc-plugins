@@ -11,10 +11,14 @@ Source art:
     knob_small.webp         knob with skirt, pointer at 12 o'clock (shared with Abyss, Krill, Wipeout, Largemouth)
     pill_on/off.webp        button pill (shared likewise)
 
-Layout: one tab, SEA. Each row is one Q-Link row: two boxes of two controls, one either side, so the title, the
+Layout: two tabs. Each row is one Q-Link row: two boxes of two controls, one either side, so the title, the
 wave and the glass on the beach stay in view in the middle.
 
-    SPACE | TAIL,  COLOUR | OUTPUT,  FREEZE | SHIMMER,  SWELL | SWELL
+    SEA      SPACE | TAIL,  FREEZE | PAD,  SHIMMER | SWELL,  COLOUR | OUTPUT
+    DETAIL   SWELL | SENSE,  COLOUR | OUTPUT
+
+ADD is a single tap button (a Toggle: every tap flips the parameter, and every flip adds a layer) with the
+plugin's own value text beside it ("Tap", "3 layers").
 
 The skin binds to parameter indices, so it must be regenerated if the parameter list changes (the script checks its
 parameter table against build/params.json when that exists). The drawing machinery is a copy of Abyss's
@@ -45,7 +49,9 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 
 # Parameter indices (must match the enum in src/Seaglass.cpp).
 NAMES = ["mix", "decay", "predelay", "tone", "lowcut", "motion", "width", "output",
-         "freeze", "fade", "shimmer", "interval", "swell", "rise", "sense"]
+         "freeze", "fade", "shimmer", "interval", "swell", "rise", "sense",
+         # 1.1
+         "add", "live"]
 P = {n: i for i, n in enumerate(NAMES)}
 
 CHOICES = {P["freeze"]: ["Off", "On"],
@@ -207,12 +213,24 @@ def pills(name, label, captions=None, width=SLOT_W):
                 width=width)
 
 
+TAP_W = 82                       # width of a tap button
+
+
+def tap(name, label, caption):
+    return dict(kind="tap", param=P[name], name=label, caption=caption)
+
+
 def place(ctl, col, row, slot, sx):
     """Give a control its position on the screen; sx is its slot's left edge."""
     ctl = dict(ctl)
     by0 = ROW_Y[row]
     if ctl["kind"] == "knob":
         ctl["centre"] = (sx + KNOB_X, by0 + KNOB_Y)
+    elif ctl["kind"] == "tap":
+        x0, top = sx + 6, by0 + KNOB_Y - 2
+        ctl["button"] = (x0, top, TAP_W)
+        ctl["value_xy"] = (x0 + TAP_W + 12, top + PILL_H / 2)
+        ctl["name_xy"] = (x0 + 2, by0 + KNOB_Y - 20)
     else:
         n = len(ctl["captions"])
         x0 = sx + 6
@@ -249,12 +267,18 @@ PAGES = [
     page("SEA", [
         (("SPACE", [knob("mix", "MIX"), knob("decay", "DECAY")]),
          ("TAIL", [knob("predelay", "PRE-DELAY"), knob("tone", "TONE")])),
+        (("FREEZE", [pills("freeze", "FREEZE"), tap("add", "ADD", "ADD")]),
+         ("PAD", [knob("fade", "FADE"), knob("live", "LIVE")])),
+        (("SHIMMER", [knob("shimmer", "SHIMMER"), knob("interval", "INTERVAL")]),
+         ("SWELL", [knob("swell", "SWELL"), knob("rise", "RISE")])),
         (("COLOUR", [knob("lowcut", "LOW CUT"), knob("motion", "MOTION")]),
          ("OUTPUT", [knob("width", "WIDTH"), knob("output", "OUTPUT")])),
-        (("FREEZE", [pills("freeze", "FREEZE"), knob("fade", "FADE")]),
-         ("SHIMMER", [knob("shimmer", "SHIMMER"), knob("interval", "INTERVAL")])),
+    ]),
+    page("DETAIL", [
         (("SWELL", [knob("swell", "SWELL"), knob("rise", "RISE")]),
-         ("SWELL", [knob("sense", "SENSE")])),
+         ("SENSE", [knob("sense", "SENSE")])),
+        (("COLOUR", [knob("lowcut", "LOW CUT"), knob("motion", "MOTION")]),
+         ("OUTPUT", [knob("width", "WIDTH"), knob("output", "OUTPUT")])),
     ]),
 ]
 TAB_NAMES = [p["name"] for p in PAGES]
@@ -346,6 +370,22 @@ def pill_component(ctl, files, n_choices):
     return comp, (round(ox), round(oy), round(w), round(h))
 
 
+def tap_component(ctl, image):
+    """One Toggle button (every tap flips the parameter) and the parameter's value text to its right."""
+    x0, top, pw = ctl["button"]
+    ox, oy = x0 - PILL_MARGIN, top - PILL_MARGIN
+    vw = SLOT_W - TAP_W - 18
+    w = pw + 2 * PILL_MARGIN + 12 + vw
+    h = PILL_H + 2 * PILL_MARGIN
+    children = [focus_child(int(w), int(h)),
+                G.entry("tap", "Button", G.button_data(image, image, 1, 1),
+                        "0 0 %d %d" % (pw + 2 * PILL_MARGIN, h), "No", "Show", "Always"),
+                G.entry("value", "Label", label_data("Value", VALUE_COLOUR, VALUE_SIZE, "left verticallyCentred"),
+                        "%d 0 %d %d" % (pw + 2 * PILL_MARGIN + 3, vw, h), "No", "Show", "Always")]
+    comp = G.component_definition(G.control_actions("knob overlay", double_click=False), children, "00000000")
+    return comp, (round(ox), round(oy), round(w), round(h))
+
+
 def check_params():
     """Refuse to render a skin that binds to the wrong parameters."""
     path = os.path.join(PROJECT, "build", "params.json")
@@ -409,6 +449,16 @@ def build():
                 children.append(G.entry("ctl %d" % ci, key, obj(("version", 1), ("handleName", "Data")),
                                         "%d %d %d %d" % (x, y, w, h), "Yes", "Hide", "Always", remap=[("Data", handle)]))
                 previews.append((ti, "knob", (ctl, (x, y), strips[ctl["bipolar"]])))
+            elif ctl["kind"] == "tap":
+                fname = "tap_%s.png" % ctl["caption"].lower()
+                if fname not in pill_files:
+                    pill_files[fname] = save(fname, pill(False, ctl["caption"], TAP_W))
+                comp, (ox, oy, w, h) = tap_component(ctl, fname)
+                comp_name = "tap %d %d" % (ti, ci)
+                defs.append((comp_name, comp))
+                children.append(G.entry("ctl %d" % ci, comp_name, obj(("version", 1), ("handleName", "Data")),
+                                        "%d %d %d %d" % (ox, oy, w, h), "Yes", "Hide", "Always", remap=[("Data", handle)]))
+                previews.append((ti, "tap", (ctl, fname)))
             else:
                 files = []
                 for choice, caption, x, y, pw in ctl["items"]:
@@ -485,6 +535,12 @@ def make_previews(previews, images):
             pad_x = KNOB_X - f // 2
             im.alpha_composite(images[strip_name].crop((0, fi * f, f, (fi + 1) * f)), (x + pad_x, y))
             d.text((x + pad_x + f + VALUE_X_GAP, y + f / 2 + 12), text, font=font(19, FONT_MEDIUM), fill=CREAM, anchor="lm")
+        elif kind == "tap":
+            ctl, fname = data
+            x0, top, pw = ctl["button"]
+            im.alpha_composite(images[fname], (round(x0 - PILL_MARGIN), round(top - PILL_MARGIN)))
+            vx, vy = ctl["value_xy"]
+            d.text((vx, vy + 1), "Tap", font=font(19, FONT_MEDIUM), fill=CREAM, anchor="lm")
         elif kind == "pills":
             ctl, files = data
             sel = choice_index(ctl["param"])

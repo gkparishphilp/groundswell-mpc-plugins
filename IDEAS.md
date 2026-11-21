@@ -25,7 +25,9 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   go without a click; Shimmer pitch-shifts the tail in the feedback loop (octave, fifth, two
   octaves or an octave down) so it rises and sparkles; Swell ducks the tail while you play and
   lets it bloom back in the gaps, the way Tidepools waits for you. Built on Abyss's FDN reverb.
-  Still to come: a Size control and a freeze that keeps layering new input.
+  1.1 added Add (layer note after note onto the frozen pad: a frozen chord) and Live (the normal
+  reverb keeps playing beside the pad). Still to come: a Size control, per-layer release, and an
+  on-screen hold-to-freeze button.
 
 ## Effects that listen and respond
 

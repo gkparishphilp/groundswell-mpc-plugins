@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: MIT
 //
 // A stereo hall-style reverb with three tricks:
-//   FREEZE   holds whatever is in the tail as an endless pad. The loop is crossfaded (over "Fade")
-//            into a lossless state: feedback at exactly 1, damping out, input and shimmer muted.
-//            Switching it off crossfades back to the normal decay, so the pad lets go naturally.
+//   FREEZE   holds what the reverb is sounding as an endless pad, in a second, lossless reverb loop
+//            beside the normal one. "Add" puts whatever the reverb is sounding now on top of the pad
+//            (freeze a note, play the next, tap Add, and so on: a frozen chord). "Live" sets how much
+//            of the normal reverb you still hear while the pad holds. Switching Freeze off lets the
+//            whole pad die away at the Decay time.
 //   SHIMMER  a pitch shifter in the feedback loop: the tail is shifted up an octave (or a fifth,
 //            two octaves, or down an octave) and fed back in, so every pass rises and sparkles.
 //   SWELL    ducks the tail while you play and lets it bloom back in the gaps ("Rise" seconds,
@@ -29,16 +31,29 @@
 // linear (linear interpolation is a low-pass, which would slowly drain a frozen loop) and input
 // diffusion added in front (so drum hits smear into a wash instead of a flutter of echoes).
 //
+// HOW FREEZE AND ADD WORK: there are up to three copies of the 8-line network, all sharing one write
+// position and the same modulation: LIVE (the normal reverb, always running), PAD (lossless: gain
+// exactly 1, no damping, no input) and STAGE (a capture in progress). A capture MOVES the live
+// network's state into STAGE (live becomes empty) - since the networks are linear, the output at that
+// instant is unchanged. STAGE starts at the live level and fades up over "Fade" while the input is
+// cross-faded from STAGE back to LIVE, so whatever you play during Fade is soaked into the capture,
+// and STAGE blends from the live decay and damping to lossless (no jump in what it writes back).
+// Then STAGE is MERGED into PAD (their states added: again exact, again no change at that instant).
+// A loudness guard eases the pad down if stacked layers get too loud. Freeze off ramps PAD from
+// lossless to the normal decay and damping over Fade.
+//
 // CPU: every coefficient (exp, pow, log) is computed once per block; the per-sample work is
-// table-free arithmetic: about 8 delay reads, 4 allpass interpolations, a 24-add Hadamard
-// transform, 8 one-pole filters and 8 diffuser allpasses, plus the shimmer path (skipped
-// entirely while Shimmer is at 0).
+// table-free arithmetic: per network about 8 delay reads, 4 allpass interpolations, a 24-add
+// Hadamard transform and 8 one-pole filters, plus 8 diffuser allpasses and the shimmer path
+// (skipped entirely while Shimmer is at 0). The pad network only runs while there is a pad, the
+// stage network only during a capture's Fade; a move or merge touches ~22k samples once.
 
 #include "mpc_plugin.h"
 #include "dsp/math.h"
 #include "dsp/smoother.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -149,6 +164,18 @@ struct Shifter
     }
 };
 
+// One 8-line feedback delay network's state: lines, damping filters, and the allpass interpolators of
+// the four modulated lines.
+struct Loop
+{
+    Ring line[8];
+    float lp[8] = {};
+    float ap[4] = {};
+    bool active = false;
+};
+
+constexpr float kPadCeiling = 0.3f;      // pad RMS above which the loudness guard eases it down
+
 } // namespace seaglass
 
 using namespace seaglass;
@@ -164,6 +191,8 @@ public:
         kFreeze, kFade,
         kShimmer, kInterval,
         kSwell, kRise, kSense,
+        // 1.1
+        kAdd, kLive,
         kNumParams
     };
 
@@ -173,7 +202,7 @@ public:
         i.name = "Seaglass";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'v', 'X', 'f');   // == "uid" in plugin.json. Never change.
-        i.version = 1000;
+        i.version = 1100;
         i.isInstrument = false;
         i.numInputs = 2;
         i.numOutputs = 2;
@@ -202,7 +231,8 @@ public:
         // Stereo width of the tail (0 = mono, 100 = full).
         addParam(floatParam ("width",    "Width", 0.0f, 100.0f, 100.0f, "%", 0));
         addParam(floatParam ("output",   "Output", -24.0f, 6.0f, 0.0f, "dB", 1));
-        // Hold the tail as an endless pad; Fade is how long it takes to settle in and to let go.
+        // Hold the sound as an endless pad; Fade is how long a capture keeps soaking up what you play
+        // (and how long the pad takes to let go).
         addParam(boolParam  ("freeze",   "Freeze", false));
         addParam(logParam   ("fade",     "Fade", 20.0f, 4000.0f, 250.0f, "", 0));    // text from formatValue
         // Pitch-shifted feedback: how strongly the tail climbs, and by what interval.
@@ -213,6 +243,11 @@ public:
         addParam(floatParam ("swell",    "Swell", 0.0f, 100.0f, 0.0f, "%", 0));
         addParam(logParam   ("rise",     "Rise", 0.1f, 8.0f, 1.5f, "", 2));          // text from formatValue
         addParam(floatParam ("sense",    "Sense", -60.0f, -12.0f, -36.0f, "dB", 0));
+        // ---- 1.1: appended, so 1.0 projects load (their pad is the only change: see the README). ----
+        // Every change of Add (either way) layers what the reverb is sounding now onto the frozen pad.
+        addParam(boolParam  ("add",      "Add", false));                                 // text from formatValue
+        // How much of the normal reverb plays alongside the pad while Freeze is on.
+        addParam(floatParam ("live",     "Live", 0.0f, 100.0f, 100.0f, "%", 0));
 
         if (numParams() != kNumParams) mpc::log("Seaglass: parameter count mismatch (%d vs %d)", numParams(), (int)kNumParams);
 
@@ -231,7 +266,10 @@ public:
         program("Kelp Shadow", {{kMix, 40}, {kDecay, 9}, {kTone, 3800}, {kShimmer, 40}, {kInterval, kIvOctDown}, {kLowCut, 60}, {kWidth, 85}});
         program("Cobalt Bloom", {{kMix, 50}, {kDecay, 8}, {kSwell, 85}, {kRise, 2.5f}, {kShimmer, 20}, {kTone, 7500}});
         program("Ghost Tide", {{kMix, 60}, {kDecay, 18}, {kSwell, 100}, {kRise, 4.0f}, {kShimmer, 30}, {kTone, 5500}, {kMotion, 55}});
-        program("Endless Shoal", {{kMix, 60}, {kDecay, 20}, {kFade, 1200}, {kTone, 6000}, {kMotion, 45}, {kPreDelay, 10}});
+        program("Endless Shoal", {{kMix, 60}, {kDecay, 20}, {kFade, 1200}, {kTone, 6000}, {kMotion, 45}, {kPreDelay, 10}, {kLive, 30}});
+        // 1.1: built for Freeze + Add.
+        program("Glass Chord", {{kMix, 70}, {kDecay, 6}, {kFade, 400}, {kLive, 60}, {kTone, 7000}, {kMotion, 45}});
+        program("Shore Layers", {{kMix, 55}, {kDecay, 10}, {kFade, 900}, {kLive, 100}, {kShimmer, 25}, {kTone, 6500}, {kMotion, 50}});
     }
 
     // ----- lifecycle ------------------------------------------------------------------------------
@@ -242,7 +280,7 @@ public:
         for (int k = 0; k < 8; ++k)
         {
             fdnLen_[k] = (int)std::lround((float)kFdnLen[k] * scale_);
-            line_[k].allocate(fdnLen_[k] + 8);
+            for (Loop* L : {&live_, &pad_, &stage_}) L->line[k].allocate(fdnLen_[k] + 8);
         }
         for (int j = 0; j < 4; ++j)
         {
@@ -259,13 +297,19 @@ public:
         shiftR_.r.allocate((int)window_ + 8);
         envAtt_ = 1.0f - std::exp(-1.0f / (0.003f * sr_));
         envRel_ = 1.0f - std::exp(-1.0f / (0.12f * sr_));
+        // Loudness guard: 6 dB per second. A line's gain applies once per trip round it, so the per-line
+        // factor depends on the line's length (like the Decay gains).
+        for (int k = 0; k < 8; ++k)
+        {
+            padDuckG_[k] = std::pow(10.0f, -6.0f * (float)fdnLen_[k] / (20.0f * sr_));
+            ones_[k] = 1.0f;
+        }
         reset();
     }
 
     void reset() override
     {
-        for (int k = 0; k < 8; ++k) { line_[k].clear(); lp_[k] = 0.0f; }
-        for (int j = 0; j < 4; ++j) apY_[j] = 0.0f;
+        for (Loop* L : {&live_, &pad_, &stage_}) clearLoop(*L);
         for (int j = 0; j < 4; ++j) { diffL_[j].r.clear(); diffR_[j].r.clear(); diffL_[j].pos = diffR_[j].pos = 0; }
         preL_.clear(); preR_.clear();
         shiftL_.r.clear(); shiftR_.r.clear();
@@ -287,7 +331,16 @@ public:
         modDepth_ = modDepthTarget();
         for (int j = 0; j < 4; ++j) modNow_[j] = modOffset(j, modPhase_[j], modDepth_);
         preDelay_ = preDelayTarget();
-        freeze_ = getBool(kFreeze) ? 1.0f : 0.0f;
+        // A project loaded with Freeze on starts with an empty, held pad; Add's saved state is not a tap.
+        held_ = getBool(kFreeze);
+        pad_.active = held_;
+        stage_.active = false;
+        padHold_ = held_ ? 1.0f : 0.0f;
+        liveGain_ = held_ ? get(kLive) * 0.01f : 1.0f;
+        lastAdd_ = getBool(kAdd);
+        addPending_ = false;
+        layers_.store(0);
+        padGuardOn_ = false; padQuiet_ = 0;
         swellState_ = 0.0f;
         duck_.snap(1.0f);
         shimGain_.snap(0.0f);
@@ -335,9 +388,42 @@ public:
         const float preStep = (preDelay_ - preStart) * invN;
         float pre = preStart;
 
-        // Freeze: a linear ramp over Fade, read through an S-curve.
-        const float freezeTarget = getBool(kFreeze) ? 1.0f : 0.0f;
+        // Freeze, Add and Live. Ramps run over Fade (linear, read through an S-curve).
         const float freezeStep = 1.0f / (std::max(0.02f, get(kFade) * 0.001f) * sr_);
+        // Content only ever moves between networks that are processing it the same way, so a tap
+        // (or Freeze off) that arrives while a capture is still fading in waits until it has joined
+        // the pad (at most one Fade). Taps that pile up meanwhile count as one.
+        const bool freezeOn = getBool(kFreeze);
+        if (freezeOn && !held_)
+        {
+            held_ = true;
+            addPending_ = false;
+            if (!pad_.active) { clearWindow(pad_); pad_.active = true; }
+            if (stage_.active) addPending_ = true;   // (only after an off/on inside one Fade)
+            else { capture(); layers_.store(1); }
+        }
+        else if (!freezeOn && held_ && !stage_.active)
+        {
+            held_ = false;
+            addPending_ = false;
+            layers_.store(0);
+        }
+        const bool addNow = getBool(kAdd);
+        if (addNow != lastAdd_)
+        {
+            lastAdd_ = addNow;
+            if (held_ && freezeOn) addPending_ = true;
+        }
+        if (addPending_ && held_ && !stage_.active)
+        {
+            addPending_ = false;
+            capture();
+            layers_.store(layers_.load() + 1);
+        }
+        const float holdTarget = held_ ? 1.0f : 0.0f;
+        const float liveTarget = held_ ? get(kLive) * 0.01f : 1.0f;
+        const float* padGuard = padGuardOn_ ? padDuckG_ : ones_;
+        double padSq = 0.0;
 
         // Shimmer: interval, filters, and a feed level that backs off when the tail gets loud.
         const int iv = clamp(getInt(kInterval), 0, 3);
@@ -394,12 +480,6 @@ public:
             float sr = pr0 + pf * (pr1 - pr0);
             ++prePos_;
 
-            // Freeze ramp.
-            if (freeze_ < freezeTarget) freeze_ = std::min(freezeTarget, freeze_ + freezeStep);
-            else if (freeze_ > freezeTarget) freeze_ = std::max(freezeTarget, freeze_ - freezeStep);
-            const float fz = smooth01(freeze_);
-            const bool frozen = fz >= 1.0f;
-
             // Shimmer feed (computed from the previous frame's tail) joins the input.
             const float sg = shimGain_.next();
             if (shimOn)
@@ -411,67 +491,74 @@ public:
             // Input diffusion.
             for (int j = 0; j < 4; ++j) { sl = diffL_[j].process(sl); sr = diffR_[j].process(sr); }
             inG_ += inGStep;
-            const float inMul = inG_ * (1.0f - fz);
-            const float il = sl * inMul, ir = sr * inMul;
+            const float il = sl * inG_, ir = sr * inG_;
 
-            // 8-line FDN: read (allpass-interpolated on the modulated lines), tap the output, damp,
-            // apply the loop gain, Hadamard mix, inject, write.
-            float y[8];
-            for (int k = 0; k < 8; ++k) y[k] = line_[k].buf[(size_t)((fdnPos_ - fdnLen_[k]) & line_[k].mask)];
+            // Shared per-frame values: loop gains and damping glide; the four modulated lines' read
+            // positions and allpass coefficients are the same for every network.
+            d_ += dStep;
+            for (int k = 0; k < 8; ++k) g_[k] += gStep[k];
+            int m[4]; float c[4];
             for (int j = 0; j < 4; ++j)
             {
-                const int k = kModLine[j];
                 modNow_[j] += modStep[j];
-                const float dly = (float)fdnLen_[k] - modNow_[j];
-                const int m = (int)(dly - 0.5f);
-                const float delta = dly - (float)m;            // 0.5 .. 1.5: keeps the allpass well behaved
-                const float c = (1.0f - delta) / (1.0f + delta);
-                const Ring& rb = line_[k];
-                const float x0 = rb.buf[(size_t)((fdnPos_ - m) & rb.mask)];
-                const float x1 = rb.buf[(size_t)((fdnPos_ - m - 1) & rb.mask)];
-                const float v = c * (x0 - apY_[j]) + x1;
-                apY_[j] = v;
-                y[k] = v;
+                const float dly = (float)fdnLen_[kModLine[j]] - modNow_[j];
+                m[j] = (int)(dly - 0.5f);
+                const float delta = dly - (float)m[j];            // 0.5 .. 1.5: keeps the allpass well behaved
+                c[j] = (1.0f - delta) / (1.0f + delta);
             }
-            const float wl = 0.5f * (y[0] - y[2] + y[4] - y[6]);
-            const float wr = 0.5f * (y[1] - y[3] + y[5] - y[7]);
 
-            d_ += dStep;
-            if (frozen)
+            // Capture in progress: the input cross-fades from STAGE back to LIVE, STAGE fades up.
+            float toLive = 1.0f, sg2 = 0.0f;
+            if (stage_.active)
             {
-                for (int k = 0; k < 8; ++k) { g_[k] += gStep[k]; lp_[k] = y[k]; }
+                capT_ = std::min(1.0f, capT_ + freezeStep);
+                const float t = smooth01(capT_);
+                toLive = t;
+                sg2 = stageStart_ + (1.0f - stageStart_) * t;
             }
-            else
+            if (liveGain_ < liveTarget) liveGain_ = std::min(liveTarget, liveGain_ + freezeStep);
+            else if (liveGain_ > liveTarget) liveGain_ = std::max(liveTarget, liveGain_ - freezeStep);
+            if (padHold_ < holdTarget) padHold_ = std::min(holdTarget, padHold_ + freezeStep);
+            else if (padHold_ > holdTarget) padHold_ = std::max(holdTarget, padHold_ - freezeStep);
+
+            float lwl, lwr;
+            runLoop(live_, m, c, g_, d_, false, il * toLive, ir * toLive, lwl, lwr);
+            float wl = liveGain_ * lwl, wr = liveGain_ * lwr;
+            if (stage_.active)
             {
-                const float d = d_ + fz * (1.0f - d_);
-                for (int k = 0; k < 8; ++k)
+                // The capture blends from the live network's damping and decay to lossless over Fade, so
+                // what it writes back into its lines never jumps (it starts as an exact copy of live).
+                float swl, swr;
+                const float si = 1.0f - toLive;
+                if (toLive >= 1.0f) runLoop(stage_, m, c, ones_, 1.0f, true, il * si, ir * si, swl, swr);
+                else
                 {
-                    g_[k] += gStep[k];
-                    lp_[k] += d * (y[k] - lp_[k]);
-                    y[k] = lp_[k] * (g_[k] + fz * (1.0f - g_[k]));
+                    float gb[8];
+                    for (int k = 0; k < 8; ++k) gb[k] = g_[k] + toLive * (1.0f - g_[k]);
+                    runLoop(stage_, m, c, gb, d_ + toLive * (1.0f - d_), false, il * si, ir * si, swl, swr);
                 }
+                wl += sg2 * swl; wr += sg2 * swr;
             }
-            // Fast Walsh-Hadamard transform, normalised by 1/sqrt(8): lossless.
-            for (int h = 1; h < 8; h <<= 1)
-                for (int s = 0; s < 8; s += h << 1)
-                    for (int b = s; b < s + h; ++b)
-                    {
-                        const float x0 = y[b], x1 = y[b + h];
-                        y[b] = x0 + x1; y[b + h] = x0 - x1;
-                    }
-            constexpr float kNorm = 0.35355339f;
-            for (int k = 0; k < 8; ++k)
+            if (pad_.active)
             {
-                float v = y[k] * kNorm + ((k & 1) ? ((k & 2) ? -ir : ir) : ((k & 2) ? -il : il));
-                v = clamp(v, -8.0f, 8.0f);   // safety only: never reached in normal use
-                line_[k].buf[(size_t)(fdnPos_ & line_[k].mask)] = v;
+                float pwl, pwr;
+                const float fz = smooth01(padHold_);
+                if (fz >= 1.0f) runLoop(pad_, m, c, padGuard, 1.0f, true, 0.0f, 0.0f, pwl, pwr);
+                else
+                {
+                    float gb[8];
+                    for (int k = 0; k < 8; ++k) gb[k] = g_[k] + fz * (1.0f - g_[k]);
+                    runLoop(pad_, m, c, gb, d_ + fz * (1.0f - d_), false, 0.0f, 0.0f, pwl, pwr);
+                }
+                wl += pwl; wr += pwr;
+                padSq += (double)(pwl * pwl + pwr * pwr);
             }
             ++fdnPos_;
 
             // Shimmer path: filter the tail and shift it; it re-enters on the next frame.
             if (shimOn)
             {
-                shLp1L_ += shLpC * (wl - shLp1L_);     shLp1R_ += shLpC * (wr - shLp1R_);
+                shLp1L_ += shLpC * (lwl - shLp1L_);     shLp1R_ += shLpC * (lwr - shLp1R_);
                 shLp2L_ += shLpC * (shLp1L_ - shLp2L_); shLp2R_ += shLpC * (shLp1R_ - shLp2R_);
                 shHpL_ += shHpC * (shLp2L_ - shHpL_);   shHpR_ += shHpC * (shLp2R_ - shHpR_);
                 shOutL_ = shiftL_.process(shLp2L_ - shHpL_, shRate, window_);
@@ -484,7 +571,7 @@ public:
             const float duck = duck_.next();
             const float wetG = wet_.next() * duck;
             const float el = (mid + side) * wetG, er = (mid - side) * wetG;
-            wetSq += (double)(wl * wl + wr * wr);
+            wetSq += (double)(lwl * lwl + lwr * lwr);
             const float dryG = dry_.next(), og = out_.next();
             outL[i] = ceiling((xl * dryG + el) * og);
             if (outR) outR[i] = ceiling((xr * dryG + er) * og);
@@ -499,11 +586,24 @@ public:
         const float rms = std::sqrt((float)(wetSq / (2.0 * fn)));
         wetRms_ += (rms - wetRms_) * (1.0f - std::exp(-fn / (0.05f * sr_)));
 
-        // Belt and braces: if anything ever went non-finite, start the reverb again from silence.
-        if (!std::isfinite(wetRms_) || !std::isfinite(lp_[0]) || !std::isfinite(shOutL_))
+        // A finished capture joins the pad.
+        if (stage_.active && capT_ >= 1.0f) { mergeLoop(stage_, pad_, 1.0f); stage_.active = false; }
+
+        // Pad loudness guard (stacked layers add up), and the pad stops running once it has died away.
+        const float padRms = std::sqrt((float)(padSq / (2.0 * fn)));
+        padGuardOn_ = held_ && padRms > kPadCeiling;
+        if (pad_.active && !held_ && padHold_ <= 0.0f && padRms < 1e-5f)
         {
-            for (int k = 0; k < 8; ++k) { line_[k].clear(); lp_[k] = 0.0f; }
-            for (int j = 0; j < 4; ++j) apY_[j] = 0.0f;
+            padQuiet_ += n;
+            if (padQuiet_ > (int)(0.25f * sr_)) pad_.active = false;
+        }
+        else padQuiet_ = 0;
+
+        // Belt and braces: if anything ever went non-finite, start the reverb again from silence.
+        if (!std::isfinite(wetRms_) || !std::isfinite(padRms) || !std::isfinite(live_.lp[0]) || !std::isfinite(shOutL_))
+        {
+            for (Loop* L : {&live_, &pad_, &stage_}) clearLoop(*L);
+            pad_.active = held_; stage_.active = false;
             shiftL_.r.clear(); shiftR_.r.clear();
             shOutL_ = shOutR_ = 0.0f; wetRms_ = 0.0f;
             shLp1L_ = shLp2L_ = shHpL_ = shLp1R_ = shLp2R_ = shHpR_ = 0.0f;
@@ -534,6 +634,13 @@ public:
             if (v >= 1000.0f) std::snprintf(buf, sizeof(buf), "%.1f kHz", (double)v * 0.001);
             else std::snprintf(buf, sizeof(buf), "%.0f Hz", (double)v);
             break;
+        case kAdd:
+        {
+            const int layers = layers_.load();
+            if (layers <= 0) std::snprintf(buf, sizeof(buf), "Tap");
+            else std::snprintf(buf, sizeof(buf), layers == 1 ? "%d layer" : "%d layers", layers);
+            break;
+        }
         default:
             return false;
         }
@@ -542,6 +649,109 @@ public:
     }
 
 private:
+    // ---- the networks ----------------------------------------------------------------------------
+    // One frame of one network: read (allpass-interpolated on the modulated lines), tap the stereo
+    // output, damp (unless lossless) and apply the per-line gains g (all exactly 1 for a lossless
+    // network, except while the pad's loudness guard eases it), Hadamard mix, inject, write. The caller
+    // advances fdnPos_.
+    inline void runLoop(Loop& L, const int* m, const float* c, const float* g, float d, bool lossless,
+                        float il, float ir, float& wl, float& wr)
+    {
+        float y[8];
+        for (int k = 0; k < 8; ++k) y[k] = L.line[k].buf[(size_t)((fdnPos_ - fdnLen_[k]) & L.line[k].mask)];
+        for (int j = 0; j < 4; ++j)
+        {
+            const Ring& rb = L.line[kModLine[j]];
+            const float x0 = rb.buf[(size_t)((fdnPos_ - m[j]) & rb.mask)];
+            const float x1 = rb.buf[(size_t)((fdnPos_ - m[j] - 1) & rb.mask)];
+            const float v = c[j] * (x0 - L.ap[j]) + x1;
+            L.ap[j] = v;
+            y[kModLine[j]] = v;
+        }
+        wl = 0.5f * (y[0] - y[2] + y[4] - y[6]);
+        wr = 0.5f * (y[1] - y[3] + y[5] - y[7]);
+        if (lossless)
+        {
+            for (int k = 0; k < 8; ++k) { L.lp[k] = y[k]; y[k] *= g[k]; }
+        }
+        else
+        {
+            for (int k = 0; k < 8; ++k)
+            {
+                L.lp[k] += d * (y[k] - L.lp[k]);
+                y[k] = L.lp[k] * g[k];
+            }
+        }
+        // Fast Walsh-Hadamard transform, normalised by 1/sqrt(8): lossless.
+        for (int h = 1; h < 8; h <<= 1)
+            for (int s = 0; s < 8; s += h << 1)
+                for (int b = s; b < s + h; ++b)
+                {
+                    const float x0 = y[b], x1 = y[b + h];
+                    y[b] = x0 + x1; y[b + h] = x0 - x1;
+                }
+        constexpr float kNorm = 0.35355339f;
+        for (int k = 0; k < 8; ++k)
+        {
+            float v = y[k] * kNorm + ((k & 1) ? ((k & 2) ? -ir : ir) : ((k & 2) ? -il : il));
+            v = clamp(v, -8.0f, 8.0f);   // safety only: never reached in normal use
+            L.line[k].buf[(size_t)(fdnPos_ & L.line[k].mask)] = v;
+        }
+    }
+
+    // The samples a network can still read: its last len + a few per line (everything older is
+    // never read again, everything newer is written before it is read).
+    int windowLen(int k) const { return fdnLen_[k] + 4; }
+
+    static void clearLoop(Loop& L)
+    {
+        for (int k = 0; k < 8; ++k) { L.line[k].clear(); L.lp[k] = 0.0f; }
+        for (int j = 0; j < 4; ++j) L.ap[j] = 0.0f;
+    }
+    void clearWindow(Loop& L)
+    {
+        for (int k = 0; k < 8; ++k)
+        {
+            float* b = L.line[k].buf.data(); const int mask = L.line[k].mask;
+            for (int i = 0; i <= windowLen(k); ++i) b[(fdnPos_ - i) & mask] = 0.0f;
+            L.lp[k] = 0.0f;
+        }
+        for (int j = 0; j < 4; ++j) L.ap[j] = 0.0f;
+    }
+    // to = from, from = empty (a move: the sum of the two networks' outputs does not change).
+    void moveLoop(Loop& from, Loop& to)
+    {
+        for (int k = 0; k < 8; ++k)
+        {
+            float* a = from.line[k].buf.data(); float* b = to.line[k].buf.data();
+            const int mask = from.line[k].mask;
+            for (int i = 0; i <= windowLen(k); ++i) { const int x = (fdnPos_ - i) & mask; b[x] = a[x]; a[x] = 0.0f; }
+            to.lp[k] = from.lp[k]; from.lp[k] = 0.0f;
+        }
+        for (int j = 0; j < 4; ++j) { to.ap[j] = from.ap[j]; from.ap[j] = 0.0f; }
+    }
+    // to += gain * from; from is left as it was (the caller stops it).
+    void mergeLoop(const Loop& from, Loop& to, float gain)
+    {
+        for (int k = 0; k < 8; ++k)
+        {
+            const float* a = from.line[k].buf.data(); float* b = to.line[k].buf.data();
+            const int mask = from.line[k].mask;
+            for (int i = 0; i <= windowLen(k); ++i) { const int x = (fdnPos_ - i) & mask; b[x] += gain * a[x]; }
+            to.lp[k] += gain * from.lp[k];
+        }
+        for (int j = 0; j < 4; ++j) to.ap[j] += gain * from.ap[j];
+    }
+    // Start a capture (never while one is still fading in): move the live network into STAGE,
+    // starting at the level the live reverb is heard at now.
+    void capture()
+    {
+        moveLoop(live_, stage_);
+        stage_.active = true;
+        stageStart_ = liveGain_;
+        capT_ = 0.0f;
+    }
+
     // Loop gains for a decay time (RT60) and the damping coefficient for Tone; the input gain keeps a
     // held sound at about the same level whatever the decay (from Abyss).
     void computeLoop(float decay, float toneHz, float* g, float& d, float& inG) const
@@ -571,15 +781,13 @@ private:
 
     float sr_ = 44100.0f, scale_ = 1.0f;
 
-    Ring line_[8];
+    Loop live_, pad_, stage_;
     int fdnLen_[8] = {};
     int fdnPos_ = 0;
-    float lp_[8] = {};
     float g_[8] = {}, gTarget_[8] = {};
     float d_ = 0.5f, dTarget_ = 0.5f;
     float inG_ = 0.3f, inGTarget_ = 0.3f;
     float decaySm_ = 5.0f;
-    float apY_[4] = {};
     float modPhase_[4] = {}, modNow_[4] = {};
     float modDepth_ = 0.0f;
 
@@ -595,7 +803,15 @@ private:
     float shOutL_ = 0.0f, shOutR_ = 0.0f;
     float wetRms_ = 0.0f;
 
-    float freeze_ = 0.0f;
+    // Freeze / Add / Live state (audio thread; layers_ is also read by formatValue on the UI thread).
+    bool held_ = false, lastAdd_ = false, addPending_ = false;
+    float padHold_ = 0.0f;       // 0 = pad decaying, 1 = pad lossless (ramped over Fade)
+    float liveGain_ = 1.0f;      // level of the live network in the output
+    float capT_ = 1.0f, stageStart_ = 1.0f;
+    bool padGuardOn_ = false;
+    float padDuckG_[8] = {}, ones_[8] = {};
+    int padQuiet_ = 0;
+    std::atomic<int> layers_{0};
     float env_ = 0.0f, envAtt_ = 0.01f, envRel_ = 0.001f;
     float swellState_ = 0.0f;
 
