@@ -15,6 +15,11 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   stepped pulse, 4-bit triangle and LFSR noise, ring mod and sync, bit and sample-rate crunch, a
   lo-fi talking voice, the frame-rate chord arpeggio plus tempo arps, 16 pitch-sweep drums on the
   pads, and tracker-style vibrato and glide. Still to come: duty sweeps and drawable tracker tables.
+- **Abyss**: hold one note and it slowly evolves into a drone or pad. Additive: 24 drifting sine
+  partials per voice open from a sine into a deep pad over an Evolve time, with a wandering
+  spectral bloom, detuned twins, sub, fifth and shimmer layers, air, a slow motion cycle (free or
+  synced) and a built-in FDN reverb. For ambient beds and intros. Still to come: a reverb freeze
+  and a true shimmer tail (shared ground with Sea Glass).
 
 ## Effects that listen and respond
 
@@ -40,8 +45,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   glass). Cheap enough on CPU to play chords on the MPC.
 - **Driftwood**: a chord instrument. One pad plays a full chord in your key, with voicing, strum
   and humanize controls plus a little tape wobble.
-- **Abyss**: hold one note and it slowly evolves into a drone or pad (additive, with slow drift).
-  Good for ambient beds and intros.
 - **Current**: a generative sequencer that plays its own synth. Play a note to set the key and it
   improvises patterns that change step by step. (Plugins can't send MIDI to the MPC, so a
   sequencer has to be an instrument that makes its own sound.)

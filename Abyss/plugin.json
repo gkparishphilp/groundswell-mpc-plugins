@@ -1,0 +1,17 @@
+{
+  "name": "Abyss",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "instrument",
+  "uid": "GOlA",
+  "numInputs": 0,
+  "numOutputs": 2,
+  "category": "Synth",
+  "file32": "VST/abyss-arm32.so",
+  "file64": "VST/abyss-arm64.so",
+  "description": "A slowly evolving drone and pad instrument: hold a note and it opens from a sine into a deep, moving pad. 24 drifting sine partials per voice with a wandering spectral bloom, detuned twins, sub, fifth and shimmer layers, air, a slow motion cycle (free or synced to the song) and a lush built-in reverb; 6 voices, 8 programs.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

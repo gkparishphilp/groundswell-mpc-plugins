@@ -14,6 +14,7 @@ it costs in CPU; anything borrowed is credited there with its licence.
 | [Largemouth](Largemouth/) | Effect: a bass player that listens to your drums — learns the kick pattern and plays a bassline on it (Sub, 808, Pluck, Acid, Reese), on the chord it hears or a progression in the key; 8 programs | Original design | MIT |
 | [Krill](Krill/) | Instrument: an old-school chip synth — stepped pulse, 4-bit triangle and LFSR noise, ring mod and sync, bit and sample-rate crunch, a lo-fi talking voice, the 50/60 Hz one-finger chord arpeggio and tempo arps, 16 pitch-sweep drums on the pads, tracker-style vibrato and glide; 8 voices, 8 programs, custom skin | Original design | MIT |
 | [Wipeout](Wipeout/) | Effect: an audio mangler locked to the song — fills, glitches, breaks, ratchets, rolls, timewarps, reverses and transitions: on a grid it rolls the dice and repeats a slice (1/4 to 1/32 and triplets), reversed or at half speed, or tape-stops or gates it, with Roll, Vary, Hold and a pattern lock for the Q-Links; events up to 4 bars on grids up to 8 bars for transitions; 8 programs, custom skin | Original design | MIT |
+| [Abyss](Abyss/) | Instrument: an evolving drone and pad — hold a note and it opens from a sine into a deep, moving pad: 24 drifting sine partials per voice with a wandering spectral bloom, detuned twins, sub, fifth and shimmer layers, air, a slow motion cycle (free or locked to the song) and a built-in FDN reverb; 6 voices, 8 programs, custom skin | Original design | MIT |
 
 ## Installing on an MPC
 
