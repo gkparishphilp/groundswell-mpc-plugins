@@ -21,15 +21,17 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   synced) and a built-in FDN reverb. For ambient beds and intros. 1.1 added Orbit (each note's
   halves circling each other), Stretch, Hollow, interval choices, motion shapes and Sink. Still to
   come: a reverb freeze and a true shimmer tail (shared ground with Sea Glass).
+- **Seaglass**: a lush reverb you can freeze. Freeze holds the tail as an endless pad and lets it
+  go without a click; Shimmer pitch-shifts the tail in the feedback loop (octave, fifth, two
+  octaves or an octave down) so it rises and sparkles; Swell ducks the tail while you play and
+  lets it bloom back in the gaps, the way Tidepools waits for you. Built on Abyss's FDN reverb.
+  Still to come: a Size control and a freeze that keeps layering new input.
 
 ## Effects that listen and respond
 
 - **Echolocation**: a bank of tuned resonators (like sympathetic strings) that rings at the chord
   it detects. Put it on a drum loop and the hits come out as pitched, in-key tones. Cheap on CPU:
   about 8–16 simple filters.
-- **Sea Glass**: a reverb you can freeze. Freeze holds the current sound as a pad. Other modes:
-  shimmer (adds an octave up) and swell, which brings the tail in after you stop playing, the way
-  Tidepools waits for you.
 
 ## Mixing and character effects
 

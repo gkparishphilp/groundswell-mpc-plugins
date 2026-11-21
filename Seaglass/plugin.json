@@ -1,0 +1,17 @@
+{
+  "name": "Seaglass",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GvXf",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/seaglass-arm32.so",
+  "file64": "VST/seaglass-arm64.so",
+  "description": "A lush stereo reverb you can freeze: Freeze holds the tail as an endless pad and lets it go without a click; Shimmer pitch-shifts the tail up an octave (or a fifth, two octaves, or down an octave) inside the feedback loop so it rises and sparkles; Swell ducks the tail while you play and lets it bloom back in the gaps. 9 programs.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

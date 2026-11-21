@@ -1,0 +1,29 @@
+{
+  "kit": { "theme": "cyan", "accent": "FF8FE3CF" },
+  "pages": [
+    {
+      "name": "SEA",
+      "controls": [
+        { "param": "Mix", "widget": "fader" },
+        { "param": "Decay", "widget": "knob" },
+        { "param": "Pre-Delay", "widget": "knob" },
+        { "param": "Tone", "widget": "knob" },
+
+        { "param": "Low Cut", "widget": "knob" },
+        { "param": "Motion", "widget": "knob" },
+        { "param": "Width", "widget": "knob" },
+        { "param": "Output", "widget": "fader" },
+
+        { "param": "Freeze", "widget": "switch" },
+        { "param": "Fade", "widget": "knob" },
+        { "param": "Shimmer", "widget": "fader" },
+        { "param": "Interval", "widget": "switch" },
+
+        { "param": "Swell", "widget": "fader" },
+        { "param": "Rise", "widget": "knob" },
+        { "param": "Sense", "widget": "knob" },
+        "empty"
+      ]
+    }
+  ]
+}
