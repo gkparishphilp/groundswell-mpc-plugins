@@ -1,0 +1,38 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "PLAY",
+      "controls": [
+        { "param": "Chance",     "widget": "knob" },
+        { "param": "Hold",       "widget": "switch" },
+        { "param": "Slice",      "widget": "slider", "overlay": "menu" },
+        { "param": "Length",     "widget": "slider", "overlay": "menu" },
+
+        { "param": "Reverse",    "widget": "knob" },
+        { "param": "Half Speed", "widget": "knob" },
+        { "param": "Tape Stop",  "widget": "knob" },
+        { "param": "Gate",       "widget": "knob" },
+
+        { "param": "Roll",       "widget": "knob" },
+        { "param": "Decay",      "widget": "knob" },
+        { "param": "Vary",       "widget": "knob" },
+        { "param": "Pattern",    "widget": "slider", "overlay": "menu" },
+
+        { "param": "Grid",       "widget": "slider", "overlay": "menu" },
+        { "param": "Offset",     "widget": "knob" },
+        { "param": "Mix",        "widget": "fader" },
+        { "param": "Output",     "widget": "fader" }
+      ]
+    },
+    {
+      "name": "MORE",
+      "controls": [
+        { "param": "Smooth",     "widget": "knob" },
+        "empty",
+        "empty",
+        "empty"
+      ]
+    }
+  ]
+}

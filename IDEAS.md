@@ -7,6 +7,10 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 - **Largemouth** (was "Pilot Fish"): listens to your drums and plays a bassline that locks to the
   kick, in the key it hears. Its own sub/808 voice, with controls for how busy it plays, octave
   jumps and glide. Whalesong for the low end.
+- **Wipeout** (was "Riptide"): an audio mangler locked to tempo, for fills, glitches, breaks,
+  ratchets, rolls, timewarps, reverses and transitions, by chance or by hand: repeats (1/4 to 1/32
+  and triplets), reverse, half speed, tape stop and gate rolls, plus Roll, Hold and a pattern lock.
+  Built for playing live on the Q-Links. Undertow handles echoes; this cuts the audio up.
 - **Krill**: tiny, everywhere, and chirpy. An old-school home-computer / game-console instrument:
   stepped pulse, 4-bit triangle and LFSR noise, ring mod and sync, bit and sample-rate crunch, a
   lo-fi talking voice, the frame-rate chord arpeggio plus tempo arps, 16 pitch-sweep drums on the
@@ -20,9 +24,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 - **Sea Glass**: a reverb you can freeze. Freeze holds the current sound as a pad. Other modes:
   shimmer (adds an octave up) and swell, which brings the tail in after you stop playing, the way
   Tidepools waits for you.
-- **Riptide**: a stutter/repeat effect locked to tempo, with chance controls: repeats, reverse,
-  half speed, tape stop and gate rolls. Built for playing live on the Q-Links. Undertow handles
-  echoes; this cuts the audio up.
 
 ## Mixing and character effects
 
