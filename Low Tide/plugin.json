@@ -1,0 +1,17 @@
+{
+  "name": "Low Tide",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "Gy5X",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/low-tide-arm32.so",
+  "file64": "VST/low-tide-arm64.so",
+  "description": "Tape with a memory and a lifespan: lo-fi that moves in time with the song. The audio runs through a tape loop dubbed again on every pass (each generation duller, hissier, softer and wobblier; Fresh snaps it back), a Wear macro swept by a tempo-synced Tide cycle, gentle tape accidents on the beat (dropouts, motor drag, slips, crinkle, channel cuts), an old-sampler resample crunch that follows the record pitch, print-through, azimuth drift, breathing hiss, wow and flutter.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

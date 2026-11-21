@@ -36,6 +36,12 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   16 voices, cheap enough for chords. Custom shark panel. 1.1 added Bow and Blow
   exciters on every model (pressure, aftertouch, swell, vibrato); 1.2 added Buzz, an LFO on
   position, hardness, stretch and pressure, and per-hit randomness.
+- **Low Tide**: tape with a memory and a lifespan: lo-fi that moves in time with the song, unlike a
+  static colour box. A tape loop of 1-8 bars is dubbed again on every pass (each generation duller,
+  hissier, softer and wobblier, up to a cap; Fresh snaps it back; Memory re-records old passes), a
+  Wear macro swept by a Tide cycle of 1-32 bars, gentle tape accidents on the beat (dropouts, drag,
+  slips, crinkle, channel cuts), an old-sampler resample crunch that follows the record pitch,
+  print-through, azimuth drift, breathing hiss, wow and flutter. Custom cassette panel.
 
 ## Effects that listen and respond
 
@@ -47,8 +53,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 
 - **Pressure**: a one-knob processor for a whole mix or bus. Turning it up adds compression and
   tape saturation together.
-- **Low Tide**: makes audio sound old: wobbly tape, vinyl crackle, hiss, a narrower frequency
-  range and an age control.
 - **Swell**: a volume shaper locked to tempo, with pumping, gating and trance-chop shapes. The
   "ducked by the kick" sound without sidechain routing.
 

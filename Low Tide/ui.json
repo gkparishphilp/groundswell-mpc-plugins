@@ -1,0 +1,67 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "TAPE",
+      "controls": [
+        { "param": "Wear",        "widget": "knob" },
+        { "param": "Generations", "widget": "knob" },
+        { "param": "Mix",         "widget": "fader" },
+        { "param": "Output",      "widget": "fader" },
+
+        { "param": "Bars",        "widget": "switch" },
+        { "param": "At Cap",      "widget": "switch" },
+        { "param": "Fresh",       "widget": "switch" },
+        { "param": "Memory",      "widget": "knob" },
+
+        { "param": "Tide Depth",  "widget": "knob" },
+        { "param": "Tide Rate",   "widget": "slider", "overlay": "menu" },
+        { "param": "Tide Shape",  "widget": "slider", "overlay": "menu" },
+        "empty",
+
+        { "param": "Wear Now",    "widget": "knob" },
+        { "param": "Gen",         "widget": "knob" },
+        { "param": "Accident",    "widget": "slider" },
+        "empty"
+      ]
+    },
+    {
+      "name": "ACCIDENT",
+      "controls": [
+        { "param": "Chance",      "widget": "knob" },
+        { "param": "Severity",    "widget": "knob" },
+        { "param": "Density",     "widget": "switch" },
+        { "param": "Pattern",     "widget": "switch" },
+
+        { "param": "Dropouts",    "widget": "switch" },
+        { "param": "Drag",        "widget": "switch" },
+        { "param": "Slips",       "widget": "switch" },
+        { "param": "Crinkle",     "widget": "switch" },
+
+        { "param": "Chan Cut",    "widget": "switch" },
+        { "param": "Accident",    "widget": "slider" },
+        "empty",
+        "empty"
+      ]
+    },
+    {
+      "name": "FLAWS",
+      "controls": [
+        { "param": "Crunch",      "widget": "knob" },
+        { "param": "Rec Pitch",   "widget": "knob" },
+        { "param": "Bits",        "widget": "knob" },
+        { "param": "Filters",     "widget": "switch" },
+
+        { "param": "Print",       "widget": "knob" },
+        { "param": "Print Time",  "widget": "switch" },
+        { "param": "Azimuth",     "widget": "knob" },
+        { "param": "Az Drift",    "widget": "knob" },
+
+        { "param": "Hiss",        "widget": "knob" },
+        { "param": "Breathe",     "widget": "knob" },
+        { "param": "Wow",         "widget": "knob" },
+        { "param": "Flutter",     "widget": "knob" }
+      ]
+    }
+  ]
+}
