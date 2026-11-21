@@ -1,0 +1,132 @@
+{
+  "kit": "amber",
+  "pages": [
+    {
+      "name": "STRIKE",
+      "controls": [
+        {
+          "param": "Hardness",
+          "widget": "knob"
+        },
+        {
+          "param": "Strike Pos",
+          "widget": "knob"
+        },
+        {
+          "param": "Decay",
+          "widget": "knob"
+        },
+        {
+          "param": "Damping",
+          "widget": "knob"
+        },
+        {
+          "param": "Click",
+          "widget": "fader"
+        },
+        {
+          "param": "Drop",
+          "widget": "knob"
+        },
+        {
+          "param": "Resonator",
+          "widget": "fader"
+        },
+        {
+          "param": "Mute",
+          "widget": "knob"
+        },
+        {
+          "param": "Body",
+          "widget": "fader"
+        },
+        {
+          "param": "Body Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Room",
+          "widget": "fader"
+        },
+        {
+          "param": "Room Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Model",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Octave",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Volume",
+          "widget": "fader"
+        }
+      ]
+    },
+    {
+      "name": "PLAY",
+      "controls": [
+        {
+          "param": "Drop",
+          "widget": "knob"
+        },
+        {
+          "param": "Drop Time",
+          "widget": "knob"
+        },
+        {
+          "param": "Motor",
+          "widget": "knob"
+        },
+        {
+          "param": "Motor Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "Velocity",
+          "widget": "knob"
+        },
+        {
+          "param": "Vel>Hard",
+          "widget": "knob"
+        },
+        {
+          "param": "Octave",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fine",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Stretch",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Damping",
+          "widget": "knob"
+        },
+        {
+          "param": "Mute",
+          "widget": "knob"
+        },
+        {
+          "param": "Decay",
+          "widget": "knob"
+        }
+      ]
+    }
+  ]
+}

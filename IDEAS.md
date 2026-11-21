@@ -28,6 +28,11 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   1.1 added Add (layer note after note onto the frozen pad: a frozen chord) and Live (the normal
   reverb keeps playing beside the pad). Still to come: a Size control, per-layer release, and an
   on-screen hold-to-freeze button.
+- **Hammerhead** (was "Kelp"): struck and plucked physical modelling, built to be percussive:
+  marimba, vibes, xylophone and glock bars, kalimba, bell, glass, steel pan (8-mode resonator bank
+  plus a tuned tube) and plucked or hammered strings (waveguide). Mallet hardness, strike position,
+  click, decay/damping, mute and pedal, a pitch drop for log drums and toms, motor, body and room.
+  16 voices, cheap enough for chords. Custom shark panel. Still to come: kalimba buzz, bowing.
 
 ## Effects that listen and respond
 
@@ -46,8 +51,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 
 ## Instruments
 
-- **Kelp**: physical modelling of plucked, struck and bowed sounds (strings, kalimba, marimba,
-  glass). Cheap enough on CPU to play chords on the MPC.
 - **Driftwood**: a chord instrument. One pad plays a full chord in your key, with voicing, strum
   and humanize controls plus a little tape wobble.
 - **Current**: a generative sequencer that plays its own synth. Play a note to set the key and it
