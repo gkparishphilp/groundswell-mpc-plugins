@@ -14,12 +14,14 @@
 //     Main     harmonics 1..10            -- brightness roll-off x bloom peak x drift
 //     Twins    harmonics 1..3, detuned    -- chorus-like beating ("Detune")
 //     Sub      one octave down            -- "Sub"
-//     Fifth    1.5, 3, 4.5 x the note     -- "Fifth", fades in as the note evolves
+//     Interval root, x2, x3 of "Interval" -- "Int Level" (a fifth by default), fades in as it evolves
 //     Shimmer  harmonics 12..28           -- random glints, fade in late ("Shimmer")
-//   Main/Twins/Fifth are normalised to a steady loudness, so brightness and bloom change the
+//   "Stretch" bends all ratios by a power law (bells / blur); "Hollow" drops even harmonics.
+//   Main/Twins/Interval are normalised to a steady loudness, so brightness and bloom change the
 //   colour of the sound, not its level. x envelope (Attack / Release) x velocity.
-//   Partials are summed into three buses (centre, A, B); A and B are panned apart by "Width"
-//   and sway with the motion cycle.
+//   Partials are summed into three buses (centre, A = odd, B = even); A and B are panned apart by
+//   "Width" and sway with the motion cycle. "Orbit" sends A and B round each other instead: the
+//   half behind is quieter, darker (a one-pole low-pass per bus) and its bloom lower.
 //
 // OUTPUT: voices + Air (two band-passed noises whose level follows the voices) -> dry
 //         dry -> high-pass 150 Hz -> 8-line feedback delay network reverb ("Space", "Size",
@@ -27,9 +29,10 @@
 //
 // EVOLUTION: each voice has an "unfold" value that rises from 0 to 1 over Evolve seconds after
 //   note-on. It opens the brightness (from about one harmonic to the Bright setting), deepens
-//   the bloom and the drift, and brings in the fifth (from ~15 %) and the shimmer (from ~35 %).
+//   the bloom and the drift, and brings in the interval (from ~15 %) and the shimmer (from ~35 %).
+//   With Evolve Dir = Sink the brightness runs the other way and the shimmer fades out.
 //
-// MOTION: one slow sine cycle ("Cycle" seconds, or "Cycle Div" bars when Sync is on; locked to
+// MOTION: one slow cycle (Sine, Drift, Swell or Tide; "Cycle" seconds, or "Cycle Div" bars when Sync is on; locked to
 //   the song position while the MPC plays). Each voice reads it with its own phase offset.
 //   "Motion" sets how far it moves the bloom centre, the brightness and the stereo sway.
 //
@@ -61,23 +64,24 @@ constexpr int kCtrl      = 64;     // samples per control tick
 constexpr int kTableBits = 11;     // 2048-point sine table
 constexpr int kTableSize = 1 << kTableBits;
 
-enum Layer { kMain = 0, kTwin, kSub, kFifth, kShim };
+// Layer names carry their own prefix: inside the class, kSub / kFifth are parameter numbers.
+enum Layer { kLayerMain = 0, kLayerTwin, kLayerSub, kLayerFifth, kLayerShim };
 enum Bus { kBusC = 0, kBusA, kBusB };
 
 // The partial layout of one voice. ratio = frequency / note frequency; shape = the harmonic number
 // the brightness and bloom curves see; twin = +1 / -1 for the detune direction of a twin.
 struct Slot { float ratio; int layer; float shape; int bus; int twin; };
 static const Slot kSlots[kNumSlots] = {
-    { 1.0f, kMain, 1.0f, kBusC, 0}, { 2.0f, kMain, 2.0f, kBusB, 0}, { 3.0f, kMain, 3.0f, kBusA, 0},
-    { 4.0f, kMain, 4.0f, kBusB, 0}, { 5.0f, kMain, 5.0f, kBusA, 0}, { 6.0f, kMain, 6.0f, kBusB, 0},
-    { 7.0f, kMain, 7.0f, kBusA, 0}, { 8.0f, kMain, 8.0f, kBusB, 0}, { 9.0f, kMain, 9.0f, kBusA, 0},
-    {10.0f, kMain,10.0f, kBusB, 0},
-    { 1.0f, kTwin, 1.0f, kBusA, +1}, { 2.0f, kTwin, 2.0f, kBusA, -1}, { 3.0f, kTwin, 3.0f, kBusB, +1},
-    { 0.5f, kSub,  0.5f, kBusC, 0},
-    { 1.5f, kFifth,1.5f, kBusA, 0}, { 3.0f, kFifth,3.0f, kBusB, 0}, { 4.5f, kFifth,4.5f, kBusA, 0},
-    {12.0f, kShim,12.0f, kBusA, 0}, {14.0f, kShim,14.0f, kBusB, 0}, {16.0f, kShim,16.0f, kBusA, 0},
-    {18.0f, kShim,18.0f, kBusB, 0}, {20.0f, kShim,20.0f, kBusA, 0}, {24.0f, kShim,24.0f, kBusB, 0},
-    {28.0f, kShim,28.0f, kBusA, 0},
+    { 1.0f, kLayerMain, 1.0f, kBusC, 0}, { 2.0f, kLayerMain, 2.0f, kBusB, 0}, { 3.0f, kLayerMain, 3.0f, kBusA, 0},
+    { 4.0f, kLayerMain, 4.0f, kBusB, 0}, { 5.0f, kLayerMain, 5.0f, kBusA, 0}, { 6.0f, kLayerMain, 6.0f, kBusB, 0},
+    { 7.0f, kLayerMain, 7.0f, kBusA, 0}, { 8.0f, kLayerMain, 8.0f, kBusB, 0}, { 9.0f, kLayerMain, 9.0f, kBusA, 0},
+    {10.0f, kLayerMain,10.0f, kBusB, 0},
+    { 1.0f, kLayerTwin, 1.0f, kBusA, +1}, { 2.0f, kLayerTwin, 2.0f, kBusA, -1}, { 3.0f, kLayerTwin, 3.0f, kBusB, +1},
+    { 0.5f, kLayerSub,  0.5f, kBusC, 0},
+    { 1.5f, kLayerFifth,1.5f, kBusA, 0}, { 3.0f, kLayerFifth,3.0f, kBusB, 0}, { 4.5f, kLayerFifth,4.5f, kBusA, 0},
+    {12.0f, kLayerShim,12.0f, kBusA, 0}, {14.0f, kLayerShim,14.0f, kBusB, 0}, {16.0f, kLayerShim,16.0f, kBusA, 0},
+    {18.0f, kLayerShim,18.0f, kBusB, 0}, {20.0f, kLayerShim,20.0f, kBusA, 0}, {24.0f, kLayerShim,24.0f, kBusB, 0},
+    {28.0f, kLayerShim,28.0f, kBusA, 0},
 };
 
 // Reverb delay lengths in samples at 44.1 kHz (35..93 ms, mutually prime).
@@ -85,6 +89,18 @@ static const int kFdnLen[8] = {1559, 1907, 2243, 2467, 2851, 3307, 3637, 4111};
 
 static const char* const kCycleDivNames[] = {"1 bar", "2 bars", "4 bars", "8 bars", "16 bars", "32 bars"};
 static const float kCycleDivBars[] = {1.0f, 2.0f, 4.0f, 8.0f, 16.0f, 32.0f};
+
+// Orbit speed: orbits per motion cycle (so it follows Sync and Cycle Div too).
+static const char* const kOrbitSpeedNames[] = {"1/2", "1x", "2x", "3x", "4x", "6x", "8x"};
+static const float kOrbitRatios[] = {0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f};
+constexpr int kNumOrbitSpeeds = 7;
+
+// The interval layer (was "Fifth" in 1.0): its root as a ratio of the note, in just intonation.
+static const char* const kIntervalNames[] = {"Fifth", "Fourth", "Octave", "Maj 3rd", "Min 3rd", "Min 7th", "Maj 7th", "9th"};
+static const float kIntervalRatios[] = {1.5f, 4.0f / 3.0f, 2.0f, 1.25f, 1.2f, 1.8f, 1.875f, 2.25f};
+constexpr int kNumIntervals = 8;
+
+enum MotionShape { kShapeSine = 0, kShapeDrift, kShapeSwell, kShapeTide };
 
 inline float smoothstep(float a, float b, float x)
 {
@@ -148,6 +164,8 @@ public:
         kAttack, kRelease, kWidth,
         kSpace, kSize, kSpaceTone,
         kVelocity, kOctave,
+        // 1.1
+        kOrbit, kOrbitSpeed, kStretch, kHollow, kInterval, kMotionShape, kEvolveDir,
         kNumParams
     };
 
@@ -157,7 +175,7 @@ public:
         i.name = "Abyss";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'O', 'l', 'A');   // == "uid" in plugin.json. Never change.
-        i.version = 1000;
+        i.version = 1100;
         i.isInstrument = true;
         i.numInputs = 0;
         i.numOutputs = 2;
@@ -167,8 +185,10 @@ public:
     Abyss() : mpc::Plugin(makeInfo())
     {
         using namespace mpc;
-        std::vector<std::string> divs;
+        std::vector<std::string> divs, orbitSpeeds, intervals;
         for (const char* d : kCycleDivNames) divs.push_back(d);
+        for (const char* d : kOrbitSpeedNames) orbitSpeeds.push_back(d);
+        for (const char* d : kIntervalNames) intervals.push_back(d);
 
         addParam(floatParam ("vol",      "Volume", -40.0f, 6.0f, -3.0f, "dB", 1));
         // How long a held note takes to open fully (from a sine to the full pad).
@@ -182,8 +202,8 @@ public:
         // Detune of the three twin partials (chorus beating in the low harmonics).
         addParam(floatParam ("detune",   "Detune", 0.0f, 30.0f, 7.0f, "ct", 0));
         // Layer levels.
-        addParam(floatParam ("sub",      "Sub", 0.0f, 100.0f, 35.0f, "%", 0));
-        addParam(floatParam ("fifth",    "Fifth", 0.0f, 100.0f, 0.0f, "%", 0));
+        addParam(floatParam ("sub",      "Sub", 0.0f, 100.0f, 70.0f, "%", 0));
+        addParam(floatParam ("fifth",    "Int Level", 0.0f, 100.0f, 50.0f, "%", 0));    // the interval layer ("Fifth" in 1.0)
         addParam(floatParam ("shimmer",  "Shimmer", 0.0f, 100.0f, 25.0f, "%", 0));
         addParam(floatParam ("air",      "Air", 0.0f, 100.0f, 15.0f, "%", 0));
         // The slow motion cycle.
@@ -202,6 +222,19 @@ public:
         // Playing.
         addParam(floatParam ("velocity", "Velocity", 0.0f, 100.0f, 30.0f, "%", 0));
         addParam(intParam   ("octave",   "Octave", -2, 2, 0));
+        // ---- 1.1: appended, so 1.0 projects load unchanged (these defaults sound exactly like 1.0). ----
+        // Orbit: each voice's two stereo halves circle each other, swapping front and back.
+        addParam(floatParam ("orbit",    "Orbit", 0.0f, 100.0f, 0.0f, "%", 0));
+        addParam(choiceParam("orbitspeed","Orbit Speed", orbitSpeeds, 2));        // orbits per motion cycle
+        // Stretch: + pulls the partials sharp (bells, glass), - squeezes them together (blur).
+        addParam(floatParam ("stretch",  "Stretch", -100.0f, 100.0f, 0.0f, "%", 0));
+        // Hollow: removes the even harmonics (a woodwind / clarinet colour).
+        addParam(floatParam ("hollow",   "Hollow", 0.0f, 100.0f, 0.0f, "%", 0));
+        // Which interval the interval layer plays above the note.
+        addParam(choiceParam("interval", "Interval", intervals, 0));
+        addParam(choiceParam("motionshape","Motion Shape", {"Sine", "Drift", "Swell", "Tide"}, kShapeSine));
+        // Rise: notes open from dark to bright. Sink: they start bright and sink into the dark.
+        addParam(choiceParam("evolvedir","Evolve Dir", {"Rise", "Sink"}, 0));
 
         if (numParams() != kNumParams) mpc::log("Abyss: parameter count mismatch (%d vs %d)", numParams(), (int)kNumParams);
 
@@ -212,41 +245,60 @@ public:
             for (const auto& o : overrides) v[(size_t)o.first] = o.second;
             addProgram(name, std::move(v));
         };
-        program("Abyssal Plain", {});
-        program("Midnight Zone", {{kEvolve, 30}, {kBright, 25}, {kBloom, 35}, {kDrift, 30}, {kDetune, 5},
-                                  {kSub, 60}, {kShimmer, 0}, {kAir, 5}, {kMotion, 30}, {kCycle, 60},
+        // Sub and Int Level of the 1.0 programs were re-voiced in 1.1: in 1.0 those two knobs did nothing (the sub and
+        // the fifth were always fully on), and these values come closest to how the programs sounded then.
+        program("Abyssal Plain", {{kSub, 70}, {kFifth, 50}});
+        program("Midnight Zone", {{kSub, 90}, {kFifth, 90}, {kEvolve, 30}, {kBright, 25}, {kBloom, 35}, {kDrift, 30}, {kDetune, 5},
+                                  {kShimmer, 0}, {kAir, 5}, {kMotion, 30}, {kCycle, 60},
                                   {kAttack, 6}, {kRelease, 12}, {kSpace, 55}, {kSize, 14}, {kSpaceTone, 2500}});
-        program("Bioluminescence", {{kEvolve, 8}, {kBright, 70}, {kBloom, 40}, {kDrift, 50}, {kDetune, 10},
-                                    {kSub, 10}, {kShimmer, 80}, {kAir, 35}, {kMotion, 60}, {kCycle, 10},
+        program("Bioluminescence", {{kSub, 70}, {kFifth, 60}, {kEvolve, 8}, {kBright, 70}, {kBloom, 40}, {kDrift, 50}, {kDetune, 10},
+                                    {kShimmer, 80}, {kAir, 35}, {kMotion, 60}, {kCycle, 10},
                                     {kAttack, 1.5f}, {kRelease, 8}, {kWidth, 90}, {kSpace, 60}, {kSize, 12},
                                     {kSpaceTone, 9000}});
-        program("Whale Fall", {{kEvolve, 25}, {kBright, 40}, {kBloom, 60}, {kDrift, 35}, {kSub, 70}, {kFifth, 55},
-                               {kShimmer, 15}, {kAir, 10}, {kSync, 1}, {kCycleDiv, 3}, {kAttack, 4}, {kRelease, 10},
+        program("Whale Fall", {{kSub, 70}, {kFifth, 100}, {kEvolve, 25}, {kBright, 40}, {kBloom, 60}, {kDrift, 35}, {kShimmer, 15}, {kAir, 10}, {kSync, 1}, {kCycleDiv, 3}, {kAttack, 4}, {kRelease, 10},
                                {kSpace, 50}, {kSize, 16}, {kSpaceTone, 3500}, {kOctave, -1}});
-        program("Thermal Vent", {{kEvolve, 12}, {kBright, 55}, {kBloom, 70}, {kDrift, 85}, {kDetune, 18},
-                                 {kSub, 40}, {kFifth, 20}, {kShimmer, 10}, {kAir, 25}, {kMotion, 40}, {kCycle, 14},
+        program("Thermal Vent", {{kSub, 70}, {kFifth, 30}, {kEvolve, 12}, {kBright, 55}, {kBloom, 70}, {kDrift, 85}, {kDetune, 18},
+                                 {kShimmer, 10}, {kAir, 25}, {kMotion, 40}, {kCycle, 14},
                                  {kSpace, 35}, {kSize, 6}, {kSpaceTone, 4000}});
-        program("Hadal Choir", {{kEvolve, 10}, {kBright, 45}, {kBloom, 90}, {kDrift, 45}, {kDetune, 9}, {kSub, 20},
-                                {kFifth, 35}, {kShimmer, 20}, {kAir, 20}, {kMotion, 70}, {kCycle, 16},
+        program("Hadal Choir", {{kSub, 60}, {kFifth, 50}, {kEvolve, 10}, {kBright, 45}, {kBloom, 90}, {kDrift, 45}, {kDetune, 9}, {kShimmer, 20}, {kAir, 20}, {kMotion, 70}, {kCycle, 16},
                                 {kAttack, 3}, {kRelease, 7}, {kWidth, 85}, {kSpace, 50}, {kSize, 10}});
-        program("Pressure Wave", {{kEvolve, 4}, {kBright, 60}, {kBloom, 80}, {kDrift, 25}, {kSub, 45}, {kFifth, 25},
-                                  {kShimmer, 20}, {kMotion, 100}, {kSync, 1}, {kCycleDiv, 0}, {kAttack, 0.8f},
+        program("Pressure Wave", {{kSub, 70}, {kFifth, 20}, {kEvolve, 4}, {kBright, 60}, {kBloom, 80}, {kDrift, 25}, {kShimmer, 20}, {kMotion, 100}, {kSync, 1}, {kCycleDiv, 0}, {kAttack, 0.8f},
                                   {kRelease, 4}, {kSpace, 35}, {kSize, 5}});
-        program("Cold Seep", {{kEvolve, 6}, {kBright, 85}, {kBloom, 30}, {kDrift, 30}, {kDetune, 4}, {kSub, 0},
-                              {kShimmer, 60}, {kAir, 30}, {kMotion, 35}, {kCycle, 30}, {kAttack, 1}, {kRelease, 9},
+        program("Cold Seep", {{kSub, 80}, {kFifth, 90}, {kEvolve, 6}, {kBright, 85}, {kBloom, 30}, {kDrift, 30}, {kDetune, 4}, {kShimmer, 60}, {kAir, 30}, {kMotion, 35}, {kCycle, 30}, {kAttack, 1}, {kRelease, 9},
                               {kWidth, 100}, {kSpace, 65}, {kSize, 18}, {kSpaceTone, 11000}, {kOctave, 1}});
+        // 1.1
+        program("Glass Sponge", {{kSub, 0}, {kFifth, 30}, {kEvolve, 12}, {kBright, 75}, {kBloom, 35}, {kDrift, 30}, {kDetune, 4}, {kInterval, 2}, {kShimmer, 55}, {kAir, 20}, {kMotion, 40}, {kCycle, 24},
+                                 {kStretch, 55}, {kOrbit, 35}, {kWidth, 90}, {kAttack, 1.2f}, {kRelease, 9},
+                                 {kSpace, 60}, {kSize, 14}, {kSpaceTone, 10000}});
+        program("Siphonophore", {{kSub, 35}, {kFifth, 45}, {kOrbit, 100}, {kOrbitSpeed, 2}, {kBloom, 70}, {kBright, 55}, {kInterval, 3},
+                                 {kDrift, 35}, {kMotion, 55}, {kCycle, 16}, {kShimmer, 20},
+                                 {kWidth, 80}, {kSpace, 45}, {kSize, 10}});
+        program("Trench Wind", {{kSub, 25}, {kFifth, 0}, {kHollow, 85}, {kAir, 55}, {kDrift, 60}, {kMotionShape, kShapeDrift}, {kBright, 45},
+                                {kBloom, 50}, {kShimmer, 0}, {kDetune, 12}, {kEvolve, 20}, {kAttack, 4},
+                                {kRelease, 10}, {kOrbit, 30}, {kOrbitSpeed, 1}, {kSpace, 55}, {kSize, 16},
+                                {kSpaceTone, 3000}});
+        program("Sinking", {{kSub, 50}, {kFifth, 0}, {kEvolveDir, 1}, {kEvolve, 40}, {kBright, 85}, {kBloom, 45}, {kShimmer, 45}, {kDrift, 40}, {kAir, 15}, {kAttack, 1.5f}, {kRelease, 12}, {kSpace, 55}, {kSize, 18},
+                            {kSpaceTone, 4000}});
+        program("Leviathan", {{kSub, 85}, {kFifth, 40}, {kOctave, -1}, {kStretch, -35}, {kBright, 35}, {kBloom, 60},
+                              {kDrift, 50}, {kDetune, 14}, {kMotion, 45}, {kMotionShape, kShapeTide}, {kCycle, 40},
+                              {kOrbit, 60}, {kOrbitSpeed, 0}, {kEvolve, 30}, {kAttack, 5}, {kRelease, 14},
+                              {kShimmer, 0}, {kAir, 10}, {kSpace, 50}, {kSize, 18}, {kSpaceTone, 2500}});
+        program("Lanternfish", {{kSub, 35}, {kFifth, 40}, {kSync, 1}, {kCycleDiv, 1}, {kMotionShape, kShapeSwell}, {kMotion, 85}, {kInterval, 5},
+                                {kOrbit, 70}, {kOrbitSpeed, 4}, {kShimmer, 45}, {kBright, 60},
+                                {kBloom, 70}, {kEvolve, 5}, {kAttack, 0.6f}, {kRelease, 5}, {kAir, 10},
+                                {kSpace, 40}, {kSize, 7}});
+        program("Kelp Cathedral", {{kSub, 30}, {kFifth, 50}, {kInterval, 1}, {kHollow, 40}, {kBloom, 85}, {kMotionShape, kShapeTide},
+                                   {kCycle, 30}, {kBright, 50}, {kDrift, 35}, {kShimmer, 25}, {kOrbit, 40},
+                                   {kOrbitSpeed, 1}, {kWidth, 85}, {kAttack, 3}, {kRelease, 14}, {kSpace, 75},
+                                   {kSize, 20}, {kSpaceTone, 6000}});
+        program("Black Smoker", {{kSub, 55}, {kFifth, 0}, {kStretch, -60}, {kDrift, 90}, {kDetune, 25}, {kMotionShape, kShapeDrift}, {kBright, 50},
+                                 {kBloom, 60}, {kAir, 35}, {kHollow, 20}, {kOrbit, 25}, {kEvolve, 14},
+                                 {kSpace, 35}, {kSize, 6}, {kSpaceTone, 3500}});
 
         // Sine table (one extra point so the interpolation never wraps).
         for (int i = 0; i <= kTableSize; ++i) sine_[i] = std::sin(kTwoPi * (float)i / (float)kTableSize);
 
-        // Spectral tilt per slot: a gentle roll-off of about -3.6 dB per octave.
-        for (int k = 0; k < kNumSlots; ++k)
-        {
-            float t = std::pow(kSlots[k].shape, -0.6f);
-            if (kSlots[k].layer == kTwin) t *= 0.75f;
-            if (kSlots[k].layer == kFifth) t *= 0.8f;
-            tilt_[k] = t;
-        }
+        updateSlots(0.0f, 0.0f, 0);
     }
 
     // ----- lifecycle ------------------------------------------------------------------------------
@@ -265,7 +317,11 @@ public:
         airL_.setSampleRate(sampleRate);
         airR_.setSampleRate(sampleRate);
         volume_.setTime(20.0f, sampleRate);
-        for (int v = 0; v < kNumVoices; ++v) voices_[v].rng.reseed(0xAB155u + 104729u * (uint32_t)(v + 1));
+        for (int v = 0; v < kNumVoices; ++v)
+        {
+            voices_[v].rng.reseed(0xAB155u + 104729u * (uint32_t)(v + 1));
+            voices_[v].rng2.reseed(0x0B17u + 7919u * (uint32_t)(v + 1));
+        }
         lastSize_ = -1.0f;
         reset();
     }
@@ -284,6 +340,7 @@ public:
         airEnv_ = 0.0f;
         modPhase1_ = 0.0f; modPhase2_ = 0.37f;
         motionPhase_ = 0.0f;
+        orbitPhase_ = 0.0f;
         ctrlLeft_ = 0;
         orderCounter_ = 0;
         sustain_ = false;
@@ -446,13 +503,16 @@ private:
         float unfold1 = 0.0f;    // first lag of the unfold curve
         float unfold = 0.0f;     // 0 -> 1 over Evolve, an S-curve (slow start)
         float motionOff = 0.0f;  // phase offset into the motion cycle
+        float orbitOff = 0.0f;   // phase offset into the orbit (each note of a chord circles on its own)
         uint32_t order = 0;      // for stealing: lower = older
         int stealTicks = 0;
         int pendingNote = -1;
         float pendingVel = 0.0f;
         bool pendingHeld = false;  // false once the stolen-for note has been released
         Walk bright, pitch;      // per-voice drift
+        Walk mw, mw2;            // the "Drift" motion shape
         Xorshift32 rng;
+        Xorshift32 rng2;         // 1.1 features draw from their own generator, so 1.0 sounds stay as they were
 
         uint32_t phase[kNumSlots] = {};
         uint32_t inc[kNumSlots] = {};
@@ -462,11 +522,17 @@ private:
         Walk lvl[kNumSlots], pit[kNumSlots];
         int active[kNumSlots] = {};
         int numActive = 0;
+        bool panInit = false;    // false until the first tick sets the pan targets directly
 
         // Bus pan gains (A and B to L/R), ramped per tick.
         float gAL = 0.7f, gAR = 0.7f, gBL = 0.7f, gBR = 0.7f;
         float dAL = 0.0f, dAR = 0.0f, dBL = 0.0f, dBR = 0.0f;
         float tAL = 0.7f, tAR = 0.7f, tBL = 0.7f, tBR = 0.7f;
+        // Orbit: a one-pole low-pass per bus that darkens the half that is behind.
+        float lpA = 0.0f, lpB = 0.0f;       // filter states
+        float kA = 1.0f, kB = 1.0f;         // coefficients now (smoothed per tick)
+        float dkA = 0.0f, dkB = 0.0f;       // per-sample ramps
+        float kAt = 1.0f, kBt = 1.0f;       // smoothed per-tick targets
     };
 
     // Settings read once per block.
@@ -481,8 +547,49 @@ private:
         int octave = 0;
         float maxHz = 18000.0f, incScale = 1.0f;
         float cycleTicks = 1000.0f;   // control ticks per motion cycle
+        float orbit = 0.0f, orbitRatio = 2.0f;
+        int shape = kShapeSine;
+        bool sink = false;
         float space = 0.4f, fdnDamp = 0.5f, fdnIn = 0.3f, hpCoef = 0.02f;
     };
+
+    // Per-slot frequency ratio, the harmonic number the brightness and bloom curves see, and the spectral
+    // tilt (about -3.6 dB per octave, with Hollow taking out even harmonics). Recomputed only when
+    // Stretch, Hollow or Interval change.
+    void updateSlots(float stretch, float hollow, int interval)
+    {
+        interval = clamp(interval, 0, kNumIntervals - 1);
+        if (slotsValid_ && stretch == lastStretch_ && hollow == lastHollow_ && interval == lastInterval_) return;
+        slotsValid_ = true; lastStretch_ = stretch; lastHollow_ = hollow; lastInterval_ = interval;
+        const float e = 1.0f + 0.35f * clamp(stretch, -1.0f, 1.0f);
+        for (int k = 0; k < kNumSlots; ++k)
+        {
+            const Slot& sl = kSlots[k];
+            float r = sl.ratio;
+            if (sl.layer == kLayerFifth) r = kIntervalRatios[interval] * (sl.ratio / 1.5f);   // root, x2, x3
+            const float shape = (sl.layer == kLayerFifth) ? r : sl.shape;
+            if (sl.layer != kLayerSub) r = std::pow(r, e);
+            float t = std::pow(shape, -0.6f);
+            if (sl.layer == kLayerTwin) t *= 0.75f;
+            if (sl.layer == kLayerFifth) t *= 0.8f;
+            if ((sl.layer == kLayerMain || sl.layer == kLayerTwin) && ((int)sl.shape % 2) == 0) t *= 1.0f - 0.92f * hollow;
+            slotRatio_[k] = r; slotShape_[k] = shape; slotTilt_[k] = t;
+        }
+    }
+
+    // The motion signal for a voice at cycle phase p: -1..1.
+    static float motionShape(int shape, float p, float walk)
+    {
+        p = wrapPhase(p);
+        switch (shape)
+        {
+            case kShapeDrift: return clamp(1.3f * walk, -1.0f, 1.0f);
+            case kShapeSwell:  // a long rise, then a quicker fall
+                return p < 0.8f ? -1.0f + 2.0f * smoothstep(0.0f, 0.8f, p) : 1.0f - 2.0f * smoothstep(0.8f, 1.0f, p);
+            case kShapeTide: return 0.6f * fastSin01(p) + 0.4f * fastSin01(3.0f * p);
+            default: return fastSin01(p);
+        }
+    }
 
     static float dryGain(float space) { return 1.0f - 0.45f * space; }
     static float wetGain(float space) { return 1.25f * space; }
@@ -512,6 +619,11 @@ private:
         s_.octave = getInt(kOctave);
         s_.maxHz = std::min(0.45f * sr_, 18000.0f);
         s_.incScale = 4294967296.0f / sr_;
+        s_.orbit = get(kOrbit) * 0.01f;
+        s_.orbitRatio = kOrbitRatios[clamp(getInt(kOrbitSpeed), 0, kNumOrbitSpeeds - 1)];
+        s_.shape = getInt(kMotionShape);
+        s_.sink = getInt(kEvolveDir) == 1;
+        updateSlots(get(kStretch) * 0.01f, get(kHollow) * 0.01f, getInt(kInterval));
 
         // Motion cycle length, and the phase when locked to the song.
         const mpc::Transport& t = ctx.transport;
@@ -522,7 +634,11 @@ private:
             const float beatsPerBar = (float)std::max(1, t.timeSigNumerator) * 4.0f / (float)std::max(1, t.timeSigDenominator);
             const float beats = kCycleDivBars[clamp(getInt(kCycleDiv), 0, 5)] * beatsPerBar;
             cycleSec = beatsToSeconds(beats, t.tempoValid ? t.bpm : 120.0);
-            if (t.playing && t.ppqValid) motionPhase_ = ppqPhase(t.ppqPos, beats);
+            if (t.playing && t.ppqValid)
+            {
+                motionPhase_ = ppqPhase(t.ppqPos, beats);
+                orbitPhase_ = ppqPhase(t.ppqPos, beats / s_.orbitRatio);
+            }
         }
         s_.cycleTicks = std::max(1.0f, cycleSec / ctrlDt);
 
@@ -634,6 +750,12 @@ private:
         v.held = true; v.sustained = false;
         v.g = 0.0f; v.p = 0.0f; v.unfold1 = 0.0f; v.unfold = 0.0f;
         v.motionOff = 0.35f * v.rng.nextFloat();
+        v.orbitOff = v.rng2.nextFloat();
+        v.mw = Walk(); v.mw2 = Walk();
+        v.mw.value = 0.5f * v.rng2.nextBipolar(); v.mw2.value = 0.5f * v.rng2.nextBipolar();
+        v.lpA = v.lpB = 0.0f;
+        v.kA = v.kB = v.kAt = v.kBt = 1.0f; v.dkA = v.dkB = 0.0f;
+        v.panInit = false;
         v.order = ++orderCounter_;
         v.pendingNote = -1;
         v.bright = Walk(); v.pitch = Walk();
@@ -644,7 +766,7 @@ private:
             v.phase[k] = v.rng.next();          // random phases: a lower crest factor, and every note differs
             v.amp[k] = v.tgt[k] = v.dAmp[k] = 0.0f;
             v.lvl[k] = Walk(); v.pit[k] = Walk();
-            v.lvl[k].value = (kSlots[k].layer == kShim) ? -1.0f : 0.6f * v.rng.nextBipolar();
+            v.lvl[k].value = (kSlots[k].layer == kLayerShim) ? -1.0f : 0.6f * v.rng.nextBipolar();
             v.pit[k].value = 0.6f * v.rng.nextBipolar();
             v.lvl[k].left = 1 + (int)(v.rng.nextFloat() * 200.0f);   // stagger the first new targets
             v.pit[k].left = v.lvl[k].left;
@@ -656,6 +778,7 @@ private:
     void controlTick()
     {
         motionPhase_ = wrapPhase(motionPhase_ + 1.0f / s_.cycleTicks);
+        orbitPhase_ = wrapPhase(orbitPhase_ + s_.orbitRatio / s_.cycleTicks);
         const float ticksPerSec = sr_ / (float)kCtrl;
         float envSum = 0.0f;
         for (Voice& v : voices_)
@@ -672,6 +795,7 @@ private:
         // Snap last tick's ramps to their exact targets.
         for (int k = 0; k < kNumSlots; ++k) v.amp[k] = v.tgt[k];
         v.gAL = v.tAL; v.gAR = v.tAR; v.gBL = v.tBL; v.gBR = v.tBR;
+        v.kA = v.kAt; v.kB = v.kBt;
 
         bool zero = false;
         switch (v.stage)
@@ -723,26 +847,50 @@ private:
         v.pitch.step(v.rng, 4.0f * tps, 10.0f * tps);
 
         // Motion and drift.
-        const float m = fastSin01(motionPhase_ + v.motionOff);
-        const float m2 = fastSin01(motionPhase_ + v.motionOff + 0.25f);
+        const float shapeTicks = s_.cycleTicks;
+        v.mw.step(v.rng2, 0.15f * shapeTicks, 0.5f * shapeTicks);
+        v.mw2.step(v.rng2, 0.15f * shapeTicks, 0.5f * shapeTicks);
+        const float m = motionShape(s_.shape, motionPhase_ + v.motionOff, v.mw.value);
+        const float m2 = motionShape(s_.shape, motionPhase_ + v.motionOff + 0.25f, v.mw2.value);
         const float drift = s_.drift;
         const float velGain = 1.0f - s_.velSens * (1.0f - v.vel01);
 
         // Brightness: number of open harmonics.
-        float h = 1.0f + (s_.brightH - 1.0f) * u;
+        // Rise opens from dark to bright; Sink starts bright and closes to near-dark.
+        float h = 1.0f + (s_.brightH - 1.0f) * (s_.sink ? 1.0f - 0.85f * u : u);
         h *= (1.0f + 0.3f * s_.motion * m + 0.35f * drift * v.bright.value);
         h *= 1.0f - 0.4f * s_.velSens * (1.0f - v.vel01);
         h = std::max(h, 0.8f);
-        const float invH2 = 1.0f / (h * h);
         // Bloom: a resonant peak that wanders through the harmonics.
         const float c = clamp(1.0f + h * (0.45f + 0.4f * s_.motion * m + 0.25f * drift * v.bright.value), 1.0f, 12.0f);
+
+        // Orbit: the A and B halves circle each other. y > 0 is in front. The half in front is brighter, with
+        // its bloom higher; the one behind is quieter and darker. A few cents of Doppler as they cross.
+        const float o = s_.orbit;
+        float ox = 0.0f, oy = 0.0f;
+        if (o > 0.0f)
+        {
+            ox = fastSin01(orbitPhase_ + v.orbitOff);
+            oy = fastSin01(orbitPhase_ + v.orbitOff + 0.25f);
+        }
+        const float busY[3] = {0.0f, oy, -oy};                 // C, A, B
+        float busInvH2[3], busC[3], busDop[3];
+        for (int b = 0; b < 3; ++b)
+        {
+            const float hb = std::max(0.8f, h * (1.0f + 0.25f * o * busY[b]));
+            busInvH2[b] = 1.0f / (hb * hb);
+            busC[b] = clamp(c * (1.0f + 0.3f * o * busY[b]), 1.0f, 12.0f);
+        }
+        busDop[kBusC] = 0.0f;
+        busDop[kBusA] = 4.0f * o * ox;
+        busDop[kBusB] = -busDop[kBusA];
         const float bloomAmt = 3.0f * s_.bloom * (0.3f + 0.7f * u);
         constexpr float kInvW2 = 1.0f / (1.4f * 1.4f);
         const float driftA = drift * (0.3f + 0.7f * u);
         const float centsToLin = 0.000577623f;   // ln(2) / 1200
         const float driftCents = drift * 7.0f * (0.4f + 0.6f * u);
         const float fifthIn = s_.fifth * smoothstep(0.15f, 0.6f, u);
-        const float shimIn = s_.shimmer * smoothstep(0.35f, 0.9f, u);
+        const float shimIn = s_.shimmer * (s_.sink ? 1.0f - smoothstep(0.3f, 0.85f, u) : smoothstep(0.35f, 0.9f, u));
 
         const float noteHz = midiToHz((float)(v.note + 12 * s_.octave) + bend_ + v.pitch.value * drift * 0.05f);
 
@@ -751,22 +899,24 @@ private:
         for (int k = 0; k < kNumSlots; ++k)
         {
             const Slot& sl = kSlots[k];
-            const bool shim = sl.layer == kShim;
+            const bool shim = sl.layer == kLayerShim;
             v.lvl[k].step(v.rng, shim ? 0.3f * tps : 2.0f * tps, shim ? 1.5f * tps : 7.0f * tps);
             v.pit[k].step(v.rng, 2.0f * tps, 7.0f * tps);
 
-            float ratio = sl.ratio;
+            float ratio = slotRatio_[k];
             if (sl.twin > 0) ratio *= s_.twinUp;
             else if (sl.twin < 0) ratio *= s_.twinDn;
-            const float f = noteHz * ratio * (1.0f + v.pit[k].value * driftCents * centsToLin * (1.0f + 0.05f * sl.shape));
+            const float shape = slotShape_[k];
+            const float f = noteHz * ratio
+                          * (1.0f + (v.pit[k].value * driftCents * (1.0f + 0.05f * shape) + busDop[sl.bus]) * centsToLin);
 
             float w;
             switch (sl.layer)
             {
-                case kSub:
+                case kLayerSub:
                     w = 0.22f * s_.sub * clamp((f - 15.0f) * 0.05f, 0.0f, 1.0f);
                     break;
-                case kShim:
+                case kLayerShim:
                 {
                     const float tw = std::max(0.0f, v.lvl[k].value);
                     w = 0.055f * shimIn * tw * tw;
@@ -774,13 +924,13 @@ private:
                 }
                 default:
                 {
-                    const float x = sl.shape * sl.shape * invH2;
+                    const float x = shape * shape * busInvH2[sl.bus];
                     const float lp = 1.0f / (1.0f + x * x);
-                    const float dd = sl.shape - c;
+                    const float dd = shape - busC[sl.bus];
                     const float pk = 1.0f / (1.0f + dd * dd * kInvW2);
-                    w = tilt_[k] * lp * (1.0f + bloomAmt * pk) * (1.0f + 0.7f * driftA * v.lvl[k].value);
-                    if (sl.layer == kTwin) w *= s_.twinGain;
-                    if (sl.layer == kFifth) w *= fifthIn;
+                    w = slotTilt_[k] * lp * (1.0f + bloomAmt * pk) * (1.0f + 0.7f * driftA * v.lvl[k].value);
+                    if (sl.layer == kLayerTwin) w *= s_.twinGain;
+                    if (sl.layer == kLayerFifth) w *= fifthIn;
                     else sumSq += w * w;
                     break;
                 }
@@ -800,20 +950,42 @@ private:
         {
             const int layer = kSlots[k].layer;
             float t = tmp[k] * vg;
-            if (layer != kSub && layer != kShim) t *= bodyNorm;
+            if (layer != kLayerSub && layer != kLayerShim) t *= bodyNorm;
             if (t < 1.0e-6f) t = 0.0f;
             v.tgt[k] = t;
             v.dAmp[k] = (t - v.amp[k]) * inv;
             if (t != 0.0f || v.amp[k] != 0.0f) v.active[v.numActive++] = k;
         }
 
-        // Stereo: buses A and B panned apart by Width, swaying with the motion cycle.
+        // Stereo: buses A and B panned apart by Width, swaying with the motion cycle; with Orbit they circle
+        // the full width instead, the one behind quieter and darker. Targets are smoothed (~20 ms) so a jump
+        // in the cycle (song position, a program change) never clicks.
         const float spread = s_.width * (0.8f + 0.2f * s_.motion * m2);
-        const float panA = -spread, panB = spread;
-        equalPowerPan(panA, v.tAL, v.tAR);
-        equalPowerPan(panB, v.tBL, v.tBR);
+        const float panA = lerp(-spread, 0.95f * ox, o), panB = lerp(spread, -0.95f * ox, o);
+        const float backA = o * 0.5f * (1.0f - oy), backB = o * 0.5f * (1.0f + oy);   // 0 = front, 1 = behind
+        const float gA = 1.0f - 0.3f * backA, gB = 1.0f - 0.3f * backB;
+        float aL, aR, bL, bR;
+        equalPowerPan(panA, aL, aR);
+        equalPowerPan(panB, bL, bR);
+        aL *= gA; aR *= gA; bL *= gB; bR *= gB;
+        const float kAt = o > 0.0f ? 1.0f - std::exp(-kTwoPi * 16000.0f * std::pow(0.15f, backA) / sr_) : 1.0f;
+        const float kBt = o > 0.0f ? 1.0f - std::exp(-kTwoPi * 16000.0f * std::pow(0.15f, backB) / sr_) : 1.0f;
+        constexpr float kSmooth = 0.07f;
+        if (!v.panInit)
+        {
+            v.panInit = true;
+            v.gAL = v.tAL = aL; v.gAR = v.tAR = aR; v.gBL = v.tBL = bL; v.gBR = v.tBR = bR;
+            v.kA = v.kAt = kAt; v.kB = v.kBt = kBt;
+        }
+        else
+        {
+            v.tAL += (aL - v.tAL) * kSmooth; v.tAR += (aR - v.tAR) * kSmooth;
+            v.tBL += (bL - v.tBL) * kSmooth; v.tBR += (bR - v.tBR) * kSmooth;
+            v.kAt += (kAt - v.kAt) * kSmooth; v.kBt += (kBt - v.kBt) * kSmooth;
+        }
         v.dAL = (v.tAL - v.gAL) * inv; v.dAR = (v.tAR - v.gAR) * inv;
         v.dBL = (v.tBL - v.gBL) * inv; v.dBR = (v.tBR - v.gBR) * inv;
+        v.dkA = (v.kAt - v.kA) * inv; v.dkB = (v.kBt - v.kB) * inv;
     }
 
     // ----- per sample: the partials -----------------------------------------------------------------
@@ -830,14 +1002,19 @@ private:
                 renderPartial(sine_, v.phase[k], v.inc[k], v.amp[k], v.dAmp[k], bus[kSlots[k].bus], n);
             }
             float gAL = v.gAL, gAR = v.gAR, gBL = v.gBL, gBR = v.gBR;
+            float kA = v.kA, kB = v.kB, lpA = v.lpA, lpB = v.lpB;
             for (int i = 0; i < n; ++i)
             {
-                const float c = bus[kBusC][i] * kInvSqrt2, a = bus[kBusA][i], b = bus[kBusB][i];
-                L[i] += c + a * gAL + b * gBL;
-                if (R) R[i] += c + a * gAR + b * gBR;
+                lpA += kA * (bus[kBusA][i] - lpA);      // with Orbit off, k = 1 and this passes the bus through
+                lpB += kB * (bus[kBusB][i] - lpB);
+                const float c = bus[kBusC][i] * kInvSqrt2;
+                L[i] += c + lpA * gAL + lpB * gBL;
+                if (R) R[i] += c + lpA * gAR + lpB * gBR;
                 gAL += v.dAL; gAR += v.dAR; gBL += v.dBL; gBR += v.dBR;
+                kA += v.dkA; kB += v.dkB;
             }
             v.gAL = gAL; v.gAR = gAR; v.gBL = gBL; v.gBR = gBR;
+            v.kA = kA; v.kB = kB; v.lpA = flushDenormal(lpA); v.lpB = flushDenormal(lpB);
         }
     }
 
@@ -846,12 +1023,16 @@ private:
     Settings s_;
     Voice voices_[kNumVoices];
     float sine_[kTableSize + 1];
-    float tilt_[kNumSlots];
+    float slotRatio_[kNumSlots] = {}, slotShape_[kNumSlots] = {}, slotTilt_[kNumSlots] = {};
+    bool slotsValid_ = false;
+    float lastStretch_ = 0.0f, lastHollow_ = 0.0f;
+    int lastInterval_ = 0;
     int ctrlLeft_ = 0;
     uint32_t orderCounter_ = 0;
     bool sustain_ = false;
     float bend_ = 0.0f, modWheel_ = 0.0f;
     float motionPhase_ = 0.0f;
+    float orbitPhase_ = 0.0f;
     float airEnv_ = 0.0f;
     WhiteNoise airNoiseL_{0x1A2B3C4Du}, airNoiseR_{0x5E6F7081u};
     SVF airL_, airR_;

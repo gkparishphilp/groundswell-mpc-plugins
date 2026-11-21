@@ -18,8 +18,9 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 - **Abyss**: hold one note and it slowly evolves into a drone or pad. Additive: 24 drifting sine
   partials per voice open from a sine into a deep pad over an Evolve time, with a wandering
   spectral bloom, detuned twins, sub, fifth and shimmer layers, air, a slow motion cycle (free or
-  synced) and a built-in FDN reverb. For ambient beds and intros. Still to come: a reverb freeze
-  and a true shimmer tail (shared ground with Sea Glass).
+  synced) and a built-in FDN reverb. For ambient beds and intros. 1.1 added Orbit (each note's
+  halves circling each other), Stretch, Hollow, interval choices, motion shapes and Sink. Still to
+  come: a reverb freeze and a true shimmer tail (shared ground with Sea Glass).
 
 ## Effects that listen and respond
 

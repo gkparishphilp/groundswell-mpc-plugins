@@ -176,6 +176,13 @@ static Shape shapeAt(const std::vector<float>& L, const std::vector<float>& R, d
 
 // Mean absolute difference (dB) between two spectral shapes, over the bands within 50 dB of the
 // loudest band of either.
+static float highBandDb(const Shape& s)
+{
+    double e = 1e-12; double fc = 31.5;
+    for (float b : s.bandDb) { if (fc >= 1000.0) e += std::pow(10.0, b / 10.0); fc *= 1.259921; }
+    return (float)(10.0 * std::log10(e));
+}
+
 static float shapeDistance(const Shape& a, const Shape& b)
 {
     float top = -1e9f;
@@ -189,6 +196,35 @@ static float shapeDistance(const Shape& a, const Shape& b)
     }
     return n ? sum / (float)n : 0.0f;
 }
+
+// Magnitude spectrum (dB) of the mono mix around time t, 16384 points (2.7 Hz bins), Hann window.
+static std::vector<float> spectrumAt(const std::vector<float>& L, const std::vector<float>& R, double t, int channel = -1)
+{
+    const int N = 16384;
+    std::vector<std::complex<float>> a(N);
+    const long start = (long)(t * SR);
+    for (int i = 0; i < N; ++i)
+    {
+        const long s = start + i;
+        float x = 0.0f;
+        if (s >= 0 && s < (long)L.size()) x = channel == 0 ? L[(size_t)s] : channel == 1 ? R[(size_t)s] : 0.5f * (L[(size_t)s] + R[(size_t)s]);
+        a[i] = std::complex<float>(x * (0.5f - 0.5f * std::cos(6.2831853f * (float)i / (float)N)), 0.0f);
+    }
+    fft(a);
+    std::vector<float> m(N / 2);
+    for (int k = 0; k < N / 2; ++k) m[k] = 10.0f * std::log10(std::norm(a[k]) + 1e-20f);
+    return m;
+}
+static float binHz(int k) { return (float)(k * SR / 16384.0); }
+// Frequency of the strongest bin between lo and hi Hz.
+static float peakHz(const std::vector<float>& m, float lo, float hi)
+{
+    int best = -1;
+    for (int k = (int)(lo / binHz(1)); k <= (int)(hi / binHz(1)) && k < (int)m.size(); ++k) if (best < 0 || m[k] > m[best]) best = k;
+    return binHz(best);
+}
+// Level (dB) of the strongest bin within +-6 Hz of f.
+static float levelAt(const std::vector<float>& m, float f) { const float pk = peakHz(m, f - 6.0f, f + 6.0f); return m[(size_t)std::lround(pk / binHz(1))]; }
 
 static float peakOf(const std::vector<float>& L, const std::vector<float>& R)
 {
@@ -362,17 +398,158 @@ int main(int argc, char** argv)
         check(peakOf(L, R) < 0.97f && finite(L, R), "program changes: peak %.2f dBFS, finite", db(peakOf(L, R)));
     }
 
+    // ---- 4b. 1.1 features ---------------------------------------------------------------------
+    std::printf("\n== 1.1: orbit, stretch, hollow, interval, sink, motion shapes ==\n");
+    // A plain, steady A2 so single partials can be found: everything that moves or blurs is off.
+    auto plain = [](float bright = 100.0f)
+    {
+        auto p = make(0);
+        for (auto pv : std::vector<std::pair<int, float>>{{Abyss::kBright, bright}, {Abyss::kBloom, 0}, {Abyss::kDrift, 0},
+                                                         {Abyss::kSub, 0}, {Abyss::kFifth, 0}, {Abyss::kShimmer, 0},
+                                                         {Abyss::kAir, 0}, {Abyss::kSpace, 0}, {Abyss::kDetune, 0}, {Abyss::kMotion, 0},
+                                                         {Abyss::kEvolve, 1}, {Abyss::kAttack, 0.1f}})
+            p->set(pv.first, pv.second);
+        return p;
+    };
+    const float f0 = 110.0f;
+    {
+        float got[3];
+        const float stretch[3] = {0.0f, 60.0f, -60.0f};
+        for (int i = 0; i < 3; ++i)
+        {
+            auto p = plain();
+            p->set(Abyss::kStretch, stretch[i]);
+            render(*p, {on(0.0, 45, 100)}, 6.0, L, R);
+            got[i] = peakHz(spectrumAt(L, R, 4.0), 1.6f * f0, 2.9f * f0);
+        }
+        const float want[3] = {2.0f * f0, f0 * std::pow(2.0f, 1.21f), f0 * std::pow(2.0f, 0.79f)};
+        check(std::fabs(got[0] - want[0]) < 6 && std::fabs(got[1] - want[1]) < 6 && std::fabs(got[2] - want[2]) < 6,
+              "Stretch moves the 2nd partial: %.0f Hz at 0 %%, %.0f Hz at +60 %%, %.0f Hz at -60 %% (expected %.0f, %.0f, %.0f)",
+              got[0], got[1], got[2], want[0], want[1], want[2]);
+    }
+    {
+        float even[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = plain();
+            p->set(Abyss::kHollow, i ? 100.0f : 0.0f);
+            render(*p, {on(0.0, 45, 100)}, 6.0, L, R);
+            const auto m = spectrumAt(L, R, 4.0);
+            even[i] = levelAt(m, 2.0f * f0) - levelAt(m, f0);
+        }
+        check(even[1] < even[0] - 15.0f, "Hollow takes out the even harmonics: 2nd harmonic %.1f dB -> %.1f dB re the fundamental",
+              even[0], even[1]);
+    }
+    {
+        struct { int interval; float ratio; const char* name; } cases[3] = {{3, 1.25f, "Maj 3rd"}, {5, 1.8f, "Min 7th"}, {7, 2.25f, "9th"}};
+        for (auto& c : cases)
+        {
+            float lvl[2];
+            for (int i = 0; i < 2; ++i)
+            {
+                auto p = plain();
+                p->set(Abyss::kInterval, (float)c.interval);
+                p->set(Abyss::kFifth, i ? 100.0f : 0.0f);
+                render(*p, {on(0.0, 45, 100)}, 6.0, L, R);
+                const auto m = spectrumAt(L, R, 4.0);
+                lvl[i] = levelAt(m, c.ratio * f0) - levelAt(m, f0);
+            }
+            check(lvl[1] > -20.0f && lvl[1] > lvl[0] + 25.0f, "Interval %s plays %.1f Hz: %.1f dB re the fundamental at Int Level 100 %%, %.1f dB at 0 %%",
+                  c.name, c.ratio * f0, lvl[1], lvl[0]);
+        }
+    }
+    {
+        // Orbit: the 3rd harmonic (on the A half) travels from side to side once per orbit (8 s); without Orbit
+        // it stays on its side.
+        float range[2]; int crossings = 0;
+        const float h3 = 3.0f * 130.8128f;
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = plain(40.0f);
+            p->set(Abyss::kCycle, 8); p->set(Abyss::kOrbitSpeed, 1);
+            p->set(Abyss::kOrbit, i ? 100.0f : 0.0f);
+            render(*p, {on(0.0, 48, 100)}, 32.0, L, R);
+            float lo = 1e9f, hi = -1e9f, prev = 0.0f;
+            for (double t = 6.0; t < 31.0; t += 0.5)
+            {
+                const float bal = levelAt(spectrumAt(L, R, t, 0), h3) - levelAt(spectrumAt(L, R, t, 1), h3);
+                lo = std::min(lo, bal); hi = std::max(hi, bal);
+                if (i == 1 && t > 6.0 && (bal > 0.0f) != (prev > 0.0f)) ++crossings;
+                prev = bal;
+            }
+            range[i] = hi - lo;
+        }
+        check(range[1] > 20.0f && range[0] < 4.0f && crossings >= 4 && crossings <= 9,
+              "Orbit carries a partial round the stereo field: 3rd harmonic swings %.1f dB L/R (%d crossings in 25 s, 3 orbits), %.1f dB without",
+              range[1], crossings, range[0]);
+    }
+    {
+        // The Sub knob sets the sub (1.0 had a bug where it did nothing).
+        float sub[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = plain();
+            p->set(Abyss::kSub, i ? 100.0f : 0.0f);
+            render(*p, {on(0.0, 45, 100)}, 6.0, L, R);
+            const auto m = spectrumAt(L, R, 4.0);
+            sub[i] = levelAt(m, 0.5f * f0) - levelAt(m, f0);
+        }
+        check(sub[1] > -12.0f && sub[1] > sub[0] + 30.0f, "Sub sets the sub: %.1f dB re the fundamental at 100 %%, %.1f dB at 0 %%", sub[1], sub[0]);
+    }
+    {
+        // Sink: starts bright, ends dark.
+        auto p = make(11);
+        render(*p, {on(0.0, 48, 100)}, 42.0, L, R);
+        const float early = highBandDb(shapeAt(L, R, 3.0)), late = highBandDb(shapeAt(L, R, 38.0));
+        check(early > late + 8.0f, "Sinking gets darker: energy above 1 kHz %.1f dB at 3 s -> %.1f dB at 38 s", early, late);
+    }
+    {
+        // Every motion shape keeps the chord moving, without clicks.
+        const char* names[4] = {"Sine", "Drift", "Swell", "Tide"};
+        for (int sh = 0; sh < 4; ++sh)
+        {
+            auto p = make(0);
+            p->set(Abyss::kMotion, 100); p->set(Abyss::kMotionShape, (float)sh); p->set(Abyss::kCycle, 6); p->set(Abyss::kEvolve, 3);
+            std::vector<Ev> evs;
+            for (int n : {48, 55, 60}) evs.push_back(on(0.0, n, 100));
+            render(*p, evs, 20.0, L, R);
+            float minD = 1e9f;
+            for (int t = 8; t <= 14; t += 2) minD = std::min(minD, shapeDistance(shapeAt(L, R, t), shapeAt(L, R, t + 2)));
+            check(minD > 0.5f, "Motion Shape %s moves the sound: at least %.1f dB per band every 2 s", names[sh], minD);
+            char what[64]; std::snprintf(what, sizeof(what), "Motion Shape %s", names[sh]);
+            checkClicks(L, R, what);
+        }
+    }
+    {
+        // A 1.0 project: its state has only the first 22 parameters. Loaded into a fresh instance, the 1.1
+        // parameters must stay at their defaults (which sound like 1.0).
+        Abyss src; src.prepare(SR, 512); loadProgram(src, 2);
+        const std::vector<uint8_t> full = src.internalSaveState();
+        std::vector<uint8_t> v10(full.begin(), full.begin() + 12);
+        size_t pos = 12;
+        for (int i = 0; i < 22; ++i) { const size_t len = 1 + full[pos] + 8; v10.insert(v10.end(), full.begin() + (long)pos, full.begin() + (long)(pos + len)); pos += len; }
+        const uint32_t n = 22; std::memcpy(&v10[8], &n, 4);
+        for (int i = 0; i < 4; ++i) v10.push_back(0);   // no extra state
+        Abyss dst; dst.prepare(SR, 512);
+        const bool ok = dst.internalLoadState(v10.data(), v10.size());
+        bool same = ok, defaults = true;
+        for (int i = 0; i < 22; ++i) same = same && std::fabs(dst.get(i) - src.get(i)) < 1e-4f;
+        for (int i = 22; i < dst.numParams(); ++i) defaults = defaults && dst.get(i) == dst.param(i).def;
+        check(same && defaults, "a 1.0 project loads: its 22 values restored, the %d new parameters at their defaults", dst.numParams() - 22);
+    }
+
     // ---- 5. CPU, roughly: the worst case (6 voices, every layer on) ----------------------------
     {
         auto p = make(0);
         p->set(Abyss::kBright, 100); p->set(Abyss::kSub, 100); p->set(Abyss::kFifth, 100);
         p->set(Abyss::kShimmer, 100); p->set(Abyss::kAir, 100); p->set(Abyss::kDetune, 20);
+        p->set(Abyss::kOrbit, 100); p->set(Abyss::kStretch, 30); p->set(Abyss::kMotionShape, 3);
         p->set(Abyss::kEvolve, 1); p->set(Abyss::kAttack, 0.1f); p->set(Abyss::kOctave, -1);
         std::vector<Ev> evs;
         for (int n : chord) evs.push_back(on(0.0, n, 127));
         double cpu = 0.0;
         render(*p, evs, 20.0, L, R, {}, &cpu);
-        std::printf("\nINFO  CPU (desktop, worst case: 6 voices x 24 partials, all layers): %.2f%% of real time\n", 100.0 * cpu / 20.0);
+        std::printf("\nINFO  CPU (desktop, worst case: 6 voices x 24 partials, all layers, orbit): %.2f%% of real time\n", 100.0 * cpu / 20.0);
         auto q = make(0);
         evs.clear();
         for (int n : {48, 55, 60}) evs.push_back(on(0.0, n, 100));
@@ -424,6 +601,22 @@ int main(int argc, char** argv)
             check(n > 0 && std::fabs(t - at[k]) < 0.01, "click detector self-test: a %.3f step at %.0f s is caught (%.1fx at %.2f s)",
                   size[k], at[k], ratio, t);
         }
+    }
+
+    // ---- 7. Orbit demo -----------------------------------------------------------------------------
+    {
+        // Siphonophore: a held Ebmaj9 with Orbit at 100 %, the halves of every note circling each other.
+        auto p = make(9);
+        std::vector<Ev> evs;
+        for (int n : {39, 51, 55, 58, 62, 65}) { evs.push_back(on(0.0, n, 95)); evs.push_back(off(36.0, n)); }
+        render(*p, evs, 46.0, L, R);
+        std::string path = argc > 1 ? std::string(argv[1]) : std::string("build/abyss-demo.wav");
+        const size_t dot = path.rfind(".wav");
+        path = (dot == std::string::npos ? path : path.substr(0, dot)) + "-orbit.wav";
+        writeWav(path.c_str(), L, R);
+        std::printf("INFO  orbit demo: %s (46 s, Siphonophore, peak %.2f dBFS)\n", path.c_str(), db(peakOf(L, R)));
+        check(peakOf(L, R) < 0.97f && finite(L, R), "orbit demo under 0 dBFS");
+        checkClicks(L, R, "orbit demo");
     }
 
     std::printf("\n%s  (%d failure%s)\n", failures ? "FAIL" : "PASS", failures, failures == 1 ? "" : "s");

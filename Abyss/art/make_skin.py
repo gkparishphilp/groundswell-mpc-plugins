@@ -11,11 +11,12 @@ Source art:
     knob_small.webp         knob with skirt, pointer at 12 o'clock (shared with Krill, Wipeout, Largemouth)
     pill_on/off.webp        button pill (shared likewise)
 
-Layout: three tabs. Each row is one Q-Link row: two boxes of two controls, one either side of the canyon, so
+Layout: four tabs. Each row is one Q-Link row: two boxes of two controls, one either side of the canyon, so
 the light rays and the glowing plume stay in view in the middle.
 
     PLAY      EVOLVE | SPECTRUM,  LAYERS | LAYERS,  ENVELOPE | SPACE,  OUTPUT | MOVEMENT
-    MOTION    CYCLE | CYCLE LENGTH,  DRIFT | EVOLVE
+    TONE      TIMBRE | INTERVAL,  SPECTRUM | CHORUS
+    MOTION    CYCLE | CYCLE LENGTH,  SHAPE | ORBIT,  DRIFT | EVOLVE
     SPACE     REVERB | TAIL + WIDTH,  PLAYING | ENVELOPE
 
 The skin binds to parameter indices, so it must be regenerated if the parameter list changes (the script checks its
@@ -48,11 +49,17 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 # Parameter indices (must match the enum in src/Abyss.cpp).
 NAMES = ["vol", "evolve", "bright", "bloom", "drift", "detune", "sub", "fifth", "shimmer", "air",
          "motion", "sync", "cycle", "cyclediv", "attack", "release", "width", "space", "size", "spacetone",
-         "velocity", "octave"]
+         "velocity", "octave",
+         # 1.1
+         "orbit", "orbitspeed", "stretch", "hollow", "interval", "motionshape", "evolvedir"]
 P = {n: i for i, n in enumerate(NAMES)}
 
 CHOICES = {P["sync"]: ["Free", "Sync"],
-           P["cyclediv"]: ["1 bar", "2 bars", "4 bars", "8 bars", "16 bars", "32 bars"]}
+           P["cyclediv"]: ["1 bar", "2 bars", "4 bars", "8 bars", "16 bars", "32 bars"],
+           P["orbitspeed"]: ["1/2", "1x", "2x", "3x", "4x", "6x", "8x"],
+           P["interval"]: ["Fifth", "Fourth", "Octave", "Maj 3rd", "Min 3rd", "Min 7th", "Maj 7th", "9th"],
+           P["motionshape"]: ["Sine", "Drift", "Swell", "Tide"],
+           P["evolvedir"]: ["Rise", "Sink"]}
 
 # Knob geometry: Wipeout's (a 76 px box so a heading fits above each row).
 KNOB = dict(src="knob_small.webp", crop=300, knob=58, arc_r=34, arc_w=4, frame=76, frames=100)
@@ -252,16 +259,24 @@ PAGES = [
     page("PLAY", [
         (("EVOLVE", [knob("evolve", "EVOLVE"), knob("drift", "DRIFT")]),
          ("SPECTRUM", [knob("bright", "BRIGHT"), knob("bloom", "BLOOM")])),
-        (("LAYERS", [knob("sub", "SUB"), knob("fifth", "FIFTH")]),
+        (("LAYERS", [knob("sub", "SUB"), knob("fifth", "INTERVAL")]),
          ("LAYERS", [knob("shimmer", "SHIMMER"), knob("air", "AIR")])),
         (("ENVELOPE", [knob("attack", "ATTACK"), knob("release", "RELEASE")]),
          ("SPACE", [knob("space", "SPACE"), knob("size", "SIZE")])),
         (("OUTPUT", [knob("vol", "VOLUME"), knob("width", "WIDTH")]),
-         ("MOVEMENT", [knob("motion", "MOTION"), knob("detune", "DETUNE")])),
+         ("MOVEMENT", [knob("motion", "MOTION"), knob("orbit", "ORBIT")])),
+    ]),
+    page("TONE", [
+        (("TIMBRE", [knob("stretch", "STRETCH", True), knob("hollow", "HOLLOW")]),
+         ("INTERVAL", [knob("interval", "NOTE"), knob("fifth", "LEVEL")])),
+        (("SPECTRUM", [knob("bright", "BRIGHT"), knob("bloom", "BLOOM")]),
+         ("CHORUS", [knob("detune", "DETUNE"), knob("drift", "DRIFT")])),
     ]),
     page("MOTION", [
         (("CYCLE", [knob("motion", "MOTION"), pills("sync", "SYNC")]),
          ("CYCLE LENGTH", [knob("cycle", "FREE"), knob("cyclediv", "SYNCED")])),
+        (("SHAPE", [knob("motionshape", "SHAPE"), pills("evolvedir", "EVOLVE")]),
+         ("ORBIT", [knob("orbit", "ORBIT"), knob("orbitspeed", "SPEED")])),
         (("DRIFT", [knob("drift", "DRIFT"), knob("detune", "DETUNE")]),
          ("EVOLVE", [knob("evolve", "EVOLVE"), knob("bloom", "BLOOM")])),
     ]),

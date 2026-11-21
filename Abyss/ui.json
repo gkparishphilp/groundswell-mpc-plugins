@@ -1,46 +1,215 @@
 {
   "kit": "violet",
   "pages": [
-    { "name": "MAIN",
+    {
+      "name": "PLAY",
       "controls": [
-        { "param": "Volume",  "widget": "fader" },
-        { "param": "Evolve",  "widget": "knob" },
-        { "param": "Bright",  "widget": "knob" },
-        { "param": "Bloom",   "widget": "knob" },
-        { "param": "Sub",     "widget": "fader" },
-        { "param": "Fifth",   "widget": "fader" },
-        { "param": "Shimmer", "widget": "fader" },
-        { "param": "Air",     "widget": "fader" },
-        { "param": "Drift",   "widget": "knob" },
-        { "param": "Motion",  "widget": "knob" },
-        { "param": "Detune",  "widget": "knob" },
-        { "param": "Width",   "widget": "knob" },
-        { "param": "Attack",  "widget": "fader" },
-        { "param": "Release", "widget": "fader" },
-        { "param": "Space",   "widget": "fader" },
-        { "param": "Size",    "widget": "knob" }
-      ] },
-    { "name": "MOTION",
+        {
+          "param": "Volume",
+          "widget": "fader"
+        },
+        {
+          "param": "Evolve",
+          "widget": "knob"
+        },
+        {
+          "param": "Bright",
+          "widget": "knob"
+        },
+        {
+          "param": "Bloom",
+          "widget": "knob"
+        },
+        {
+          "param": "Sub",
+          "widget": "fader"
+        },
+        {
+          "param": "Int Level",
+          "widget": "fader"
+        },
+        {
+          "param": "Shimmer",
+          "widget": "fader"
+        },
+        {
+          "param": "Air",
+          "widget": "fader"
+        },
+        {
+          "param": "Drift",
+          "widget": "knob"
+        },
+        {
+          "param": "Motion",
+          "widget": "knob"
+        },
+        {
+          "param": "Orbit",
+          "widget": "knob"
+        },
+        {
+          "param": "Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "Release",
+          "widget": "fader"
+        },
+        {
+          "param": "Space",
+          "widget": "fader"
+        },
+        {
+          "param": "Size",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "TONE",
       "controls": [
-        { "param": "Motion",    "widget": "knob" },
-        { "param": "Sync",      "widget": "switch" },
-        { "param": "Cycle",     "widget": "knob", "visibleWhen": { "param": "Sync", "choice": "Free" } },
-        { "param": "Cycle Div", "widget": "slider", "overlay": "menu", "visibleWhen": { "param": "Sync", "choice": "Sync" } },
-        { "param": "Evolve",    "widget": "knob" },
-        { "param": "Drift",     "widget": "knob" },
-        { "param": "Bloom",     "widget": "knob" },
-        { "param": "Bright",    "widget": "knob" }
-      ] },
-    { "name": "SPACE",
+        {
+          "param": "Stretch",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Hollow",
+          "widget": "knob"
+        },
+        {
+          "param": "Interval",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Int Level",
+          "widget": "fader"
+        },
+        {
+          "param": "Bright",
+          "widget": "knob"
+        },
+        {
+          "param": "Bloom",
+          "widget": "knob"
+        },
+        {
+          "param": "Detune",
+          "widget": "knob"
+        },
+        {
+          "param": "Drift",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "MOTION",
       "controls": [
-        { "param": "Space",      "widget": "fader" },
-        { "param": "Size",       "widget": "knob" },
-        { "param": "Space Tone", "widget": "knob" },
-        { "param": "Width",      "widget": "knob" },
-        { "param": "Octave",     "widget": "knob", "polarity": "bipolar" },
-        { "param": "Velocity",   "widget": "knob" },
-        { "param": "Attack",     "widget": "fader" },
-        { "param": "Release",    "widget": "fader" }
-      ] }
+        {
+          "param": "Motion",
+          "widget": "knob"
+        },
+        {
+          "param": "Sync",
+          "widget": "switch"
+        },
+        {
+          "param": "Cycle",
+          "widget": "knob",
+          "visibleWhen": {
+            "param": "Sync",
+            "choice": "Free"
+          }
+        },
+        {
+          "param": "Cycle Div",
+          "widget": "slider",
+          "overlay": "menu",
+          "visibleWhen": {
+            "param": "Sync",
+            "choice": "Sync"
+          }
+        },
+        {
+          "param": "Motion Shape",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Evolve Dir",
+          "widget": "switch"
+        },
+        {
+          "param": "Orbit",
+          "widget": "knob"
+        },
+        {
+          "param": "Orbit Speed",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Evolve",
+          "widget": "knob"
+        },
+        {
+          "param": "Drift",
+          "widget": "knob"
+        },
+        {
+          "param": "Bloom",
+          "widget": "knob"
+        },
+        {
+          "param": "Detune",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "SPACE",
+      "controls": [
+        {
+          "param": "Space",
+          "widget": "fader"
+        },
+        {
+          "param": "Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Space Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Octave",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Velocity",
+          "widget": "knob"
+        },
+        {
+          "param": "Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "Release",
+          "widget": "fader"
+        }
+      ]
+    }
   ]
 }

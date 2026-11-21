@@ -679,7 +679,7 @@
                     }
                 },
                 {
-                    "key": "pills 1 1",
+                    "key": "pills 2 1",
                     "value": {
                         "version": 2,
                         "actions": [
@@ -801,6 +801,130 @@
                             }
                         ]
                     }
+                },
+                {
+                    "key": "pills 2 5",
+                    "value": {
+                        "version": 2,
+                        "actions": [
+                            {
+                                "version": 1,
+                                "onAction": "Mouse Down",
+                                "handler": "Q-Link",
+                                "handleName": "Data",
+                                "additionalData": ""
+                            },
+                            {
+                                "version": 1,
+                                "onAction": "Enter Pressed",
+                                "handler": "Show Overlay",
+                                "handleName": "Data",
+                                "additionalData": "menu overlay"
+                            }
+                        ],
+                        "backgroundData": {
+                            "version": 1,
+                            "focussed": {
+                                "version": 1,
+                                "colour": "00000000",
+                                "image": ""
+                            },
+                            "unfocussed": {
+                                "version": 1,
+                                "colour": "00000000",
+                                "image": ""
+                            }
+                        },
+                        "ignoreMousePresses": false,
+                        "disableCoarseDataWheel": false,
+                        "componentsData": [
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "focus",
+                                    "type": "Focus",
+                                    "data": {
+                                        "version": 1,
+                                        "backgroundColour": "19ffffff",
+                                        "outlineColour": "ff38e2ff",
+                                        "backgroundInset": 4.0,
+                                        "outlineThickness": 1.0
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "WhenFocussed",
+                                    "boundsType": "Absolute",
+                                    "bounds": "0 0 184 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 0",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_rise_79.png",
+                                        "offImage": "pill_off_rise_79.png",
+                                        "buttonId": 0,
+                                        "numButtonsInGroup": 2,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "0 0 97 52"
+                                }
+                            },
+                            {
+                                "version": 2,
+                                "componentData": {
+                                    "version": 1,
+                                    "name": "pill 1",
+                                    "type": "Button",
+                                    "data": {
+                                        "version": 2,
+                                        "onImage": "pill_on_sink_79.png",
+                                        "offImage": "pill_off_sink_79.png",
+                                        "buttonId": 1,
+                                        "numButtonsInGroup": 2,
+                                        "handleName": "Data",
+                                        "gestureBehaviour": "Instant"
+                                    }
+                                },
+                                "handle remapping": {
+                                    "version": 1,
+                                    "map": []
+                                },
+                                "bounds": {
+                                    "version": 1,
+                                    "acceptsHWFocus": "No",
+                                    "showWhenDataModelInvalid": "Show",
+                                    "whenVisible": "Always",
+                                    "boundsType": "Absolute",
+                                    "bounds": "87 0 97 52"
+                                }
+                            }
+                        ]
+                    }
                 }
             ]
         },
@@ -821,6 +945,47 @@
                     "8 bars",
                     "16 bars",
                     "32 bars"
+                ]
+            },
+            {
+                "key": "Parameter 23",
+                "value": [
+                    "1/2",
+                    "1x",
+                    "2x",
+                    "3x",
+                    "4x",
+                    "6x",
+                    "8x"
+                ]
+            },
+            {
+                "key": "Parameter 26",
+                "value": [
+                    "Fifth",
+                    "Fourth",
+                    "Octave",
+                    "Maj 3rd",
+                    "Min 3rd",
+                    "Min 7th",
+                    "Maj 7th",
+                    "9th"
+                ]
+            },
+            {
+                "key": "Parameter 27",
+                "value": [
+                    "Sine",
+                    "Drift",
+                    "Swell",
+                    "Tide"
+                ]
+            },
+            {
+                "key": "Parameter 28",
+                "value": [
+                    "Rise",
+                    "Sink"
                 ]
             }
         ],
@@ -1330,7 +1495,7 @@
                                 "map": [
                                     {
                                         "key": "Data",
-                                        "value": "Parameter 5"
+                                        "value": "Parameter 22"
                                     }
                                 ]
                             },
@@ -1354,8 +1519,299 @@
             },
             {
                 "version": 1,
-                "tabName": "MOTION",
+                "tabName": "TONE",
                 "fnKeyIndex": 1,
+                "fnKeySubIndex": 0,
+                "componentDefinition": {
+                    "version": 2,
+                    "actions": [],
+                    "backgroundData": {
+                        "version": 1,
+                        "focussed": {
+                            "version": 1,
+                            "colour": "ff000000",
+                            "image": ""
+                        },
+                        "unfocussed": {
+                            "version": 1,
+                            "colour": "ff000000",
+                            "image": ""
+                        }
+                    },
+                    "ignoreMousePresses": false,
+                    "disableCoarseDataWheel": false,
+                    "componentsData": [
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "background",
+                                "type": "Image",
+                                "data": {
+                                    "version": 2,
+                                    "imageType": "Regular",
+                                    "colour": "0",
+                                    "image": "bg_tone.jpg"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": []
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "No",
+                                "showWhenDataModelInvalid": "Show",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "0 0 1280 628"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 0",
+                                "type": "knob bi",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 24"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "22 162 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 1",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 25"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "206 162 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 2",
+                                "type": "knob menu",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 26"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "896 162 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 3",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 7"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "1080 162 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 4",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 2"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "22 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 5",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 3"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "206 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 6",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 5"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "896 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 7",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 4"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "1080 278 176 76"
+                            }
+                        }
+                    ]
+                },
+                "qlinkBoundsData": [
+                    "16 136 1248 106",
+                    "16 252 1248 106",
+                    "16 368 1248 106",
+                    "16 484 1248 106"
+                ]
+            },
+            {
+                "version": 1,
+                "tabName": "MOTION",
+                "fnKeyIndex": 2,
                 "fnKeySubIndex": 0,
                 "componentDefinition": {
                     "version": 2,
@@ -1436,7 +1892,7 @@
                             "componentData": {
                                 "version": 1,
                                 "name": "ctl 1",
-                                "type": "pills 1 1",
+                                "type": "pills 2 1",
                                 "data": {
                                     "version": 1,
                                     "handleName": "Data"
@@ -1523,6 +1979,122 @@
                             "componentData": {
                                 "version": 1,
                                 "name": "ctl 4",
+                                "type": "knob menu",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 27"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "22 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 5",
+                                "type": "pills 2 5",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 28"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "203 305 184 52"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 6",
+                                "type": "knob",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 22"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "896 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 7",
+                                "type": "knob menu",
+                                "data": {
+                                    "version": 1,
+                                    "handleName": "Data"
+                                }
+                            },
+                            "handle remapping": {
+                                "version": 1,
+                                "map": [
+                                    {
+                                        "key": "Data",
+                                        "value": "Parameter 23"
+                                    }
+                                ]
+                            },
+                            "bounds": {
+                                "version": 1,
+                                "acceptsHWFocus": "Yes",
+                                "showWhenDataModelInvalid": "Hide",
+                                "whenVisible": "Always",
+                                "boundsType": "Absolute",
+                                "bounds": "1080 278 176 76"
+                            }
+                        },
+                        {
+                            "version": 2,
+                            "componentData": {
+                                "version": 1,
+                                "name": "ctl 8",
                                 "type": "knob",
                                 "data": {
                                     "version": 1,
@@ -1544,14 +2116,14 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "22 278 176 76"
+                                "bounds": "22 394 176 76"
                             }
                         },
                         {
                             "version": 2,
                             "componentData": {
                                 "version": 1,
-                                "name": "ctl 5",
+                                "name": "ctl 9",
                                 "type": "knob",
                                 "data": {
                                     "version": 1,
@@ -1573,14 +2145,14 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "206 278 176 76"
+                                "bounds": "206 394 176 76"
                             }
                         },
                         {
                             "version": 2,
                             "componentData": {
                                 "version": 1,
-                                "name": "ctl 6",
+                                "name": "ctl 10",
                                 "type": "knob",
                                 "data": {
                                     "version": 1,
@@ -1602,14 +2174,14 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "896 278 176 76"
+                                "bounds": "896 394 176 76"
                             }
                         },
                         {
                             "version": 2,
                             "componentData": {
                                 "version": 1,
-                                "name": "ctl 7",
+                                "name": "ctl 11",
                                 "type": "knob",
                                 "data": {
                                     "version": 1,
@@ -1631,7 +2203,7 @@
                                 "showWhenDataModelInvalid": "Hide",
                                 "whenVisible": "Always",
                                 "boundsType": "Absolute",
-                                "bounds": "1080 278 176 76"
+                                "bounds": "1080 394 176 76"
                             }
                         }
                     ]
@@ -1646,7 +2218,7 @@
             {
                 "version": 1,
                 "tabName": "SPACE",
-                "fnKeyIndex": 2,
+                "fnKeyIndex": 3,
                 "fnKeySubIndex": 0,
                 "componentDefinition": {
                     "version": 2,
