@@ -12,11 +12,12 @@ Source art:
     knob_small.webp         knob with skirt, pointer at 12 o'clock (shared with Abyss, Krill, Wipeout, Largemouth)
     pill_on/off.webp        button pill (shared likewise; no page uses a switch yet)
 
-Layout: two tabs. Each row is one Q-Link row: two boxes of two controls, one either side, so the shark swims
+Layout: three tabs. Each row is one Q-Link row: two boxes of two controls, one either side, so the shark swims
 through the middle.
 
     STRIKE    MALLET | RING,  IMPACT | BAR,  BODY | ROOM,  MODEL | OUTPUT
     PLAY      DROP | MOTOR,  VELOCITY | TUNING,  OVERTONES | DAMPER
+    BOW/BLOW  SOURCE | BREATH,  VIBRATO | RING,  MODEL | TUNING          (1.1)
 
 The skin binds to parameter indices, so it must be regenerated if the parameter list changes (the script checks its
 parameter table against build/params.json when that exists). The drawing machinery is a copy of Abyss's
@@ -47,11 +48,14 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 
 # Parameter indices (must match the enum in src/Hammerhead.cpp).
 NAMES = ["vol", "model", "hard", "pos", "click", "decay", "damp", "mute", "stretch", "tube", "body", "bodysize",
-         "motor", "motorrate", "width", "room", "roomsize", "velocity", "velhard", "octave", "fine", "drop", "droptime"]
+         "motor", "motorrate", "width", "room", "roomsize", "velocity", "velhard", "octave", "fine", "drop", "droptime",
+         # 1.1
+         "exciter", "pressure", "swell", "air", "vibrato"]
 P = {n: i for i, n in enumerate(NAMES)}
 
 CHOICES = {P["model"]: ["Marimba", "Vibes", "Xylophone", "Glock", "Kalimba", "Bell", "Glass", "Steel Pan", "Pluck",
-                        "Dulcimer"]}
+                        "Dulcimer"],
+           P["exciter"]: ["Mallet", "Bow", "Blow"]}
 
 # Knob geometry: Wipeout's (a 76 px box so a heading fits above each row).
 KNOB = dict(src="knob_small.webp", crop=300, knob=58, arc_r=34, arc_w=4, frame=76, frames=100)
@@ -168,14 +172,22 @@ def pill_base(name, width):
     return out
 
 
-def pill(state, caption, width, size=14):
-    im = pill_base("pill_on.webp" if state else "pill_off.webp", width)
-    d = ImageDraw.Draw(im)
-    colour = PILL_ON_INK if state else PILL_OFF_INK
+def pill_fit(caption, width, size=14):
+    """The caption size (and letter spacing) that fits a pill of this width."""
     text, spacing = caption.upper(), 1.2
     while size > 9 and text_width(text, font(size, FONT_DEMI), spacing) > width - 12:
         size -= 1
         spacing = 0.4
+    return size, spacing
+
+
+def pill(state, caption, width, fit=None):
+    """fit: (size, spacing) shared by a row of pills, so they all use one caption size."""
+    im = pill_base("pill_on.webp" if state else "pill_off.webp", width)
+    d = ImageDraw.Draw(im)
+    colour = PILL_ON_INK if state else PILL_OFF_INK
+    text = caption.upper()
+    size, spacing = fit or pill_fit(caption, width)
     f = font(size, FONT_DEMI)
     draw_spaced(d, (im.width / 2, im.height / 2 + 1), text, f, colour + (255,), spacing=spacing)
     return im
@@ -255,7 +267,7 @@ PAGES = [
          ("BAR", [knob("tube", "RESONATOR"), knob("mute", "MUTE")])),
         (("BODY", [knob("body", "BODY"), knob("bodysize", "SIZE")]),
          ("ROOM", [knob("room", "ROOM"), knob("roomsize", "SIZE")])),
-        (("MODEL", [knob("model", "MODEL"), knob("octave", "OCTAVE", True)]),
+        (("MODEL", [knob("model", "MODEL"), knob("exciter", "EXCITER")]),
          ("OUTPUT", [knob("width", "WIDTH"), knob("vol", "VOLUME")])),
     ]),
     page("PLAY", [
@@ -265,6 +277,14 @@ PAGES = [
          ("TUNING", [knob("octave", "OCTAVE", True), knob("fine", "FINE", True)])),
         (("OVERTONES", [knob("stretch", "STRETCH", True), knob("damp", "DAMPING")]),
          ("DAMPER", [knob("mute", "MUTE"), knob("decay", "DECAY")])),
+    ]),
+    page("BOW/BLOW", [
+        (("SOURCE", [pills("exciter", "EXCITER"), knob("pressure", "PRESSURE")]),
+         ("BREATH", [knob("swell", "SWELL"), knob("air", "AIR")])),
+        (("VIBRATO", [knob("vibrato", "VIBRATO"), knob("motorrate", "RATE")]),
+         ("RING", [knob("decay", "DECAY"), knob("mute", "MUTE")])),
+        (("MODEL", [knob("model", "MODEL"), knob("pos", "POSITION")]),
+         ("TUNING", [knob("octave", "OCTAVE", True), knob("fine", "FINE", True)])),
     ]),
 ]
 TAB_NAMES = [p["name"] for p in PAGES]
@@ -402,7 +422,7 @@ def build():
     pill_files = {}
     pill_defs = {}
     for ti, pg in enumerate(PAGES):
-        bg_file = "bg_%s.jpg" % pg["name"].lower()
+        bg_file = "bg_%s.jpg" % "".join(ch for ch in pg["name"].lower() if ch.isalnum())   # "BOW/BLOW" -> bowblow
         bg = draw_background(pg)
         bg.save(os.path.join(OUT, bg_file), quality=92)
         children = [G.entry("background", "Image", obj(("version", 2), ("imageType", "Regular"), ("colour", "0"),
@@ -420,13 +440,15 @@ def build():
                 previews.append((ti, "knob", (ctl, (x, y), strips[ctl["bipolar"]])))
             else:
                 files = []
+                fits = [pill_fit(it[1], it[4]) for it in ctl["items"]]
+                fit = min(fits)                       # the smallest caption size wins for the whole row
                 for choice, caption, x, y, pw in ctl["items"]:
                     pair = []
                     for state in (True, False):
                         slug = "".join(ch if ch.isalnum() else "x" for ch in caption.lower())
                         fname = "pill_%s_%s_%d.png" % ("on" if state else "off", slug, pw)
                         if fname not in pill_files:
-                            pill_files[fname] = save(fname, pill(state, caption, pw))
+                            pill_files[fname] = save(fname, pill(state, caption, pw, fit))
                         pair.append(fname)
                     files.append(tuple(pair))
                 comp, (ox, oy, w, h) = pill_component(ctl, files, len(CHOICES[ctl["param"]]))

@@ -1,6 +1,7 @@
 # Hammerhead
 
-**Hit something.** Struck and plucked physical modelling for Akai MPC standalone hardware, by Groundswell.
+**Hit something.** Struck, plucked, bowed and blown physical modelling for Akai MPC standalone hardware, by
+Groundswell.
 
 Hammerhead plays marimba, vibraphone, xylophone and glockenspiel bars, kalimba tines, bells, glass, a steel pan,
 and plucked or hammered strings. It is built for percussion. Every note is a mallet (or a plectrum) hitting
@@ -9,6 +10,32 @@ something that rings, so the attack carries the sound. **Hardness** is how long 
 what the object is made of, and **Mute** says whether a hand comes down on it when you let go. Hit harder and it
 gets brighter, not just louder. Roll on one pad and the bar keeps ringing while each hit adds to it. It is cheap
 enough to play chords on the MPC: 16 voices, about 0.2 % of a desktop core with all 16 ringing.
+
+Since 1.1 the same objects can also be **bowed** or **blown**: a bow or a breath keeps feeding the bar, glass or
+string for as long as you hold the note, so it sustains and sings, and pad pressure plays it.
+
+## New in 1.1
+
+- **Exciter: Mallet, Bow or Blow.** Bow is stick-slip friction, so bowed vibes, glass, bells and a bowed string
+  sing on their own. Blow is a breath jet, so bottles, pipes, a conch and blown glass speak once the breath is
+  strong enough. Both work on every model. Mallet is the 1.0 sound.
+- **Pressure** (bow pressure or breath pressure; **pad aftertouch** adds to it), **Swell** (how long the bow or
+  breath takes to build), **Air** (rosin scratch or breath noise) and **Vibrato** (pitch, at Motor Rate, fading in
+  after each note starts).
+- A **BOW/BLOW** page on the panel, and **Exciter** on the STRIKE page in place of Octave (Octave is still on PLAY
+  and BOW/BLOW).
+- **Five new programs**: Bowed Vibes, Moon Jelly, Kelp Cello, Conch, Bottle Breath (15 in all).
+- **Fix: a new Model didn't take effect on a note that was still ringing.** A re-hit reused the ringing voice so
+  it could add to the ring, and that voice kept its old model, so after changing Model a pad that was still
+  sounding (a bell rings for up to 20 s) played the old model until it died away. Now a re-hit with a different
+  Model or Exciter fades the old voice out over 8 ms and starts the new object.
+- 1.0 projects load unchanged: the new parameters start at Mallet and settings that add nothing.
+
+**1.1.1: a quieter, darker Air.** The scratch and breath you hear were a broadband hiss well above the note
+(centred about 2.2 kHz on a bowed A3 bar). Now they pass through a wide band-pass that follows the note (two to four
+times its frequency, higher with more Pressure). The noise itself is darker, and the Air knob has a gentler curve
+(the lower half is a hint, the top is still breathy). At the programs' own settings the air is 4–10 dB quieter and
+an octave or more lower. Projects keep their Air value; it just sounds softer.
 
 ## Install
 
@@ -75,6 +102,36 @@ in the tests).
 - **Stretch** bends all the mode ratios: down squeezes the overtones together, up spreads them apart (turns bars
   into bells).
 
+### Bow and Blow (1.1)
+
+A mallet is one impulse: however slow its attack, the object then just rings away. A bow or a breath keeps
+putting energy in while the note is held (and while the sustain pedal holds it), so the object sustains. Both
+build up over **Swell** and stop about 60 ms after the note-off, and then the object rings on with its own
+**Decay** (or **Mute**). Each note starts with a soft push (the bow's first grip, or a tongued breath) scaled by
+velocity, so short Swell settings speak at once. A long Swell makes the push small, so slow swells still bloom.
+
+- **Bow, bars and the other modal models**: stick-slip friction at the contact point. The bow drags the bar
+  along until the bar's own velocity tears it free, then it grips again, once per cycle. The friction curve is
+  the classic bow table, a power law in the relative velocity. The contact velocity is the sum of the mode
+  velocities.
+- **Bow, strings**: the string is split at the bow point into a nut-side and a bridge-side delay line with the
+  friction junction between them (the McIntyre–Schumacher–Woodhouse / Smith bowed string). **Strike Pos** is the
+  bow point: 0 % is over the middle of the string (soft, flautando), 100 % is near the bridge (bright, glassy).
+- **Blow**: a jet. The contact velocity, through a saturating gain, pushes back on the object (on the strings, on
+  the waveguide, which then behaves as an air column), so it self-oscillates at its own resonance, plus turbulent
+  breath noise. On the strings, a low-pass in the jet keeps the fundamental in charge.
+- **Pressure**: on the bow, how hard it presses. More is grittier, and at the top it starts to choke and gets
+  quieter, as a real bow does. On the breath, how hard you blow: louder, brighter and noisier. Pad aftertouch
+  (channel or poly) adds to it.
+- **Air**: rosin scratch (Bow) or breath noise (Blow), into the object and straight to the output. What you hear
+  directly is band-passed round two to four times the note, so it sounds like the instrument breathing rather
+  than a hiss on top.
+- **Vibrato**: up to ±35 cents at **Motor Rate**, fading in over 0.4 s after each note starts. It works on every
+  exciter, including the mallet.
+- Every mode feels the same bow or breath, scaled to the loss of the note's own mode. So the long-ringing note
+  mode speaks first, and short-lived upper modes only take over when you push hard (overblowing). A bowed or
+  blown **bell** sings at the note; its hum, an octave below, is left out.
+
 ### After the voices
 
 **Motor** (the vibraphone's spinning discs: tremolo depth, plus **Motor Rate**; the mod wheel adds depth) →
@@ -111,6 +168,11 @@ Parameter IDs and order are permanent; new parameters will be added at the end.
 | 20 | Fine | −50…+50 ct | 0 ct | Fine tuning. |
 | 21 | Drop | 0–12 st | 0 st | Pitch drop at the strike (scaled by velocity). |
 | 22 | Drop Time | 10–500 ms | 60 ms | How fast the drop falls to the note. |
+| 23 | Exciter | Mallet / Bow / Blow | Mallet | What sets the object going (1.1). Applies to new notes. |
+| 24 | Pressure | 0–100 % | 50 % | Bow or breath pressure; pad aftertouch adds to it (1.1). |
+| 25 | Swell | 5 ms–3 s | 150 ms | How long the bow or breath takes to build up (1.1). |
+| 26 | Air | 0–100 % | 25 % | Rosin scratch (Bow) or breath noise (Blow) (1.1). |
+| 27 | Vibrato | 0–100 % | 0 % | Pitch vibrato, up to ±35 cents at Motor Rate (1.1). |
 
 Pitch bend is ±2 semitones and bends ringing notes too.
 
@@ -121,10 +183,11 @@ one Q-Link row: two boxes of two controls, either side of the shark. The panel i
 
 | Page | Rows (left box \| right box) |
 |---|---|
-| STRIKE | MALLET: Hardness, Position \| RING: Decay, Damping · IMPACT: Click, Drop \| BAR: Resonator, Mute · BODY: Body, Size \| ROOM: Room, Size · MODEL: Model, Octave \| OUTPUT: Width, Volume |
+| STRIKE | MALLET: Hardness, Position \| RING: Decay, Damping · IMPACT: Click, Drop \| BAR: Resonator, Mute · BODY: Body, Size \| ROOM: Room, Size · MODEL: Model, Exciter \| OUTPUT: Width, Volume |
 | PLAY | DROP: Drop, Time \| MOTOR: Motor, Rate · VELOCITY: Level, Hardness (Vel>Hard) \| TUNING: Octave, Fine · OVERTONES: Stretch, Damping \| DAMPER: Mute, Decay |
+| BOW/BLOW | SOURCE: Exciter (Mallet / Bow / Blow buttons), Pressure \| BREATH: Swell, Air · VIBRATO: Vibrato, Rate \| RING: Decay, Mute · MODEL: Model, Position \| TUNING: Octave, Fine |
 
-Model is a knob that opens the model list when touched.
+Model and Exciter on the STRIKE page are knobs that open their lists when touched.
 
 ## Programs
 
@@ -140,6 +203,11 @@ Model is a knob that opens the model list when touched.
 | Nylon Pluck | A plucked string near the bridge in a guitar-sized body. |
 | Hammered Dulcimer | Metal strings, hard hammers, an octave up. |
 | Hull Drum | Low marimba bars hit near the centre with a 5-semitone drop: a log drum or tom. |
+| Bowed Vibes | A bowed vibraphone bar, an octave up: a pure, singing tone with the tube on (1.1). |
+| Moon Jelly | Bowed glass with a slow 0.8 s swell, a little vibrato and a big room (1.1). |
+| Kelp Cello | A bowed string near the bridge in a big body, with vibrato (1.1). |
+| Conch | The metal string as a blown air column: breathy and round, with vibrato (1.1). |
+| Bottle Breath | Glass, blown: lots of breath noise, like blowing across a bottle (1.1). |
 
 ## Tips
 
@@ -151,6 +219,10 @@ Model is a knob that opens the model list when touched.
   marimba or vibes program sounds like a real roll, not a machine gun.
 - **Drums**: Hull Drum is a start. Try Kalimba or Steel Pan with Drop 3–7 st and Drop Time 40–100 ms for
   tuned percussion, or Glass with a long drop for effects.
+- **Bowed and blown on the pads**: press harder into a held pad to push the bow or breath (aftertouch). Swell
+  sets how fast a note grows; short swells speak at once, long ones bloom. Hold the sustain pedal to keep bowing
+  after you let go.
+- **Changing Model or Exciter** affects the next note. A pad that is still ringing switches over on its next hit.
 - **Polyphony**: 16 notes ring at once. A 17th note takes over the quietest one, which fades out over 8 ms in a
   spare slot, so the new note is not delayed and nothing clicks.
 
@@ -162,19 +234,27 @@ Groundswell plugins, that should be roughly **2–4 %** of one MPC core with all
 in normal playing, where most voices have died away. This is an estimate from the desktop, not yet measured on
 the hardware.
 
+Bowed and blown notes cost more, because the object and the bow or breath have to be worked out together, one
+sample at a time. 16 bowed bars take **0.94 %** of a desktop core (about 0.06 % each), and 16 bowed strings
+**0.34 %**. On the MPC a bowed bar is roughly **1 %** of a core per note, so a held chord of four to six is fine.
+All 16 bowed at once could reach 10–20 % on the slower MPCs. These are estimates from the desktop.
+
 How it stays cheap: `exp`, `cos` and `pow` run once per note, every 32 samples while a note's pitch is moving
-(Drop, pitch bend), or when a knob that changes the ring moves. They never run per sample. A voice is retired once
+(Drop, pitch bend, vibrato), or when a knob that changes the ring moves. They never run per sample. A voice is retired once
 it has been below −90 dB for 100 ms, so a finished note costs nothing.
 
 ## What is not in this version
 
 - **No buzz or rattle**: no kalimba buzzers or snare-wire sizzle (a nonlinear rattle is a possible addition).
-- **No bowing or scraping**: only struck and plucked excitation. The old idea list had "bowed"; it is not here.
+- **No scraping or rubbing**: Bow is a single bow on one point; there is no rubbed rim (glass harmonica finger) or
+  scraper. Bow pressure, not bow speed, is what you play (velocity sets the starting bow speed).
+- **The string Blow is a simple air column**: no reed, and no separate jet delay, so it doesn't jump registers
+  the way a real flute does when overblown.
 - **8 modes per object.** Enough for the character of each object, but very bright, hard hits on low notes are
   rounder than a real bar, because there are no modes above the 8th.
 - **Strings are single**: a real dulcimer has pairs of strings that beat against each other; here there is one
   string per note. **Stretch** and **Resonator** do nothing on the two string models.
-- **Model, Hardness, Strike Pos, Click, Width and velocity apply to new notes**, as they would on a real
+- **Model, Exciter, Hardness, Strike Pos, Click, Width and velocity apply to new notes**, as they would on a real
   instrument. Decay, Damping, Mute, Stretch, Resonator, Octave and Fine also change notes that are already
   ringing.
 - **No sympathetic resonance** between notes.
@@ -192,11 +272,12 @@ clang++ -std=c++17 -O2 -I../../framework tests/listentest.cpp -o tests/build/lis
 tests/build/listentest build/hammerhead-demo.wav
 ```
 
-host_sim: 19 passed, 0 warnings, 0 failures. `tests/listentest.cpp` renders with random block sizes (32–512) and
-checks (76 checks):
+host_sim: 19 passed, 0 warnings, 0 failures (also at 48 and 96 kHz). `tests/listentest.cpp` renders with random
+block sizes (32–512) and checks (121 checks):
 
-- **every program** is percussive: within 5 ms of the strike it is within 0–5 dB of its peak. A single note at
-  velocity 100 peaks between −14 and −22 dBFS, and the voice frees itself when the ring dies;
+- **every mallet program** is percussive: within 5 ms of the strike it is within 0–5 dB of its peak. A single
+  note at velocity 100 peaks between −14 and −22 dBFS, and the voice frees itself when the ring dies. **Every
+  bowed and blown program** holds steady while the note is held (within 1 dB) and dies away after it;
 - **every model** plays A4 at 440 Hz (within 0.4 cents);
 - **Hardness**: a hard mallet rings the overtones 24 dB louder than a soft one, and velocity does the same through
   Vel>Hard (4:1 overtone −32 dB → −10 dB re the fundamental from velocity 30 to 127);
@@ -209,12 +290,21 @@ checks (76 checks):
   stealing makes no clicks;
 - **Drop** starts sharp and lands within a cent of the note on a bar and on a string; **pitch bend** moves ringing
   notes on both engines;
-- a **six-note chord at velocity 127** stays under 0 dBFS in every program (peaks −0.6 to −6.4 dBFS, under
+- a **six-note chord at velocity 127** stays under 0 dBFS in every program (peaks −0.6 to −10.8 dBFS, under
   0.05 % of samples touching the limiter);
+- (1.1) re-hitting a ringing note after changing **Model** plays the new model (the old voice fades), and the
+  same for **Exciter**;
+- (1.1) **Bow and Blow on every one of the 10 models**: each speaks within 0.1 s (within 10 dB of full), holds
+  steady, plays A3 within 1 cent (by autocorrelation), and rings away after release;
+- (1.1) **Swell** 50 ms is within 1 dB of full after 0.1 s, and 1.5 s is still 38 dB under; full **aftertouch**
+  blows 6 dB harder; **Vibrato** 100 % swings the pitch over about 160 cents;
+- (1.1.1) **Air** on a bowed or blown bar: at 25 % the noise is 35 dB under the tone (about 1 dB more than with no
+  air); at 100 % it is 24 dB under, centred near 830 Hz, with only −32 dB of it above 3 kHz;
 - CPU as above.
 
-It then writes `build/hammerhead-demo.wav` (50 s): each of the 10 programs in turn plays a short pentatonic
-phrase and a chord (Hull Drum plays a little groove), each ringing into the next.
+It then writes `build/hammerhead-demo.wav` (73 s): each of the 15 programs in turn plays a short pentatonic
+phrase and a chord (Hull Drum plays a little groove; the bowed and blown programs play it legato), each ringing
+into the next.
 
 ## Project layout
 
@@ -226,7 +316,7 @@ phrase and a chord (Hull Drum plays a little groove), each ringing into the next
 - `art/plate-src.webp`: the background art. `art/mock-reference.webp`: the mock-up of the look (reference only).
 - `art/knob_small.webp`, `art/pill_on.webp`, `art/pill_off.webp`: the shared Groundswell knob and button art.
 - `skins/`: the rendered panel (TUI.json, Q-Links.json, page backgrounds, knob images).
-- `ui.json`: a stock-kit fallback layout (amber), unused while `skins/` exists.
+- `ui.json`: a stock-kit fallback layout (amber, the same three pages), unused while `skins/` exists.
 - `tests/listentest.cpp`: the offline sound, tuning, feature, click, level and CPU checks, and the demo.
 
 ## Licence
@@ -234,5 +324,8 @@ phrase and a chord (Hull Drum plays a little groove), each ringing into the next
 MIT. Original design and code. The mode ratios come from the published acoustics of each instrument (tuned bars
 1:4:10 and 1:3:6, free-bar and clamped-bar beam theory, the minor-third church bell partials, as in Fletcher and
 Rossing, *The Physics of Musical Instruments*). The string is the Karplus-Strong / digital waveguide idea
-(Karplus and Strong 1983, Jaffe and Smith 1983, Smith 1992). The room follows the general feedback delay network
+(Karplus and Strong 1983, Jaffe and Smith 1983, Smith 1992). The bowed string is the McIntyre, Schumacher and
+Woodhouse (1983) / Smith bowed-string structure with the widely published power-law bow table (as in the
+Synthesis ToolKit's description); the modal bow and the jet follow the same friction and jet ideas applied to
+modal resonators (Adrien 1991; Essl and Cook 1999). The room follows the general feedback delay network
 structure of Jot and Chaigne (1991), as in Groundswell Abyss. No code was borrowed.

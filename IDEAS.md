@@ -32,7 +32,8 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   marimba, vibes, xylophone and glock bars, kalimba, bell, glass, steel pan (8-mode resonator bank
   plus a tuned tube) and plucked or hammered strings (waveguide). Mallet hardness, strike position,
   click, decay/damping, mute and pedal, a pitch drop for log drums and toms, motor, body and room.
-  16 voices, cheap enough for chords. Custom shark panel. Still to come: kalimba buzz, bowing.
+  16 voices, cheap enough for chords. Custom shark panel. 1.1 added Bow and Blow
+  exciters on every model (pressure, aftertouch, swell, vibrato). Still to come: kalimba buzz.
 
 ## Effects that listen and respond
 

@@ -1,6 +1,7 @@
 // Does Hammerhead sound like hitting something? Checks the attack, the tuning, what hardness and
 // strike position do, decay times, muting and the pedal, re-strikes, voice stealing, the pitch
-// drop, chord headroom and CPU, then renders a demo WAV.
+// drop, chord headroom and CPU; and (1.1) that a new Model or Exciter takes effect on a ringing
+// note, and that Bow and Blow sustain in tune on every model. Then renders a demo WAV.
 //
 //   mkdir -p tests/build
 //   clang++ -std=c++17 -O2 -I../../framework tests/listentest.cpp -o tests/build/listentest
@@ -267,6 +268,52 @@ static float worstNear(const std::vector<float>& x, const std::vector<double>& t
     return worst;
 }
 
+// Pitch by autocorrelation of the mono mix over 4096 samples from t: the first lag (between 1/1200
+// and 1/60 s) whose normalised autocorrelation is within 10 % of the best, refined parabolically.
+static float acPitch(const std::vector<float>& L, const std::vector<float>& R, double t)
+{
+    const int N = 4096, lo = (int)(SR / 1200.0), hi = (int)(SR / 60.0);
+    const size_t s0 = (size_t)(t * SR);
+    std::vector<float> x((size_t)(N + hi + 2));
+    for (size_t i = 0; i < x.size(); ++i) x[i] = s0 + i < L.size() ? 0.5f * (L[s0 + i] + R[s0 + i]) : 0.0f;
+    std::vector<double> ac((size_t)hi + 2, 0.0);
+    double e0 = 1e-20;
+    for (int i = 0; i < N; ++i) e0 += (double)x[(size_t)i] * x[(size_t)i];
+    double best = 0.0;
+    for (int lag = lo; lag <= hi + 1; ++lag)
+    {
+        double a = 0.0;
+        for (int i = 0; i < N; ++i) a += (double)x[(size_t)i] * x[(size_t)(i + lag)];
+        ac[(size_t)lag] = a / e0;
+        if (lag <= hi) best = std::max(best, ac[(size_t)lag]);
+    }
+    for (int lag = lo + 1; lag <= hi; ++lag)
+        if (ac[(size_t)lag] >= 0.9 * best && ac[(size_t)lag] >= ac[(size_t)lag - 1] && ac[(size_t)lag] >= ac[(size_t)lag + 1])
+        {
+            const double a = ac[(size_t)lag - 1], b = ac[(size_t)lag], c = ac[(size_t)lag + 1];
+            const double den = a - 2.0 * b + c;
+            const double off = std::fabs(den) > 1e-12 ? 0.5 * (a - c) / den : 0.0;
+            return (float)(SR / ((double)lag + std::max(-0.5, std::min(0.5, off))));
+        }
+    return 0.0f;
+}
+// Air (1.1.1): power away from the harmonics of f0 (more than 3 % off every k*f0) relative to the power near them,
+// 100 Hz..16 kHz, at t = 1 s; and that noise's centroid and the share of it above 3 kHz.
+static void noiseToTone(const std::vector<float>& L, const std::vector<float>& R, float f0, float& ratioDb, float& cen, float& above3k)
+{
+    const auto s = spectrum(L, R, 1.0, 16384);
+    double tone = 1e-30, noise = 1e-30, c = 0.0, hf = 1e-30;
+    for (int k = (int)(100 / binHz()); k < (int)(16000 / binHz()); ++k)
+    {
+        const float f = k * binHz(), h = f / f0;
+        const double pw = std::pow(10.0, s[k] / 10.0);
+        if (std::round(h) >= 1 && std::fabs(h - std::round(h)) * f0 / f < 0.03f) tone += pw;
+        else { noise += pw; c += pw * f; if (f > 3000.0f) hf += pw; }
+    }
+    ratioDb = (float)(10.0 * std::log10(noise / tone)); cen = (float)(c / noise); above3k = (float)(10.0 * std::log10(hf / noise));
+}
+static bool sustained(Hammerhead& p) { return p.getInt(Hammerhead::kExciter) != hammerhead::kMallet; }
+
 using H = Hammerhead;
 
 int main(int argc, char** argv)
@@ -281,6 +328,20 @@ int main(int argc, char** argv)
     for (int prog = 0; prog < numPrograms; ++prog)
     {
         auto p = make(prog);
+        if (sustained(*p))
+        {
+            // Bowed and blown programs: they should speak, hold steady while the note is held, and
+            // ring away after it.
+            render(*p, {on(0.0, 60, 100), off(2.5, 60)}, 12.0, L, R);
+            const float a = rmsDb(L, R, 1.0, 1.4), b = rmsDb(L, R, 2.0, 2.4), tail = rmsDb(L, R, 3.6, 3.8);
+            std::printf("      %-18s held %6.1f dB -> %6.1f dB, 1.1 s after release %6.1f dB, peak %6.1f dB\n",
+                        p->programName(prog), a, b, tail, db(peakOf(L, R)));
+            check(finite(L, R) && a > -34.0f && db(peakOf(L, R)) < -6.0f && std::fabs(a - b) < 3.0f,
+                  "%s: sustains while held (%.1f -> %.1f dB RMS), peak %.1f dBFS", p->programName(prog), a, b, db(peakOf(L, R)));
+            check(tail < b - 8.0f && activeVoices(*p) == 0, "%s: and dies away after release (%.1f dB down 1.1 s later; voice freed by 12 s)",
+                  p->programName(prog), b - tail);
+            continue;
+        }
         render(*p, {on(0.0, 60, 100), off(0.25, 60)}, 14.0, L, R);
         const float pk = peakOf(L, R);
         const double pt = peakTime(L, R);
@@ -464,6 +525,115 @@ int main(int argc, char** argv)
         }
     }
 
+    // ---- 8b. A new Model or Exciter takes effect on a note that is still ringing --------------------
+    std::printf("\n== Changing Model or Exciter while a note rings (1.1) ==\n");
+    {
+        auto p = make(3, {{H::kDecay, 20}, {H::kRoom, 0}});   // Shell Kalimba (C5), ringing for a long time
+        render(*p, {on(0.0, 60, 100)}, 0.5, L, R);
+        p->set(H::kModel, 6);                                   // Glass
+        render(*p, {on(0.0, 60, 100)}, 0.05, L, R);
+        int glass = 0, kalimbaOn = 0, fading = 0;
+        for (auto& v : p->voices_)
+        {
+            if (v.stage == hammerhead::kOn && v.model == 6) ++glass;
+            if (v.stage == hammerhead::kOn && v.model == 4) ++kalimbaOn;
+            if (v.stage == hammerhead::kSteal) ++fading;
+        }
+        check(glass == 1 && kalimbaOn == 0, "re-hitting a ringing kalimba note after switching to Glass plays glass (%d glass voice, %d kalimba still ringing)",
+              glass, kalimbaOn);
+        render(*p, {}, 1.0, L, R);
+        const auto s = spectrum(L, R, 0.1, 16384);
+        // Glass's 2.32 mode is there; the kalimba's 6.27 tine overtone is not (it faded with the old voice).
+        check(levelAt(s, 523.25f * 2.32f) - levelAt(s, 523.25f * 6.27f) > 15.0f,
+              "the new hit sounds like glass: 2.32x mode %.1f dB above the kalimba's 6.27x overtone",
+              levelAt(s, 523.25f * 2.32f) - levelAt(s, 523.25f * 6.27f));
+        p->set(H::kExciter, hammerhead::kBow);
+        render(*p, {on(0.0, 60, 100)}, 0.05, L, R);
+        int bowed = 0;
+        for (auto& v : p->voices_) if (v.stage == hammerhead::kOn && v.note == 60 && v.exc == hammerhead::kBow) ++bowed;
+        check(bowed == 1, "and switching the Exciter does the same (%d bowed voice on the note)", bowed);
+    }
+
+    // ---- 8c. Bow and Blow on every model -----------------------------------------------------------
+    std::printf("\n== Bow and Blow on every model: A3 held 2 s, Pressure 50 %% (1.1) ==\n");
+    std::printf("      %-6s %-10s %8s %8s %8s %9s %9s %8s\n", "", "model", "0.1 s", "1 s", "2 s", "pitch", "1 s after", "peak");
+    for (int exc = hammerhead::kBow; exc <= hammerhead::kBlow; ++exc)
+        for (int m = 0; m < hammerhead::kNumModels; ++m)
+        {
+            auto p = make(0, {{H::kModel, (float)m}, {H::kExciter, (float)exc}, {H::kRoom, 0}, {H::kBody, 0}, {H::kOctave, 0},
+                              {H::kDecay, 3}, {H::kSwell, 0.1f}});
+            render(*p, {on(0.0, 57, 100), off(2.0, 57)}, 3.2, L, R);
+            const float e = rmsDb(L, R, 0.05, 0.15), a = rmsDb(L, R, 0.9, 1.1), b = rmsDb(L, R, 1.8, 2.0), t = rmsDb(L, R, 2.9, 3.1);
+            const float f = acPitch(L, R, 1.2);
+            const char* en = exc == hammerhead::kBow ? "Bow" : "Blow";
+            std::printf("      %-6s %-10s %8.1f %8.1f %8.1f %8.1fHz %9.1f %8.1f\n", en, hammerhead::kModelNames[m], e, a, b, f, t, db(peakOf(L, R)));
+            const bool ok = finite(L, R) && a > -36.0f && std::fabs(a - b) < 3.0f && e > a - 10.0f &&
+                            f > 0.0f && std::fabs(cents(f, 220.0f)) < 15.0f && t < b - 12.0f && peakOf(L, R) < 0.5f;
+            check(ok, "%s %s: speaks in 0.1 s (%.1f dB), holds (%.1f -> %.1f dB), plays A3 (%+.1f ct), rings away after release",
+                  en, hammerhead::kModelNames[m], e, a, b, f > 0.0f ? cents(f, 220.0f) : 9999.0f);
+        }
+
+    std::printf("\n== Swell, pressure, aftertouch, vibrato (1.1) ==\n");
+    {
+        float early[2], steady[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = make(0, {{H::kModel, 1}, {H::kExciter, hammerhead::kBow}, {H::kRoom, 0}, {H::kSwell, i ? 1.5f : 0.05f}});
+            render(*p, {on(0.0, 57, 100)}, 3.5, L, R);
+            early[i] = rmsDb(L, R, 0.1, 0.2); steady[i] = rmsDb(L, R, 3.2, 3.4);
+        }
+        check(steady[0] - early[0] < 6.0f && steady[1] - early[1] > 12.0f,
+              "Swell: at 50 ms a bowed bar is %.1f dB under full after 0.1 s; at 1.5 s it is %.1f dB under", steady[0] - early[0], steady[1] - early[1]);
+
+        float lvl[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = make(0, {{H::kModel, 6}, {H::kExciter, hammerhead::kBlow}, {H::kRoom, 0}, {H::kPressure, 10}, {H::kAir, 0}});
+            mpc::MidiEvent at; at.size = 2; at.data[0] = 0xD0; at.data[1] = (uint8_t)(i ? 127 : 0);
+            render(*p, {on(0.0, 57, 100), {0.5, at}}, 2.0, L, R);
+            lvl[i] = rmsDb(L, R, 1.5, 1.9);
+        }
+        check(lvl[1] - lvl[0] > 3.0f, "pad pressure (aftertouch) blows harder: %.1f dB louder at full pressure", lvl[1] - lvl[0]);
+
+        // Vibrato on a blown glass (nearly a sine): the zero-crossing rate wobbles.
+        float spread[2];
+        for (int i = 0; i < 2; ++i)
+        {
+            auto p = make(0, {{H::kModel, 6}, {H::kExciter, hammerhead::kBlow}, {H::kRoom, 0}, {H::kAir, 0}, {H::kBody, 0},
+                              {H::kVibrato, i ? 100.0f : 0.0f}, {H::kMotorRate, 5}, {H::kOctave, 0}});
+            render(*p, {on(0.0, 57, 100)}, 3.0, L, R);
+            float lo = 1e9f, hi = 0.0f;
+            for (double t = 1.0; t < 2.5; t += 0.02)
+            {
+                int zc = 0;
+                const size_t a = (size_t)(t * SR), b = (size_t)((t + 0.05) * SR);
+                for (size_t k = a + 1; k < b; ++k) if ((L[k - 1] + R[k - 1] < 0.0f) != (L[k] + R[k] < 0.0f)) ++zc;
+                const float f = (float)zc / 2.0f / 0.05f;
+                lo = std::min(lo, f); hi = std::max(hi, f);
+            }
+            spread[i] = cents(hi, lo);
+        }
+        check(spread[0] < 40.0f && spread[1] > 2.0f * spread[0] + 20.0f, "Vibrato 100 %%: pitch swings over %.0f cents (%.0f without)", spread[1], spread[0]);
+
+        // Air (1.1.1): the scratch or breath sits round the note, not as a hiss above it, and the knob's
+        // lower half is a hint.
+        for (int exc = hammerhead::kBow; exc <= hammerhead::kBlow; ++exc)
+        {
+            float r[3], c[3], hf[3];
+            const float airs[3] = {0.0f, 25.0f, 100.0f};
+            for (int i = 0; i < 3; ++i)
+            {
+                auto p = make(0, {{H::kModel, 1}, {H::kExciter, (float)exc}, {H::kRoom, 0}, {H::kBody, 0}, {H::kAir, airs[i]}});
+                render(*p, {on(0.0, 57, 100)}, 2.0, L, R);
+                noiseToTone(L, R, 220.0f, r[i], c[i], hf[i]);
+            }
+            const char* en = exc == hammerhead::kBow ? "Bow" : "Blow";
+            check(r[2] > r[1] + 8.0f && r[1] < -32.0f && c[2] < 2000.0f && hf[2] < -10.0f,
+                  "%s Air: %.1f dB noise-to-tone at 25 %% (%.1f at 0), %.1f dB at 100 %%, centred at %.0f Hz with %.1f dB of it above 3 kHz",
+                  en, r[1], r[0], r[2], c[2], hf[2]);
+        }
+    }
+
     // ---- 9. Chords: headroom in every program ----------------------------------------------------
     std::printf("\n== Six-note chord at velocity 127, every program ==\n");
     {
@@ -488,7 +658,7 @@ int main(int argc, char** argv)
     // ---- 10. CPU ------------------------------------------------------------------------------
     std::printf("\n== CPU (desktop, for orientation; the MPC is roughly 10-20x slower per core) ==\n");
     {
-        const int progs[2] = {1, 8};   // vibes (modal, long ring) and dulcimer (strings)
+        const int progs[4] = {1, 8, 10, 12};   // vibes, dulcimer; bowed vibes, bowed string (1.1)
         for (int prog : progs)
         {
             auto p = make(prog, {{H::kDecay, 20}, {H::kMute, 0}});
@@ -521,12 +691,14 @@ int main(int argc, char** argv)
             std::vector<Ev> evs;
             const double step = 60.0 / 112.0 / 2.0;   // eighths at 112 BPM
             const int pattern[12] = {0, 2, 4, 3, 5, 4, 2, 1, 3, 2, 0, 4};
-            for (int i = 0; i < 12; ++i)
+            const bool sus = sustained(*p);
+            for (int i = 0; i < 12; i += sus ? 2 : 1)
             {
+                // Bowed and blown programs play half as many notes, legato.
                 const int note = root + scale[pattern[i]];
                 const int vel = (i % 4 == 0) ? 118 : (i % 2 ? 72 : 92);
                 evs.push_back(on(step * i, note, vel));
-                evs.push_back(off(step * i + step * 0.8, note));
+                evs.push_back(off(step * i + step * (sus ? 2.05 : 0.8), note));
             }
             if (prog == 9)   // Hull Drum: a little groove instead of a chord
             {
@@ -549,7 +721,7 @@ int main(int argc, char** argv)
         }
         for (size_t i = 0; i < dl.size(); ++i) { dl[i] = hammerhead::limitOut(dl[i]); dr[i] = hammerhead::limitOut(dr[i]); }
         writeWav(argv[1], dl, dr);
-        std::printf("\nwrote %s (%.1f s, programs in order: ", argv[1], dl.size() / SR);
+        std::printf("\nwrote %s (%.1f s, programs in order: ", argv[1], dl.size() / SR);   // bowed/blown programs last
         for (int prog = 0; prog < numPrograms; ++prog) std::printf("%s%s", probe.programName(prog), prog + 1 < numPrograms ? ", " : ")\n");
     }
 

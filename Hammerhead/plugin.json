@@ -1,7 +1,7 @@
 {
   "name": "Hammerhead",
   "manufacturer": "Groundswell",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "format": "vst2",
   "kind": "instrument",
   "uid": "GvPT",
@@ -10,7 +10,7 @@
   "category": "Synth",
   "file32": "VST/hammerhead-arm32.so",
   "file64": "VST/hammerhead-arm64.so",
-  "description": "Struck and plucked physical modelling: marimba, vibraphone, xylophone and glockenspiel bars, kalimba tines, bells, glass, a steel pan, and plucked or hammered strings. A mallet model (hardness, strike position, impact click) excites an 8-mode resonator bank with a tuned resonator tube, or a waveguide string; decay, damping, mute and pedal, pitch drop, vibraphone motor, wooden body and room. 16 voices, 10 programs, cheap enough for chords on the MPC.",
+  "description": "Struck, bowed and blown physical modelling: marimba, vibraphone, xylophone and glockenspiel bars, kalimba tines, bells, glass, a steel pan, and plucked or hammered strings. A mallet (hardness, strike position, impact click), a bow (stick-slip friction) or a breath (jet) drives an 8-mode resonator bank with a tuned tube, or a waveguide string; pressure and pad aftertouch, swell, vibrato, decay, damping, mute and pedal, pitch drop, motor, body and room. 16 voices, 15 programs, cheap enough for chords on the MPC.",
   "author": "Groundswell",
   "url": "",
   "license": "MIT"

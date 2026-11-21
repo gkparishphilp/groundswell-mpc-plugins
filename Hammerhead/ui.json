@@ -58,9 +58,8 @@
           "overlay": "menu"
         },
         {
-          "param": "Octave",
-          "widget": "knob",
-          "polarity": "bipolar"
+          "param": "Exciter",
+          "widget": "switch"
         },
         {
           "param": "Width",
@@ -125,6 +124,62 @@
         {
           "param": "Decay",
           "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "BOW/BLOW",
+      "controls": [
+        {
+          "param": "Exciter",
+          "widget": "switch"
+        },
+        {
+          "param": "Pressure",
+          "widget": "knob"
+        },
+        {
+          "param": "Swell",
+          "widget": "knob"
+        },
+        {
+          "param": "Air",
+          "widget": "knob"
+        },
+        {
+          "param": "Vibrato",
+          "widget": "knob"
+        },
+        {
+          "param": "Motor Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "Decay",
+          "widget": "knob"
+        },
+        {
+          "param": "Mute",
+          "widget": "knob"
+        },
+        {
+          "param": "Model",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Strike Pos",
+          "widget": "knob"
+        },
+        {
+          "param": "Octave",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fine",
+          "widget": "knob",
+          "polarity": "bipolar"
         }
       ]
     }
