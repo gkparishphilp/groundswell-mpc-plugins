@@ -37,6 +37,14 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   and humanize controls plus a little tape wobble.
 - **Abyss**: hold one note and it slowly evolves into a drone or pad (additive, with slow drift).
   Good for ambient beds and intros.
+- **Krill**: tiny, everywhere, and chirpy. An old-school home-computer / game-console instrument.
+  Pulse waves with stepped duty cycles, 4-bit-style triangle, LFSR noise (short "metallic" and long "hiss" modes), a ring-mod and hard sync
+  pair, crunchy bit and sample-rate reduction, and a lo-fi LPC-style "talking toy" voice for
+  robot syllables. The signature is the fast chord arpeggio (one note held plays the whole chord at
+  50-60 Hz steps), plus arp patterns synced to tempo, pitch-sweep drums (noise hits, laser zaps,
+  blips) mapped across the pads, and vibrato/portamento done in stepped "tracker" style. An
+  instrument, so it gets MIDI. Don't use the vintage product names (they are trademarks) in the
+  plugin, its presets or its description: describe the sounds instead.
 - **Current**: a generative sequencer that plays its own synth. Play a note to set the key and it
   improvises patterns that change step by step. (Plugins can't send MIDI to the MPC, so a
   sequencer has to be an instrument that makes its own sound.)
