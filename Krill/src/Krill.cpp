@@ -215,7 +215,7 @@ public:
         i.name = "Krill";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'F', 'v', 'q');   // == "uid" in plugin.json. Never change.
-        i.version = 1000;
+        i.version = 1100;            // 1.1.0.0
         i.isInstrument = true;
         i.numInputs = 0;
         i.numOutputs = 2;
@@ -313,6 +313,75 @@ public:
         program("Pad Drum Kit", {{kPlayMode, kPlayDrums}, {kResample, 22050}, {kBits, 10}});
         program("Split Kit + Bass", {{kPlayMode, kPlaySplit}, {kVoiceMode, 1}, {kWaveA, kTri}, {kGlide, 40},
                                      {kVibDepth, 0.0f}, {kDecay, 250}, {kSustain, 80}, {kRelease, 60}});
+
+        // ---- 1.1: more programs. Appended only: the eight above keep their numbers. ----
+        // Leads
+        program("Duo Lead", {{kVoiceMode, 1}, {kDutyA, 3}, {kWaveB, kPulse}, {kDutyB, 1}, {kLevelB, 55}, {kBSemi, 0},
+                             {kBDetune, 14}, {kGlide, 45}, {kVibDepth, 0.3f}, {kVibDelay, 300}, {kSustain, 85},
+                             {kRelease, 180}, {kVolume, -8}});
+        program("Laser Lead", {{kVoiceMode, 1}, {kDutyA, 1}, {kSweep, 12}, {kSweepTime, 70}, {kGlide, 25},
+                               {kVibDepth, 0.35f}, {kVibSpeed, 7}, {kVibDelay, 200}, {kDecay, 500}, {kSustain, 75}});
+        program("Sync Scream", {{kVoiceMode, 1}, {kLevelA, 0}, {kWaveB, kSaw}, {kLevelB, 100}, {kOscMod, kModSync},
+                                {kBSemi, 19}, {kSweep, -12}, {kSweepTo, 1}, {kSweepTime, 900}, {kGlide, 70},
+                                {kVibDepth, 0.4f}, {kVibDelay, 350}, {kSustain, 90}, {kBits, 10}});
+        program("Pulse Whistle", {{kVoiceMode, 1}, {kDutyA, 0}, {kTone, 5000}, {kVibDepth, 0.5f}, {kVibSpeed, 7.5f},
+                                  {kVibDelay, 120}, {kGlide, 60}, {kAttack, 25}, {kSustain, 90}, {kRelease, 200},
+                                  {kStepEnv, 0}});
+        // Chord trills (frame-rate arp) and tempo arps
+        program("Maj7 Shimmer", {{kArpMode, kArpChord}, {kChord, 2}, {kArpSpeed, 2}, {kArpOcts, 2}, {kDutyA, 0},
+                                 {kWaveB, kTri}, {kLevelB, 40}, {kBSemi, 12}, {kAttack, 8}, {kDecay, 1200},
+                                 {kSustain, 40}, {kRelease, 600}, {kVibDepth, 0.0f}});
+        program("Power Trill", {{kArpMode, kArpChord}, {kChord, 5}, {kArpSpeed, 1}, {kArpOcts, 2}, {kFrameRate, 1},
+                                {kWaveA, kSaw}, {kBits, 8}, {kSustain, 90}, {kRelease, 150}, {kVibDepth, 0.0f}});
+        program("Dim Alarm", {{kArpMode, kArpChord}, {kChord, 6}, {kArpSpeed, 1}, {kFrameRate, 1}, {kDutyA, 3},
+                              {kVibDepth, 0.5f}, {kVibSpeed, 10}, {kVibDelay, 0}, {kSustain, 85}});
+        program("Random Bleeps", {{kArpMode, kArpRandom}, {kChord, 3}, {kArpOcts, 3}, {kArpDiv, kDivisionSixteenth},
+                                  {kArpGate, 40}, {kDutyA, 3}, {kDecay, 90}, {kSustain, 0}, {kRelease, 40},
+                                  {kSweep, -5}, {kSweepTime, 15}, {kVibDepth, 0.0f}, {kVolume, -3}});
+        program("Triplet Climb", {{kArpMode, kArpUp}, {kChord, 4}, {kArpOcts, 3}, {kArpDiv, 5 /* 1/8T */},
+                                  {kArpGate, 90}, {kWaveA, kTri}, {kWaveB, kPulse}, {kDutyB, 0}, {kLevelB, 30},
+                                  {kBSemi, 12}, {kSustain, 80}, {kVibDepth, 0.0f}});
+        // Basses
+        program("Octave Pump Bass", {{kVoiceMode, 1}, {kWaveA, kTri}, {kArpMode, kArpChord}, {kChord, 7}, {kArpSpeed, 3},
+                                     {kArpOcts, 2}, {kWaveB, kPulse}, {kDutyB, 0}, {kLevelB, 25}, {kBSemi, 0},
+                                     {kSustain, 90}, {kRelease, 60}, {kVibDepth, 0.0f}, {kTone, 6000}});
+        program("Saw Grind Bass", {{kVoiceMode, 1}, {kWaveA, kSaw}, {kWaveB, kPulse}, {kDutyB, 0}, {kLevelB, 70},
+                                   {kBSemi, -12}, {kBDetune, 6}, {kGlide, 35}, {kBits, 6}, {kResample, 11025},
+                                   {kTone, 7000}, {kDecay, 350}, {kSustain, 65}, {kRelease, 60}, {kVibDepth, 0.0f},
+                                   {kVolume, -8}});
+        // Pads and textures
+        program("Chip Pad", {{kDutyA, 2}, {kWaveB, kPulse}, {kDutyB, 3}, {kLevelB, 70}, {kBSemi, 0}, {kBDetune, -12},
+                             {kAttack, 450}, {kDecay, 1500}, {kSustain, 75}, {kRelease, 1100}, {kVibDepth, 0.12f},
+                             {kVibSpeed, 4}, {kVibDelay, 0}, {kTone, 7000}, {kVolume, -10}});
+        program("Metal Drone", {{kWaveA, kNoise}, {kNoiseMode, 1}, {kLevelA, 70}, {kWaveB, kTri}, {kLevelB, 55},
+                                {kBSemi, 0}, {kAttack, 60}, {kSustain, 100}, {kRelease, 700}, {kVibDepth, 0.0f},
+                                {kTone, 8000}});
+        // Sound effects, played from any key
+        program("Pickup Chime", {{kArpMode, kArpChord}, {kChord, 4}, {kArpSpeed, 4}, {kDutyA, 3}, {kDecay, 450},
+                                 {kSustain, 0}, {kRelease, 300}, {kVibDepth, 0.0f}});
+        program("Power-Up", {{kSweep, -24}, {kSweepTime, 700}, {kArpMode, kArpChord}, {kChord, 0}, {kArpSpeed, 1},
+                             {kDutyA, 1}, {kDecay, 900}, {kSustain, 0}, {kRelease, 200}, {kVibDepth, 0.0f}});
+        program("Noise Blast", {{kWaveA, kNoise}, {kSweep, 24}, {kSweepTime, 600}, {kDecay, 1000}, {kSustain, 0},
+                                {kRelease, 300}, {kResample, 8000}, {kVibDepth, 0.0f}});
+        // Talking
+        program("Robot Chant", {{kTalk, 100}, {kWord, 9}, {kArpMode, kArpUp}, {kChord, 1}, {kArpDiv, kDivisionEighth},
+                                {kArpGate, 90}, {kDutyA, 0}, {kBits, 8}, {kResample, 11025}, {kTone, 6000},
+                                {kSustain, 100}, {kRelease, 80}, {kVibDepth, 0.0f}, {kStepEnv, 0}});
+        program("Wah Bass", {{kVoiceMode, 1}, {kTalk, 85}, {kWord, 2}, {kTalkSpeed, 70}, {kFormant, -5},
+                             {kWaveA, kSaw}, {kGlide, 40}, {kSustain, 90}, {kRelease, 90}, {kVibDepth, 0.0f},
+                             {kBits, 10}, {kVolume, 0}});
+        program("Ee-Oo Choir", {{kTalk, 100}, {kWord, 12}, {kTalkSpeed, 35}, {kFormant, 3}, {kDutyA, 3},
+                                {kWaveB, kPulse}, {kDutyB, 1}, {kLevelB, 50}, {kBSemi, 0}, {kBDetune, 10},
+                                {kAttack, 250}, {kSustain, 100}, {kRelease, 700}, {kVibDepth, 0.15f}, {kVibSpeed, 5},
+                                {kVibDelay, 100}, {kStepEnv, 0}});
+        // Kits
+        program("Crunch Kit", {{kPlayMode, kPlayDrums}, {kBits, 5}, {kResample, 8000}, {kDrumDecay, 35},
+                               {kDrumSweep, 140}, {kTone, 9000}});
+        program("Boom Kit", {{kPlayMode, kPlayDrums}, {kDrumTune, -7}, {kDrumDecay, 75}, {kDrumSweep, 160},
+                             {kTone, 5000}, {kResample, 22050}});
+        program("Split Kit + Arp", {{kPlayMode, kPlaySplit}, {kArpMode, kArpUpDown}, {kChord, 1}, {kArpOcts, 2},
+                                    {kArpDiv, kDivisionSixteenth}, {kArpGate, 55}, {kDutyA, 0}, {kDecay, 150},
+                                    {kSustain, 30}, {kVibDepth, 0.0f}, {kResample, 22050}, {kBits, 10}});
     }
 
     // ----- lifecycle ------------------------------------------------------------------------------

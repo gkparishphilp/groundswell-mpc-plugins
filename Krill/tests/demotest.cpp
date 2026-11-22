@@ -233,6 +233,34 @@ int main(int argc, char** argv)
     renderSection(p, 4, 6, {on(0, 72), on(1, 76), on(2, 79), on(3, 84), off(4, 72), off(4, 76), off(4, 79), off(4, 84)});
     renderSection(p, 0, 8, {par(0, Krill::kVoiceMode, 1), par(0, Krill::kGlide, 90), on(0, 64), on(1.5, 67), off(1.6, 64),
                             on(2, 69), off(2.1, 67), on(3, 71), off(3.1, 69), on(3.5, 72), off(3.6, 71), off(6.5, 72)});
+
+    // 9. Every program from 1.1 on: a four-note phrase then a held chord (kits: all 16 pads), each one checked.
+    check(p.numPrograms() == 30, "programs: %d built in (expect 30)", p.numPrograms());
+    for (int prog = 8; prog < p.numPrograms(); ++prog)
+    {
+        const std::string name = p.programName(prog);
+        p.setProgram(prog);
+        const int mode = p.getInt(Krill::kPlayMode);
+        std::vector<Ev> evs;
+        if (mode == Krill::kPlayDrums)
+            for (int d = 0; d < 16; ++d) { evs.push_back(on(d * 0.5, 36 + d)); evs.push_back(off(d * 0.5 + 0.25, 36 + d)); }
+        else
+        {
+            int base = 60;
+            if (name.find("Bass") != std::string::npos) base = 36;
+            else if (name.find("Pad") != std::string::npos || name.find("Choir") != std::string::npos || name.find("Drone") != std::string::npos) base = 55;
+            else if (name.find("Whistle") != std::string::npos) base = 72;
+            const int phrase[4] = {0, 3, 7, 5};
+            for (int k = 0; k < 4; ++k) { evs.push_back(on(k, base + phrase[k])); evs.push_back(off(k + 0.9, base + phrase[k])); }
+            for (int k : {0, 4, 7}) { evs.push_back(on(4, base + k)); evs.push_back(off(7, base + k)); }
+            if (mode == Krill::kPlaySplit)
+                for (int s = 0; s < 16; ++s) evs.push_back(on(s * 0.5, s % 4 == 0 ? 36 : (s % 4 == 2 ? 37 : 38), s % 2 ? 70 : 105));
+        }
+        const size_t start = outL.size();
+        renderSection(p, prog, 8, evs);
+        const double r = rmsDb(start, outL.size()), pkd = peakDb(start, outL.size());
+        check(r > -40.0 && pkd < -0.5, "program %2d %-16s rms %5.1f dBFS, peak %5.1f dBFS", prog + 1, name.c_str(), r, pkd);
+    }
     const double sec = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 
     float pk = 0.0f; bool finite = true;

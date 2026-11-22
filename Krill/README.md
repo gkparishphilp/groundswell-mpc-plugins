@@ -113,6 +113,35 @@ Arp, Chord, Glide and Play Mode appear on two tabs each so they are at hand wher
 | Talking Toy | Mono talking voice saying "Yeah", 6-bit, 8 kHz, through the Tone filter. |
 | Pad Drum Kit | All 16 pitch-sweep drums across the pads, lightly crunched. |
 | Split Kit + Bass | Drums below C2, a mono triangle bass above. |
+| **Leads** | |
+| Duo Lead | A square and a 25% pulse detuned against each other, mono with glide and late vibrato. |
+| Laser Lead | Every note zaps in from 12 semitones above; faster vibrato. |
+| Sync Scream | Hard-synced saw whose timbre opens over almost a second, with glide. |
+| Pulse Whistle | A thin 12.5% pulse through the Tone filter with a wide, quick vibrato. Play it high. |
+| **Chord trills and arps** | |
+| Maj7 Shimmer | A slower major-seventh trill over two octaves, with a triangle an octave up. |
+| Power Trill | Root-fifth-octave on a crunchy 8-bit saw at 60 Hz. |
+| Dim Alarm | A diminished trill with fast, deep vibrato: tension. |
+| Random Bleeps | A random 1/16 arp over a minor-seventh chord across three octaves, short blips. |
+| Triplet Climb | A rising 1/8-triplet sus4 arp over three octaves on a triangle. |
+| **Basses** | |
+| Octave Pump Bass | A triangle bass bouncing between octaves every three frames. |
+| Saw Grind Bass | Saw plus a pulse an octave down, 6-bit and 11 kHz. |
+| **Pads and textures** | |
+| Chip Pad | A slow, stepped swell of two detuned pulses. |
+| Metal Drone | Short "metallic" noise ringing at the note's pitch, over a triangle. |
+| **Sound effects** | |
+| Pickup Chime | A quick root-fourth-fifth chime that dies away. |
+| Power-Up | A rising sweep with a major trill on top. |
+| Noise Blast | A falling, crunched noise burst you can pitch from the keys. |
+| **Talking** | |
+| Robot Chant | "Robot" on every step of a 1/8 minor arp, 8-bit. |
+| Wah Bass | A saw bass saying "Wah" with a lowered mouth. |
+| Ee-Oo Choir | Slow "Ee-Oo" on detuned pulses: a lo-fi vocal pad. |
+| **Kits** | |
+| Crunch Kit | The 16 drums at 5 bits and 8 kHz, shorter and with deeper sweeps. |
+| Boom Kit | The kit tuned down, longer and with big sweeps. |
+| Split Kit + Arp | Drums below C2, a 1/16 minor up-down arp above. |
 
 ## CPU
 
@@ -146,7 +175,7 @@ clang++ -std=c++17 -O2 -I../../framework tests/demotest.cpp -o tests/build/demot
 ```
 
 `tests/demotest.cpp` plays every program through a short passage and writes `tests/build/krill-demo.wav`
-(about 38 seconds: chord arps, a tempo arp, all 16 drums and a beat, eight spoken words, the sync bass,
+(about two minutes: chord arps, a tempo arp, all 16 drums and a beat, eight spoken words, the sync bass,
 the split kit, bells and the lead). It checks that the chord arp steps at the frame rate, the tempo arp
 lands 16 steps in a bar of 1/16, every drum sounds and decays, every word is audible, the formants
 actually move, and nothing clips. It also times the worst case.
