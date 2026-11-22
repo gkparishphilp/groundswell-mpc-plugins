@@ -1,0 +1,43 @@
+{
+  "kit": "amber",
+  "pages": [
+    {
+      "name": "AMP",
+      "controls": [
+        { "param": "Gain",       "widget": "knob" },
+        { "param": "Bass",       "widget": "knob" },
+        { "param": "Middle",     "widget": "knob" },
+        { "param": "Treble",     "widget": "knob" },
+
+        { "param": "Chime",      "widget": "knob" },
+        { "param": "Sag",        "widget": "knob" },
+        { "param": "Master",     "widget": "knob" },
+        { "param": "Output",     "widget": "fader" },
+
+        { "param": "Input",      "widget": "knob", "polarity": "bipolar" },
+        { "param": "Comp",       "widget": "knob" },
+        { "param": "Voice",      "widget": "switch" },
+        { "param": "Bright",     "widget": "switch" },
+
+        { "param": "Cab",        "widget": "switch" },
+        { "param": "Mic",        "widget": "knob" },
+        { "param": "Distance",   "widget": "knob" },
+        "empty"
+      ]
+    },
+    {
+      "name": "FX",
+      "controls": [
+        { "param": "Dwell",      "widget": "knob" },
+        { "param": "Rev Tone",   "widget": "knob" },
+        { "param": "Rev Mix",    "widget": "fader" },
+        { "widget": "text", "text": "Spring" },
+
+        { "param": "Trem Depth", "widget": "knob" },
+        { "param": "Trem Rate",  "widget": "knob" },
+        { "param": "Trem Mode",  "widget": "switch" },
+        { "param": "Trem Sync",  "widget": "switch" }
+      ]
+    }
+  ]
+}

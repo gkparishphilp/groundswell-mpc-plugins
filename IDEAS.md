@@ -42,6 +42,11 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   Wear macro swept by a Tide cycle of 1-32 bars, gentle tape accidents on the beat (dropouts, drag,
   slips, crinkle, channel cuts), an old-sampler resample crunch that follows the record pitch,
   print-through, azimuth drift, breathing hiss, wow and flutter. Custom cassette panel.
+- **Breakwater**: a guitar amp for clean, chimey tones and the edge of breakup, voiced to follow
+  Fathom. American, British and Boutique voices; an oversampled preamp that stays clean when you play
+  softly; the classic passive tone stack (the knobs interact); Bright, Chime, Sag and Master; filter
+  cabs (1x12, 2x12, 4x12, Direct) with Mic and Distance; a drippy two-spring reverb; a smooth, opto
+  or harmonic tremolo locked to the song. Mono amp, stereo spring. Custom amp-head panel.
 
 ## Effects that listen and respond
 

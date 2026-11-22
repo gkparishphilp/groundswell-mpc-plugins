@@ -1,0 +1,17 @@
+{
+  "name": "Breakwater",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GAxC",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/breakwater-arm32.so",
+  "file64": "VST/breakwater-arm64.so",
+  "description": "Breakwater: a guitar amp for clean, chimey tones and the edge of breakup. Three voices, a modelled passive tone stack, chime and sag, filter-based cabinets with mic placement, a drippy spring reverb and a tremolo locked to the song.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}
