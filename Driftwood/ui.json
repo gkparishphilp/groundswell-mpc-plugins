@@ -1,0 +1,173 @@
+{
+  "kit": "amber",
+  "pages": [
+    {
+      "name": "CHORD",
+      "controls": [
+        {
+          "param": "Key",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Scale",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Quality",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Voicing",
+          "widget": "switch"
+        },
+        {
+          "param": "Inversion",
+          "widget": "switch"
+        },
+        {
+          "param": "Voice Lead",
+          "widget": "switch"
+        },
+        {
+          "param": "Register",
+          "widget": "knob",
+          "polarity": "unipolar"
+        },
+        {
+          "param": "Bass",
+          "widget": "switch"
+        },
+        {
+          "param": "Note Map",
+          "widget": "switch"
+        },
+        {
+          "param": "Off-Key",
+          "widget": "switch"
+        },
+        {
+          "param": "Hold",
+          "widget": "switch"
+        },
+        {
+          "param": "Output",
+          "widget": "fader"
+        }
+      ]
+    },
+    {
+      "name": "STRUM",
+      "controls": [
+        {
+          "param": "Strum",
+          "widget": "knob"
+        },
+        {
+          "param": "Vel>Strum",
+          "widget": "knob"
+        },
+        {
+          "param": "Loose Time",
+          "widget": "knob"
+        },
+        {
+          "param": "Loose Vel",
+          "widget": "knob"
+        },
+        {
+          "param": "Direction",
+          "widget": "switch"
+        },
+        {
+          "param": "Pattern",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Pat Speed",
+          "widget": "switch"
+        },
+        {
+          "param": "Swing",
+          "widget": "knob",
+          "polarity": "unipolar"
+        },
+        {
+          "param": "Arp",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Arp Rate",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Arp Oct",
+          "widget": "knob",
+          "polarity": "unipolar"
+        },
+        {
+          "param": "Arp Gate",
+          "widget": "knob"
+        }
+      ]
+    },
+    {
+      "name": "SOUND",
+      "controls": [
+        {
+          "param": "Voice",
+          "widget": "switch"
+        },
+        {
+          "param": "Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "Release",
+          "widget": "fader"
+        },
+        {
+          "param": "Filter",
+          "widget": "knob"
+        },
+        {
+          "param": "Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Chorus",
+          "widget": "fader"
+        },
+        {
+          "param": "Room",
+          "widget": "fader"
+        },
+        {
+          "param": "Wobble",
+          "widget": "knob"
+        },
+        {
+          "param": "Dust",
+          "widget": "knob"
+        },
+        {
+          "param": "Warmth",
+          "widget": "knob"
+        },
+        {
+          "param": "Velocity",
+          "widget": "knob"
+        }
+      ]
+    }
+  ]
+}

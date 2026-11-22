@@ -1,0 +1,17 @@
+{
+  "name": "Driftwood",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "instrument",
+  "uid": "G5eq",
+  "numInputs": 0,
+  "numOutputs": 2,
+  "category": "Synth",
+  "file32": "VST/driftwood-arm32.so",
+  "file64": "VST/driftwood-arm64.so",
+  "description": "One pad, one chord: set a key and scale and every note plays the chord on that degree (triad, 7th, 9th, sus2, sus4, add9; close, open or spread; inversions or voice leading; bass), strummed with direction, velocity-speed and humanize, re-strummed by tempo-locked rhythm-guitar patterns with mutes and swing, or arpeggiated (up, down, up-down, random, fingerpicked thumb; 1/4 to 1/32 with triplets, 1-3 octaves, gate). Its own warm voices: FM electric-piano keys, a soft pad, a plucked string and an organ, with tone, filter, chorus, room, tape warmth, wobble and dust. Hold/latch, Keys and Pads note maps. 16 voices, 10 programs, custom driftwood panel.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

@@ -47,6 +47,13 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   softly; the classic passive tone stack (the knobs interact); Bright, Chime, Sag and Master; filter
   cabs (1x12, 2x12, 4x12, Direct) with Mic and Distance; a drippy two-spring reverb; a smooth, opto
   or harmonic tremolo locked to the song. Mono amp, stereo spring. Custom amp-head panel.
+- **Driftwood**: one pad, one chord. Set a key and scale and each note plays the chord on that
+  degree (triad to 9th, sus, add9; close, open or spread; voice leading near a register; bass), on
+  a Keys map or a 16-pad degree map. Strum with direction, velocity speed and humanize, or let a
+  tempo-locked rhythm-guitar Pattern re-strum it (down/up strokes, mutes, chops, swing), or
+  arpeggiate it (up, down, up-down, random, fingerpicked thumb; 1-3 octaves, gate). Its own voices:
+  FM keys, pad, plucked string, organ; tape warmth, wobble, dust, chorus and a small room; Hold.
+  Custom driftwood-guitar panel. Still to come: per-degree chord overrides, a pattern editor, 3/4.
 
 ## Effects that listen and respond
 
@@ -63,8 +70,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 
 ## Instruments
 
-- **Driftwood**: a chord instrument. One pad plays a full chord in your key, with voicing, strum
-  and humanize controls plus a little tape wobble.
 - **Current**: a generative sequencer that plays its own synth. Play a note to set the key and it
   improvises patterns that change step by step. (Plugins can't send MIDI to the MPC, so a
   sequencer has to be an instrument that makes its own sound.)
