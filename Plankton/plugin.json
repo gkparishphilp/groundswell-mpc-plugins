@@ -1,0 +1,17 @@
+{
+  "name": "Plankton",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "G3Dd",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/plankton-arm32.so",
+  "file64": "VST/plankton-arm64.so",
+  "description": "Plankton: a granular texture engine for live input. Catches the track in tiny grains and drifts them into clouds, with Freeze and hold-to-Catch, pitch scatter, reverse, spray, drift, feedback, smear and tempo-synced grains.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

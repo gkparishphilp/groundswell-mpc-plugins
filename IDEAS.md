@@ -62,6 +62,12 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   progression locked to the song. Click-free chord changes (three banks, old chords ring out),
   Freeze, Shimmer, Tune. Custom glowing-conch panel. Still to come: capturing new input into a frozen
   chord.
+- **Plankton**: a granular texture engine for live input. Catches the track in tiny grains (up to 48)
+  and drifts them into clouds: Size, Density, Position, Spray, Pitch, Scatter snapped to octaves,
+  fifths or a scale, Reverse, window Shape and Spread; Freeze plus a hold-to-Catch button with a
+  Linger release; an automatic Tail that keeps the cloud playing after you stop; Drift, guarded
+  Feedback, an allpass Smear and Tone; grains and Drift locked to the song with Sync. Custom
+  plankton panel. Still to come: anti-aliasing for big upward shifts, a scan/speed control.
 
 ## Mixing and character effects
 

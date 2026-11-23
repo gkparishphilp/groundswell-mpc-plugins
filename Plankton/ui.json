@@ -1,0 +1,46 @@
+{
+  "kit": {
+    "theme": "cyan",
+    "accent": "FF5CF2C2"
+  },
+  "pages": [
+    {
+      "name": "CLOUD",
+      "controls": [
+        { "param": "Freeze", "widget": "switch" },
+        { "param": "Size", "widget": "knob" },
+        { "param": "Pitch", "widget": "knob", "polarity": "bipolar" },
+        { "param": "Drift", "widget": "knob" },
+
+        { "param": "Catch", "widget": "switch" },
+        { "param": "Density", "widget": "knob" },
+        { "param": "Scatter", "widget": "knob" },
+        { "param": "Feedback", "widget": "knob" },
+
+        { "param": "Tail", "widget": "knob" },
+        { "param": "Position", "widget": "knob" },
+        { "param": "Snap", "widget": "switch" },
+        { "param": "Smear", "widget": "knob" },
+
+        { "param": "Linger", "widget": "knob" },
+        { "param": "Spray", "widget": "knob" },
+        { "param": "Reverse", "widget": "knob" },
+        { "param": "Mix", "widget": "fader" }
+      ]
+    },
+    {
+      "name": "SHAPE",
+      "controls": [
+        { "param": "Shape", "widget": "knob" },
+        { "param": "Spread", "widget": "knob" },
+        { "param": "Drift Rate", "widget": "knob" },
+        { "param": "Tone", "widget": "knob", "polarity": "bipolar" },
+
+        { "param": "Division", "widget": "slider", "overlay": "menu" },
+        { "param": "Sync", "widget": "switch" },
+        "empty",
+        { "param": "Output", "widget": "fader" }
+      ]
+    }
+  ]
+}
