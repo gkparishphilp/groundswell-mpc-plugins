@@ -68,6 +68,14 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   Linger release; an automatic Tail that keeps the cloud playing after you stop; Drift, guarded
   Feedback, an allpass Smear and Tone; grains and Drift locked to the song with Sync. Custom
   plankton panel. Still to come: anti-aliasing for big upward shifts, a scan/speed control.
+- **Cuttlefish**: changes colour, so it changes timbre. The family's everyday wavetable synth: two
+  oscillators morphing through 17 generated, band-limited tables (analog shapes, PWM, sync, resonant
+  sweep, vowels, formant, organ drawbars, EP tine, glass, metal, FM, fold, digital, hollow, brass,
+  random spectra, comb), each warped by Bend, Squash (phase distortion), Sync or FM; unison, sub and
+  noise; a morph envelope, two LFOs (free or locked to the song, smooth random), a 4-slot matrix,
+  Drift and one Colour macro for the Q-Links; multimode filter with drive; poly, mono and legato
+  glide; light chorus, ping-pong delay and reverb. 16 voices. Custom panel from the user's cuttlefish
+  art. Still to come: drawn or user tables, per-oscillator unison.
 
 ## Mixing and character effects
 

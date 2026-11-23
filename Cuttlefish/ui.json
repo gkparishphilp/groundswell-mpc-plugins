@@ -1,0 +1,422 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "OSC",
+      "controls": [
+        {
+          "param": "Table 1",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Morph 1",
+          "widget": "knob"
+        },
+        {
+          "param": "Warp Mode 1",
+          "widget": "switch"
+        },
+        {
+          "param": "Warp 1",
+          "widget": "knob"
+        },
+        {
+          "param": "Oct 1",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Semi 1",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fine 1",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Level 1",
+          "widget": "fader"
+        },
+        {
+          "param": "Table 2",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Morph 2",
+          "widget": "knob"
+        },
+        {
+          "param": "Warp Mode 2",
+          "widget": "switch"
+        },
+        {
+          "param": "Warp 2",
+          "widget": "knob"
+        },
+        {
+          "param": "Oct 2",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Semi 2",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Fine 2",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Level 2",
+          "widget": "fader"
+        }
+      ]
+    },
+    {
+      "name": "VOICE",
+      "controls": [
+        {
+          "param": "Sub",
+          "widget": "fader"
+        },
+        {
+          "param": "Sub Type",
+          "widget": "switch"
+        },
+        {
+          "param": "Noise",
+          "widget": "fader"
+        },
+        {
+          "param": "Noise Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Unison",
+          "widget": "knob"
+        },
+        {
+          "param": "Detune",
+          "widget": "knob"
+        },
+        {
+          "param": "Width",
+          "widget": "knob"
+        },
+        {
+          "param": "Drift",
+          "widget": "knob"
+        },
+        {
+          "param": "Play Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "Glide",
+          "widget": "knob"
+        },
+        {
+          "param": "Bend Range",
+          "widget": "knob"
+        },
+        {
+          "param": "Voices",
+          "widget": "knob"
+        },
+        {
+          "param": "Phase",
+          "widget": "switch"
+        },
+        "empty",
+        "empty",
+        {
+          "param": "Output",
+          "widget": "fader"
+        }
+      ]
+    },
+    {
+      "name": "MOTION",
+      "controls": [
+        {
+          "param": "Colour",
+          "widget": "knob"
+        },
+        {
+          "param": "Col>Morph 1",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Col>Morph 2",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Col>Filter",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "M Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "M Decay",
+          "widget": "fader"
+        },
+        {
+          "param": "M Sustain",
+          "widget": "fader"
+        },
+        {
+          "param": "M Release",
+          "widget": "fader"
+        },
+        {
+          "param": "LFO1 Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "LFO1 Div",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO1 Shape",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO1 Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "LFO2 Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "LFO2 Div",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO2 Shape",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "LFO2 Mode",
+          "widget": "switch"
+        }
+      ]
+    },
+    {
+      "name": "MOD",
+      "controls": [
+        {
+          "param": "Src 1",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Src 2",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Src 3",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Src 4",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Dst 1",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Dst 2",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Dst 3",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Dst 4",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Amt 1",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Amt 2",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Amt 3",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Amt 4",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Env>Morph",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "LFO1 Fade",
+          "widget": "knob"
+        },
+        "empty",
+        "empty"
+      ]
+    },
+    {
+      "name": "FILT/AMP",
+      "controls": [
+        {
+          "param": "Cutoff",
+          "widget": "knob"
+        },
+        {
+          "param": "Reso",
+          "widget": "knob"
+        },
+        {
+          "param": "Drive",
+          "widget": "knob"
+        },
+        {
+          "param": "Filter",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Env Amt",
+          "widget": "knob",
+          "polarity": "bipolar"
+        },
+        {
+          "param": "Key Track",
+          "widget": "knob"
+        },
+        {
+          "param": "Vel>Filter",
+          "widget": "knob"
+        },
+        {
+          "param": "Vel>Level",
+          "widget": "knob"
+        },
+        {
+          "param": "F Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "F Decay",
+          "widget": "fader"
+        },
+        {
+          "param": "F Sustain",
+          "widget": "fader"
+        },
+        {
+          "param": "F Release",
+          "widget": "fader"
+        },
+        {
+          "param": "Attack",
+          "widget": "fader"
+        },
+        {
+          "param": "Decay",
+          "widget": "fader"
+        },
+        {
+          "param": "Sustain",
+          "widget": "fader"
+        },
+        {
+          "param": "Release",
+          "widget": "fader"
+        }
+      ]
+    },
+    {
+      "name": "FX",
+      "controls": [
+        {
+          "param": "Chorus",
+          "widget": "fader"
+        },
+        {
+          "param": "Ch Rate",
+          "widget": "knob"
+        },
+        {
+          "param": "Ch Depth",
+          "widget": "knob"
+        },
+        {
+          "param": "Ch Mode",
+          "widget": "switch"
+        },
+        {
+          "param": "Delay",
+          "widget": "fader"
+        },
+        {
+          "param": "Dly Time",
+          "widget": "slider",
+          "overlay": "menu"
+        },
+        {
+          "param": "Dly Fdbk",
+          "widget": "knob"
+        },
+        {
+          "param": "Dly Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Reverb",
+          "widget": "fader"
+        },
+        {
+          "param": "Rev Size",
+          "widget": "knob"
+        },
+        {
+          "param": "Rev Tone",
+          "widget": "knob"
+        },
+        {
+          "param": "Rev Pre",
+          "widget": "knob"
+        }
+      ]
+    }
+  ]
+}
