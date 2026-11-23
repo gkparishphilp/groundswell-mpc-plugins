@@ -1,0 +1,17 @@
+{
+  "name": "Conch",
+  "manufacturer": "Groundswell",
+  "version": "1.0.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GHiy",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/conch-arm32.so",
+  "file64": "VST/conch-arm64.so",
+  "description": "A bank of tuned resonators, like sympathetic strings, that ring at the chord or the key. Put it on a drum loop and the hits come out as pitched, in-key tones; put it on a mix and it adds a singing, harmonic halo. String, Bell and Pipe materials; Decay, Bright, Spread, Width; Hits rings them from transients only, so held notes do not wash them out; In HPF, Drive and Duck. Source: Listen (hears the key and chord, falling back to Key/Scale until it is sure), Key, a Chord by hand, or a progression locked to the song. Click-free chord changes, Freeze, Shimmer and Tune. 8 programs.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}

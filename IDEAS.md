@@ -54,12 +54,14 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   arpeggiate it (up, down, up-down, random, fingerpicked thumb; 1-3 octaves, gate). Its own voices:
   FM keys, pad, plucked string, organ; tape warmth, wobble, dust, chorus and a small room; Hold.
   Custom driftwood-guitar panel. Still to come: per-degree chord overrides, a pattern editor, 3/4.
-
-## Effects that listen and respond
-
-- **Echolocation**: a bank of tuned resonators (like sympathetic strings) that rings at the chord
-  it detects. Put it on a drum loop and the hits come out as pitched, in-key tones. Cheap on CPU:
-  about 8–16 simple filters.
+- **Conch** (was "Echolocation"): a bank of tuned resonators, like sympathetic strings, that rings
+  at the chord or the key: drum hits come out as pitched, in-key tones, a mix gets a singing halo.
+  String, Bell and Pipe (odd-harmonic, hollow) materials, up to 16 notes; Hits rings them from
+  transients only so held notes don't wash them out; Duck, Drive, In HPF. Notes from Listen (hears
+  the key and chord, Largemouth's analysis; Key/Scale until sure), Key, a hand-set Chord or a
+  progression locked to the song. Click-free chord changes (three banks, old chords ring out),
+  Freeze, Shimmer, Tune. Custom glowing-conch panel. Still to come: capturing new input into a frozen
+  chord.
 
 ## Mixing and character effects
 

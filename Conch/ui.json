@@ -1,0 +1,48 @@
+{
+  "kit": "cyan",
+  "pages": [
+    {
+      "name": "RING",
+      "controls": [
+        { "param": "Material", "widget": "switch" },
+        { "param": "Decay",    "widget": "knob" },
+        { "param": "Bright",   "widget": "knob" },
+        { "param": "Mix",      "widget": "fader" },
+
+        { "param": "Spread",   "widget": "knob" },
+        { "param": "Low Note", "widget": "switch" },
+        { "param": "Tones",    "widget": "switch" },
+        { "param": "Width",    "widget": "knob" },
+
+        { "param": "Hits",     "widget": "knob" },
+        { "param": "In HPF",   "widget": "knob" },
+        { "param": "Drive",    "widget": "knob" },
+        { "param": "Duck",     "widget": "knob" },
+
+        { "param": "Freeze",   "widget": "switch" },
+        { "param": "Shimmer",  "widget": "knob" },
+        { "param": "Tune",     "widget": "knob", "polarity": "bipolar" },
+        { "param": "Output",   "widget": "fader", "polarity": "bipolar" }
+      ]
+    },
+    {
+      "name": "NOTES",
+      "controls": [
+        { "param": "Source",     "widget": "slider", "overlay": "menu" },
+        { "param": "Key",        "widget": "slider", "overlay": "menu" },
+        { "param": "Scale",      "widget": "slider", "overlay": "menu" },
+        { "param": "Freeze",     "widget": "switch" },
+
+        { "param": "Chord Root", "widget": "slider", "overlay": "menu" },
+        { "param": "Quality",    "widget": "slider", "overlay": "menu" },
+        { "param": "Prog",       "widget": "slider", "overlay": "menu" },
+        { "param": "Chord Len",  "widget": "switch" },
+
+        { "param": "Tuned By",   "widget": "slider" },
+        { "param": "Ringing",    "widget": "slider" },
+        { "param": "Found",      "widget": "slider" },
+        { "param": "Sure",       "widget": "slider" }
+      ]
+    }
+  ]
+}
