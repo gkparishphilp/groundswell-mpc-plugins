@@ -266,7 +266,7 @@ public:
         i.name = "Cuttlefish";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'q', 'J', '3');   // == "uid" in plugin.json. Never change.
-        i.version = 1000;
+        i.version = 1100;
         i.isInstrument = true;
         i.numInputs = 0;
         i.numOutputs = 2;

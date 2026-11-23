@@ -10,6 +10,23 @@ song), a small mod matrix and **Drift** keep it moving. One **Colour** knob move
 together, so a single Q-Link sweeps the whole sound. It is meant to be the family's everyday synth: leads,
 pads, plucks, basses, keys and evolving textures.
 
+## New in 1.1
+
+**25 more programs (41 in all)**, appended after the original 16, so projects that use a program number still
+get the same sound:
+
+- **Leads:** Sepia Sync Lead, Squid Ink Square, Mantle Talk Lead (mod wheel opens the mouth), Glass Whistle,
+  Fold Screamer (aftertouch folds harder).
+- **Pads:** Abyssal Choir, Warm Current Pad, Spectral Tide (four-bar tide locked to the song), Frozen Organ
+  Pad, Nautilus Sweep (hold a chord: it opens over four seconds).
+- **Plucks, keys and bells:** Cuttlebone Mallets, Harp Strand, Tine FM Piano (velocity barks), Coral Koto,
+  Chime Drops, Siphon Brass Stab.
+- **Basses:** Reese Abyss, Sync Snap Bass, FM Thump Bass, Acid Morph (overlap notes to slide), Benthic Sub.
+- **Textures:** Bioluminescence (sparkles on the sixteenths), Sonar Ping, Ripple Chords (triplet pulse
+  locked to the song), Ink Storm (stepped glitch storm on the grid).
+
+Nothing else changed. 1.0 projects load unchanged.
+
 ## Install
 
 1. Copy the `Groundswell - VST - Cuttlefish` folder (in `build/` after building) into a folder named
@@ -145,14 +162,24 @@ deliberately light. Seaglass, Undertow and the coming Whirlpool are the real one
 Mod wheel (CC1), sustain pedal (CC64), pitch bend, channel and poly aftertouch, and all-notes-off are
 handled.
 
-## Programs (16)
+## Programs (41)
 
-Init (a plain saw), Ink Cloud Pad, Chromatophore Lead, Reef Pluck, Deep Ink Bass, Tidal Keys, Colour Shift
-(the evolving one: song-locked LFOs walk both morphs), Siren Vowels, Glass Bells, Sunken Organ, Kelp Brass,
-PWM Strings, Pixel Pluck, Wobble Deep (song-locked 1/8 wobble), Phaser Haze, Inkjet Funk (phase-distortion
-clav). Turn **Colour** on any of them.
+- **1.0:** Init (a plain saw), Ink Cloud Pad, Chromatophore Lead, Reef Pluck, Deep Ink Bass, Tidal Keys, Colour
+  Shift (the evolving one: song-locked LFOs walk both morphs), Siren Vowels, Glass Bells, Sunken Organ, Kelp
+  Brass, PWM Strings, Pixel Pluck, Wobble Deep (song-locked 1/8 wobble), Phaser Haze, Inkjet Funk
+  (phase-distortion clav).
+- **1.1:** the 25 listed under New in 1.1.
+
+Turn **Colour** on any of them.
 
 ## Demo
+
+`build/cuttlefish-demo-1.1.wav` (204 s at 100 BPM) plays the 25 programs added in 1.1. Each starts at:
+Sepia Sync Lead 0.2 s, Squid Ink Square 5.9, Mantle Talk Lead 11.6, Glass Whistle 17.3, Fold Screamer 23.0,
+Abyssal Choir 28.7, Warm Current Pad 41.6, Spectral Tide 53.0, Frozen Organ Pad 65.4, Nautilus Sweep 77.8,
+Cuttlebone Mallets 90.2, Harp Strand 98.1, Tine FM Piano 106.7, Coral Koto 114.6, Chime Drops 122.7, Siphon
+Brass Stab 131.1, Reese Abyss 138.7, Sync Snap Bass 144.4, FM Thump Bass 150.1, Acid Morph 155.8, Benthic Sub
+161.5, Bioluminescence 167.2, Sonar Ping 180.1, Ripple Chords 189.0, Ink Storm 196.7.
 
 `build/cuttlefish-demo.wav` (168 s at 100 BPM) is rendered by the test (below). It plays every program in turn,
 then holds a chord on Colour Shift while Colour goes 0 → 100 → 0 over 24 s (from 139.8 s). Each program
@@ -179,7 +206,7 @@ Unison. The effects cost about as much as one voice.
 
 ## Tests
 
-`tests/rendertest.cpp` drives the plugin directly and checks (72 checks, all passing):
+`tests/rendertest.cpp` drives the plugin directly and checks (98 checks, all passing):
 
 - **Tables**: finite, loudness-matched, no DC, each level holds only its harmonics.
 - **Morph**:
@@ -197,16 +224,16 @@ Unison. The effects cost about as much as one voice.
 - **Glide**: legato and mono timing (200 ms), no glide on detached legato notes, return to the held note,
   poly glide.
 - **Motion**: Colour, Drift, velocity → morph, the morph envelope, mod wheel → pitch, pitch bend.
-- **Safety**: no NaN/Inf or denormals on any program, under random knob moves on every block, or in 40 s
+- **Safety**: no NaN/Inf or denormals on any of the 41 programs, under random knob moves on every block, or in 40 s
   feedback tails.
-- **Levels**: every program's single-note peak is between −16 and −7 dBFS; a velocity-127 four-note chord
-  peaks at −0.7 dBFS or less.
+- **Levels**: every program's single-note peak is between −17 and −7 dBFS; a velocity-127 four-note chord
+  peaks at −0.5 dBFS or less.
 - **CPU**, as in the table above.
 
 ```
 mkdir -p tests/build
 clang++ -std=c++17 -O2 -I../../framework tests/rendertest.cpp -o tests/build/rendertest
-tests/build/rendertest build/cuttlefish-demo.wav
+tests/build/rendertest build/cuttlefish-demo.wav build/cuttlefish-demo-1.1.wav
 ```
 
 Also run the SDK's host simulator: `.sdk-tools/host_sim plugins/Cuttlefish/build/native/cuttlefish.dylib test`

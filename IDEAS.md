@@ -75,7 +75,8 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   noise; a morph envelope, two LFOs (free or locked to the song, smooth random), a 4-slot matrix,
   Drift and one Colour macro for the Q-Links; multimode filter with drive; poly, mono and legato
   glide; light chorus, ping-pong delay and reverb. 16 voices. Custom panel from the user's cuttlefish
-  art. Still to come: drawn or user tables, per-oscillator unison.
+  art. 1.1 added 25 programs (41: leads, pads, keys, basses, textures). Still to come: drawn or user
+  tables, per-oscillator unison.
 
 ## Mixing and character effects
 

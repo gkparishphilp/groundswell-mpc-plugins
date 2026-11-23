@@ -11,11 +11,12 @@
 //   safety      no NaN / Inf / denormals on every program, under random knob moves and with long tails
 //   levels      every program's peak and loudness for a single note and a 4-note chord
 //   CPU         full polyphony at unison 1 and 4, both oscillators, every effect
-// Then renders build/cuttlefish-demo.wav: every program in turn, then a slow Colour sweep.
+// Then renders build/cuttlefish-demo.wav (the 1.0 programs, then a slow Colour sweep) and
+// build/cuttlefish-demo-1.1.wav (the programs added in 1.1).
 //
 //   mkdir -p tests/build
 //   clang++ -std=c++17 -O2 -I../../framework tests/rendertest.cpp -o tests/build/rendertest
-//   tests/build/rendertest build/cuttlefish-demo.wav
+//   tests/build/rendertest build/cuttlefish-demo.wav build/cuttlefish-demo-1.1.wav
 #include <vector>
 #include <cstdio>
 #include <cstdarg>
@@ -700,14 +701,17 @@ int realMain(int argc, char** argv)
 
     // ================================================================================================
     std::printf("\n== Demo ==\n");
-    if (argc > 1)
+    // argv[1]: the 1.0 programs and the Colour sweep; argv[2]: the programs added in 1.1.
+    for (int dm = 1; dm < argc && dm <= 2; ++dm)
     {
+        const int first11 = 16;
+        const int from = dm == 1 ? 0 : first11, to = dm == 1 ? std::min(first11, numPrograms) : numPrograms;
         Session demo(0);
         demo.bpm = 100.0; demo.play(true, 0.0);
         const double beat = 60.0 / demo.bpm;
         double t = 0.2;
         std::vector<std::pair<double, std::string>> marks;
-        for (int pr = 0; pr < numPrograms; ++pr)
+        for (int pr = from; pr < to; ++pr)
         {
             demo.p->setProgram(pr);
             const mpc::Program& prg = demo.p->programs_[(size_t)pr];
@@ -718,7 +722,7 @@ int realMain(int argc, char** argv)
             std::vector<Ev> ev;
             if (mono)
             {
-                const bool bass = demo.p->get(P::pCutoff) < 1000.0f;
+                const bool bass = demo.p->get(P::pCutoff) < 1000.0f || demo.p->get(P::pSub) > 0.0f;
                 const int base = bass ? 36 : 60;
                 const int seq[16] = {0, 0, 12, 0, 3, 0, 7, 10, 0, 0, 12, 15, 10, 7, 5, 3};
                 for (int i = 0; i < 16; ++i)
@@ -754,6 +758,7 @@ int realMain(int argc, char** argv)
             }
         }
         // the slow Colour sweep on Colour Shift
+        if (dm == 1) {
         int cs = 0; for (int pr = 0; pr < numPrograms; ++pr) if (demo.p->programs_[(size_t)pr].name == "Colour Shift") cs = pr;
         demo.p->setProgram(cs);
         marks.push_back({t, "Colour sweep (Colour Shift, Colour 0 -> 100 -> 0 over 24 s)"});
@@ -763,8 +768,9 @@ int realMain(int argc, char** argv)
         std::vector<Auto> au;
         for (int i = 0; i <= 240; ++i) { const double x = i / 240.0; au.push_back({t + 24.0 * x, P::pColour, (float)(100.0 * (1.0 - std::fabs(2.0 * x - 1.0)))}); }
         demo.run(t + 28.0, ev, au);
-        writeWav(argv[1], demo.L, demo.R);
-        std::printf("INFO  wrote %s (%.1f s)\n", argv[1], demo.L.size() / SR);
+        }
+        writeWav(argv[dm], demo.L, demo.R);
+        std::printf("INFO  wrote %s (%.1f s)\n", argv[dm], demo.L.size() / SR);
         for (auto& m : marks) std::printf("      %6.1f s  %s\n", m.first, m.second.c_str());
         check(!demo.bad && peakOf(demo.L) < 1.0f, "demo finite, peak %.1f dBFS", db(std::max(peakOf(demo.L), peakOf(demo.R))));
     }

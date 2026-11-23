@@ -1,7 +1,7 @@
 {
   "name": "Cuttlefish",
   "manufacturer": "Groundswell",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "format": "vst2",
   "kind": "instrument",
   "uid": "GqJ3",
@@ -10,7 +10,7 @@
   "category": "Synth",
   "file32": "VST/cuttlefish-arm32.so",
   "file64": "VST/cuttlefish-arm64.so",
-  "description": "A morphing wavetable synth, the everyday go-to: two oscillators sweep through 17 band-limited wavetables of 32 frames (analog shapes, PWM, sync, resonant sweep, vowels, formant, organ drawbars, EP tine, glass, metal, FM, fold, digital, hollow, brass, random spectra, comb) with Morph, warped by Bend, Squash (phase distortion), Sync or FM; unison up to 4, sub and noise; a morph envelope, two LFOs (free, per note or locked to the song; smooth random), a 4-slot mod matrix, Drift and one Colour macro that moves both morphs and the filter on one Q-Link; LP12/LP24/BP/HP/notch filter with drive; poly, mono and legato glide; light chorus, ping-pong delay and reverb. 16 voices, 16 programs, custom cuttlefish panel.",
+  "description": "A morphing wavetable synth, the everyday go-to: two oscillators sweep through 17 band-limited wavetables of 32 frames (analog shapes, PWM, sync, resonant sweep, vowels, formant, organ drawbars, EP tine, glass, metal, FM, fold, digital, hollow, brass, random spectra, comb) with Morph, warped by Bend, Squash (phase distortion), Sync or FM; unison up to 4, sub and noise; a morph envelope, two LFOs (free, per note or locked to the song; smooth random), a 4-slot mod matrix, Drift and one Colour macro that moves both morphs and the filter on one Q-Link; LP12/LP24/BP/HP/notch filter with drive; poly, mono and legato glide; light chorus, ping-pong delay and reverb. 16 voices, 41 programs, custom cuttlefish panel.",
   "author": "Groundswell",
   "url": "",
   "license": "MIT"
