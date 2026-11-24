@@ -1,0 +1,29 @@
+{
+  "kit": "violet",
+  "pages": [
+    {
+      "name": "URCHIN",
+      "controls": [
+        { "param": "Drive",    "widget": "knob" },
+        { "param": "Spike",    "widget": "knob" },
+        { "param": "Tone",     "widget": "knob", "polarity": "bipolar" },
+        { "param": "Level",    "widget": "fader", "polarity": "bipolar" },
+
+        { "param": "Spine",    "widget": "slider", "overlay": "menu" },
+        { "param": "Bias",     "widget": "knob" },
+        { "param": "Bloom",    "widget": "knob" },
+        { "param": "Focus",    "widget": "switch" },
+
+        { "param": "Gate",     "widget": "knob" },
+        { "param": "Low Keep", "widget": "knob" },
+        { "param": "Blend",    "widget": "fader" },
+        { "param": "Output",   "widget": "fader", "polarity": "bipolar" },
+
+        { "param": "Stereo",   "widget": "switch" },
+        "empty",
+        "empty",
+        "empty"
+      ]
+    }
+  ]
+}

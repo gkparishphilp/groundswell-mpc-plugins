@@ -68,6 +68,14 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   Linger release; an automatic Tail that keeps the cloud playing after you stop; Drift, guarded
   Feedback, an allpass Smear and Tone; grains and Drift locked to the song with Sync. Custom
   plankton panel. Still to come: anti-aliasing for big upward shifts, a scan/speed control.
+- **Urchin**: the nasty one, a spiky fuzz and distortion box (Breakwater is clean, Low Tide crunchy).
+  Six Spines, each its own circuit: a starved, sputtering Gated Fuzz, an Octave Fuzz, a Torn
+  Speaker that bottoms out and buzzes, a half/full-wave folding Rectifier, a West Coast Wavefolder
+  and a sane Overdrive; Bias is each one's character control. Spike takes everything from mild to
+  ruined on one Q-Link; Bloom sag, a Gate that chops, Focus pre-emphasis, a Tone tilt, Blend and Low
+  Keep for bass and kicks. 2x oversampled with anti-aliased (ADAA) shapers and an automatic level
+  match; Mono core option. Custom panel from the user's urchin art. 1.1 added Split (a different
+  Spine on each side, like two amps panned apart) with Width, and made Starve properly audible.
 - **Cuttlefish**: changes colour, so it changes timbre. The family's everyday wavetable synth: two
   oscillators morphing through 17 generated, band-limited tables (analog shapes, PWM, sync, resonant
   sweep, vowels, formant, organ drawbars, EP tine, glass, metal, FM, fold, digital, hollow, brass,

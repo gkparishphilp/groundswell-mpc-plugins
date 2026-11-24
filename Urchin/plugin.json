@@ -1,0 +1,17 @@
+{
+  "name": "Urchin",
+  "manufacturer": "Groundswell",
+  "version": "1.1.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GO0Z",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/urchin-arm32.so",
+  "file64": "VST/urchin-arm64.so",
+  "description": "A spiky fuzz and distortion box with real character. Six Spines, each its own circuit: Gated Fuzz (a starved, sputtering fuzz with Bias as Starve), Octave Fuzz (rectified: high notes ring an octave up), Torn Speaker (a cone that bottoms out and buzzes), Rectifier (half- and full-wave folding grit), Wavefolder (West Coast folds) and Overdrive. Drive, a Tone tilt with Mids/Lows pre-emphasis, Bias, Bloom (sag that compresses and spits), a Gate that can chop, Blend and Low Keep to keep the low end clean, and Spike: one Q-Link from mild to ruined. 2x oversampled with anti-aliased shapers and an automatic level match; Stereo, a cheaper Mono core, or Split: a different Spine on each side, like two amps panned apart, with Width.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT"
+}
