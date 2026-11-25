@@ -571,7 +571,7 @@ public:
         addParam(floatParam ("wobble",   "Wobble",    0.0f, 100.0f,   15.0f,  "%", 0));
         addParam(floatParam ("limit",    "Limit",     0.0f, 100.0f,   30.0f,  "%", 0));
         addParam(choiceParam("fmode",    "Filter",    {"Off", "LP", "BP", "HP"}, kFilterLP));
-        addParam(logParam   ("cutoff",   "Cutoff",    40.0f, 16000.0f, 1800.0f, "Hz", 0));
+        addParam(logParam   ("cutoff",   "Cutoff",    40.0f, 16000.0f, 1800.0f, "", 0));     // unit added by formatValue (2.2)
         addParam(floatParam ("reso",     "Resonance", 0.0f, 100.0f,   35.0f,  "%", 0));
         addParam(floatParam ("drive",    "Drive",     0.0f, 100.0f,   25.0f,  "%", 0));
         addParam(choiceParam("fxtype",   "FX Type",   {"Off", "Chorus", "Flanger", "Phaser", "Bitcrush",
@@ -1515,7 +1515,7 @@ private:
         info.name         = "Undertow";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 2100;            // 2.1.0.0
+        info.version      = 2200;            // 2.2.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -1641,6 +1641,13 @@ private:
     {
         if (index == kInput && plainValue <= -29.95f) { out = "-inf dB"; return true; }
         char mb[32];
+        if (index == kCutoff)   // the unit in the text, so the MPC Sample's knob shows it too
+        {
+            if (plainValue >= 1000.0f) std::snprintf(mb, sizeof(mb), "%.1f kHz", (double)plainValue * 0.001);
+            else std::snprintf(mb, sizeof(mb), "%.0f Hz", (double)plainValue);
+            out = mb;
+            return true;
+        }
         if (index == kGlide)
         {
             if (plainValue < 1.0f) out = "Instant";

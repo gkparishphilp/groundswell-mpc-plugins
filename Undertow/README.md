@@ -302,6 +302,28 @@ audibly breathe, which is either the point or a reason to back off.
 - A noise bed with its own filter, independent of the loop filter
 - A VST3 or AU build for desktop DAWs (the code is portable; only the plugin wrapper is MPC-specific)
 
+## On the MPC Sample (Knob FX)
+
+From 2.2, Undertow runs on the MPC Sample (firmware 1.4 or later) as a Knob FX, listed as
+**Undertow** at the bottom of FX Select. The MPC Sample has no plugin screen, so six parameters
+sit on its three knobs:
+
+| | Knob 1 | Knob 2 | Knob 3 |
+|---|---|---|---|
+| **Knobs** | Time | Feedback | Mix |
+| **SHIFT held** | Cutoff | Space | FX Type |
+
+Time steps through note values, because Time Mode stays on Sync; push Feedback past 100% for
+dub self-oscillation (the limiter keeps it in check). On SHIFT, Cutoff sweeps the low-pass filter
+in the loop, Space adds the spring reverb, and FX Type picks what lives in the feedback loop
+(chorus, flanger, phaser, bitcrush, downsample, ring mod, fuzz) at FX Amount 50%. Everything else
+stays at the first program, Dub Echo: ping-pong, LP filter at Resonance 35%, Drive 25%, Digital
+character, no pitch shift. Since 2.2 Cutoff's value text carries its unit ("1.8 kHz") so the
+knob shows it; Feedback, Mix and Space show without their % sign on the MPC Sample.
+
+To install, copy the plugin folder into `VST2 Plugins` on the MPC Sample's microSD card in SD
+Card Access mode, and turn on MIDI Config → Dev Enhancements (Beta) → Custom Plug-In Support.
+
 ## CPU
 
 Per sample: one delay read per channel, a state-variable filter, the pitch stage (two interpolated taps, or an

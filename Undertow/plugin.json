@@ -1,7 +1,8 @@
 {
   "name": "Undertow",
+  "shortName": "Undertow",
   "manufacturer": "Groundswell",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "format": "vst2",
   "kind": "effect",
   "uid": "GGxC",
@@ -13,5 +14,33 @@
   "description": "Dub delay with a resonant filter, a pitch or frequency shifter and a selectable effect (chorus, flanger, phaser, bitcrush, downsample, ring mod, fuzz) inside the feedback loop, reverse repeats, and a limiter that keeps self-oscillation under control.",
   "author": "Groundswell",
   "url": "https://github.com/gkparishphilp/groundswell-mpc-plugins/tree/main/Undertow",
-  "license": "MIT"
+  "license": "MIT",
+  "knobs": [
+    {
+      "parameter": 3,
+      "label": "Time"
+    },
+    {
+      "parameter": 4,
+      "label": "Feedback"
+    },
+    {
+      "parameter": 5,
+      "label": "Mix"
+    }
+  ],
+  "shiftKnobs": [
+    {
+      "parameter": 10,
+      "label": "Cutoff"
+    },
+    {
+      "parameter": 34,
+      "label": "Space"
+    },
+    {
+      "parameter": 13,
+      "label": "FX Type"
+    }
+  ]
 }
