@@ -234,7 +234,7 @@ public:
         i.name = "Seaglass";
         i.vendor = "Groundswell";
         i.uniqueId = MPC_FOURCC('G', 'v', 'X', 'f');   // == "uid" in plugin.json. Never change.
-        i.version = 1200;
+        i.version = 1300;
         i.isInstrument = false;
         i.numInputs = 2;
         i.numOutputs = 2;

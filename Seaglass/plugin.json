@@ -1,7 +1,8 @@
 {
   "name": "Seaglass",
+  "shortName": "Seaglass",
   "manufacturer": "Groundswell",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "format": "vst2",
   "kind": "effect",
   "uid": "GvXf",
@@ -13,5 +14,33 @@
   "description": "A lush stereo reverb you can freeze: Freeze holds the sound as an endless pad and Add layers the next note on top, so you can build a frozen chord one note at a time, with the live reverb still playing beside it (Live); Shimmer pitch-shifts the tail inside the feedback loop by any interval up to two octaves either way, or by a few cents for a slowly drifting wash (Shift), so it rises and sparkles; Swell ducks the tail while you play and lets it bloom back in the gaps. 13 programs.",
   "author": "Groundswell",
   "url": "",
-  "license": "MIT"
+  "license": "MIT",
+  "knobs": [
+    {
+      "parameter": 0,
+      "label": "Mix"
+    },
+    {
+      "parameter": 1,
+      "label": "Decay"
+    },
+    {
+      "parameter": 8,
+      "label": "Freeze"
+    }
+  ],
+  "shiftKnobs": [
+    {
+      "parameter": 10,
+      "label": "Shimmer"
+    },
+    {
+      "parameter": 17,
+      "label": "Interval"
+    },
+    {
+      "parameter": 15,
+      "label": "Add"
+    }
+  ]
 }

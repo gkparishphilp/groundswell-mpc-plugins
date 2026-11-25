@@ -12,6 +12,28 @@ Tidepools waits for you to stop.
 It picks up where Abyss left off: Abyss's README lists a reverb freeze and a true shimmer tail as still to come,
 and Seaglass is built on Abyss's reverb.
 
+## New in 1.3: the MPC Sample (Knob FX)
+
+Seaglass runs on the MPC Sample (firmware 1.4 or later) as a Knob FX, listed as **Seaglass** at
+the bottom of FX Select. The MPC Sample has no plugin screen, so six parameters sit on its three
+knobs:
+
+| | Knob 1 | Knob 2 | Knob 3 |
+|---|---|---|---|
+| **Knobs** | Mix | Decay | Freeze |
+| **SHIFT held** | Shimmer | Interval | Add |
+
+Turn Freeze past halfway to hold the tail as a pad, back to let it go. With the pad frozen, each
+time Add crosses halfway (either way) another layer is caught onto it, so turning it back and
+forth builds a frozen chord. Interval is the Shift control (labelled so it is not confused with
+the SHIFT button): the shimmer's pitch, in semitones or cents. Everything else stays at the first
+program, Seaglass: Pre-Delay 20 ms, Tone 7 kHz, Low Cut 120 Hz, Motion 40%, full Width, Fade
+250 ms, no Swell, Live 100% (the reverb keeps playing beside a frozen pad). Freeze a pad, then
+bake it in with the Resample Pad. Mix and Shimmer show without their % sign on the MPC Sample.
+
+To install, copy the plugin folder into `VST2 Plugins` on the MPC Sample's microSD card in SD
+Card Access mode, and turn on MIDI Config → Dev Enhancements (Beta) → Custom Plug-In Support.
+
 ## New in 1.2
 
 - **Shift** replaces Interval: one bipolar dial for the shimmer's pitch. The centre is no shift; the middle fifth
