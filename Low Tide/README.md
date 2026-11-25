@@ -241,6 +241,28 @@ Index order is permanent (projects store it). Meters are written by the plugin a
   - With a silent input the output is about −40 dBFS. That is the tape hiss; set Hiss to 0 for
     silence.
 
+## On the MPC Sample (Knob FX)
+
+From 1.1, Low Tide runs on the MPC Sample (firmware 1.4 or later) as a Knob FX, listed as
+**Low Tide** at the bottom of FX Select. The MPC Sample has no plugin screen, so six parameters
+sit on its three knobs:
+
+| | Knob 1 | Knob 2 | Knob 3 |
+|---|---|---|---|
+| **Knobs** | Wear | Accident | Crunch |
+| **SHIFT held** | Gens | Tide | Fresh |
+
+Wear is the macro; Accident is the chance of a tape accident on each beat; Crunch is the old-sampler
+resample. On SHIFT, Gens caps how many times the loop is dubbed over, Tide sets how far the Tide
+cycle sweeps Wear, and Fresh snaps the tape back to a clean copy each time it crosses halfway
+(either way). Everything else stays at the first program, Worn Shores: a 2-bar loop held at the
+cap, an 8-bar Swell tide, all four accident types except Chan Cut, 12-bit Dirty crunch at +5 st,
+and its print-through, azimuth, hiss, wow and flutter. Knob values show without their % sign on
+the MPC Sample.
+
+To install, copy the plugin folder into `VST2 Plugins` on the MPC Sample's microSD card in SD
+Card Access mode, and turn on MIDI Config → Dev Enhancements (Beta) → Custom Plug-In Support.
+
 ## CPU and memory
 
 - Desktop: 0.13 % of one core with every stage on (Warped Cassette with crunch and Memory).
