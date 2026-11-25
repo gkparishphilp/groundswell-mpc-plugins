@@ -13,8 +13,8 @@ Source art:
     pill_on/off.webp        button pill (shared likewise)
 
 Layout: one tab, PLAY. Four rows, each one Q-Link row: two boxes of two controls, one either side of the wave,
-so the wave stays in view in the middle. Smooth (the one control without a Q-Link) sits in a small box under the
-wave.
+so the wave stays in view in the middle. Under the wave, level with row 4, a box holds the SCENE pills A-D and
+Smooth (the two controls without a Q-Link).
 
     row  left box               right box             Q-Links (left to right)
     1    TRIGGER  Chance Hold   TIMING  Slice Length   13 14 15 16
@@ -51,14 +51,15 @@ FONT_DEMI, FONT_MEDIUM, FONT_REGULAR = 2, 5, 7        # face indices in Avenir N
 
 # Parameter indices (must match src/Wipeout.cpp).
 P = dict(out=0, chance=1, slice=2, length=3, mix=4, reverse=5, half=6, tape=7, gate=8, vary=9, roll=10,
-         decay=11, hold=12, grid=13, offset=14, smooth=15, pattern=16)
+         decay=11, hold=12, grid=13, offset=14, smooth=15, pattern=16, scene=17)
 
 CHOICES = {P["slice"]: ["1/4", "1/4T", "1/8", "1/8T", "1/16", "1/16T", "1/32", "1/32T"],
            P["length"]: ["1/8", "1/4", "1/2", "1 Bar", "2 Bars", "4 Bars"],
            P["hold"]: ["Off", "On"],
            P["grid"]: ["1/4", "1/2", "1 Bar", "2 Bars", "4 Bars", "8 Bars"],
            P["offset"]: ["%d.%d.%d" % (o // 16 + 1, (o // 4) % 4 + 1, o % 4 + 1) for o in range(128)],   # bar.beat.16th
-           P["pattern"]: ["Free", "1 Bar", "2 Bars", "4 Bars", "8 Bars"]}
+           P["pattern"]: ["Free", "1 Bar", "2 Bars", "4 Bars", "8 Bars"],
+           P["scene"]: ["A", "B", "C", "D"]}
 
 # Knob geometry: Largemouth's knob, a little smaller (76 px box) so a heading fits above each row.
 KNOB = dict(src="knob_small.webp", crop=300, knob=58, arc_r=34, arc_w=4, frame=76, frames=100, ticks=(40, 46))
@@ -200,8 +201,9 @@ KNOB_X = 42                      # knob centre from the slot's left edge
 KNOB_Y = 64                      # knob centre from the box's top (the box heading sits above)
 TAB_NAMES = ("PLAY",)
 
-# Smooth: a small box under the wave, no Q-Link.
-CENTRE_BOX = (512, 500, 768, 590)
+# Under the wave, level with row 4: the SCENE pills A-D and Smooth (neither has a Q-Link).
+CENTRE_BOX = (404, 484, 876, 590)
+SCENE_PILL_W = 58
 
 
 def box(col, row):
@@ -244,7 +246,11 @@ ROWS = [
      [knob_in(P["grid"], 0, 3, 0, "GRID"), knob_in(P["offset"], 0, 3, 1, "OFFSET"),
       knob_in(P["mix"], 1, 3, 0, "MIX"), knob_in(P["out"], 1, 3, 1, "OUTPUT")]),
 ]
-SMOOTH = dict(kind="knob", param=P["smooth"], centre=((CENTRE_BOX[0] + CENTRE_BOX[2] - SLOT_W) // 2 + KNOB_X, CENTRE_BOX[1] + 52),
+SCENE = dict(kind="pills", param=P["scene"], name="SCENE", heading=True,
+             items=[(i, nm, CENTRE_BOX[0] + 18 + i * (SCENE_PILL_W + 8), CENTRE_BOX[1] + KNOB_Y - 18, SCENE_PILL_W)
+                    for i, nm in enumerate(["A", "B", "C", "D"])],
+             name_xy=(CENTRE_BOX[0] + 16, CENTRE_BOX[1] + 16))
+SMOOTH = dict(kind="knob", param=P["smooth"], centre=(CENTRE_BOX[2] - SLOT_W + KNOB_X, CENTRE_BOX[1] + KNOB_Y),
               name="SMOOTH", menu=False)
 
 QLINK_RECTS = ["%d %d %d %d" % (COL_X[0], ROW_Y[r], COL_X[1] + COL_W - COL_X[0], BOX_H) for r in range(4)]
@@ -286,7 +292,10 @@ def draw_background(controls):
             draw_spaced(d, (x, y), ctl["name"], font(size, FONT_DEMI), CREAM + (230,), spacing=2.0, anchor="lm")
         elif ctl["kind"] == "pills":
             hx, hy = ctl["name_xy"]
-            draw_spaced(d, (hx, hy), ctl["name"], font(13, FONT_DEMI), CREAM + (230,), spacing=2.0, anchor="lm")
+            if ctl.get("heading"):     # a box heading (gold, like the others) rather than a control name
+                draw_spaced(d, (hx, hy), ctl["name"], font(13, FONT_DEMI), GOLD + (240,), spacing=3.2, anchor="lm")
+            else:
+                draw_spaced(d, (hx, hy), ctl["name"], font(13, FONT_DEMI), CREAM + (230,), spacing=2.0, anchor="lm")
     return im.convert("RGB")
 
 
@@ -363,7 +372,7 @@ def build():
         defs.append((key, comp))
         knob_defs[key] = geom
 
-    controls = [c for _, _, row in ROWS for c in row] + [SMOOTH]
+    controls = [c for _, _, row in ROWS for c in row] + [SCENE, SMOOTH]
     previews = []
     bg_file = "bg_play.jpg"
     bg = draw_background(controls)

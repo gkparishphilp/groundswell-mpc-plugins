@@ -28,8 +28,8 @@
     {
       "name": "MORE",
       "controls": [
+        { "param": "Scene",      "widget": "slider", "overlay": "menu" },
         { "param": "Smooth",     "widget": "knob" },
-        "empty",
         "empty",
         "empty"
       ]

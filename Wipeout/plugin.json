@@ -1,7 +1,8 @@
 {
   "name": "Wipeout",
+  "shortName": "Wipeout",
   "manufacturer": "Groundswell",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "format": "vst2",
   "kind": "effect",
   "uid": "G0BG",
@@ -10,8 +11,36 @@
   "category": "Effect",
   "file32": "VST/wipeout-arm32.so",
   "file64": "VST/wipeout-arm64.so",
-  "description": "An audio mangler locked to the song: fills, glitches, breaks, ratchets, rolls, timewarps, reverses and transitions. On a grid it rolls the dice and repeats a slice (1/4 to 1/32 and triplets), plays it backwards or at half speed, tape-stops it or gates it, with Roll, Vary, Hold and a pattern lock for playing live on the Q-Links.",
+  "description": "An audio mangler locked to the song: fills, glitches, breaks, ratchets, rolls, timewarps, reverses and transitions. On a grid it rolls the dice and repeats a slice (1/4 to 1/32 and triplets), plays it backwards or at half speed, tape-stops it or gates it, with Roll, Vary, Hold, a pattern lock and four scenes (A-D) for playing live.",
   "author": "Groundswell",
   "url": "",
-  "license": "MIT"
+  "license": "MIT",
+  "knobs": [
+    {
+      "parameter": 1,
+      "label": "Chance"
+    },
+    {
+      "parameter": 2,
+      "label": "Slice"
+    },
+    {
+      "parameter": 12,
+      "label": "Hold"
+    }
+  ],
+  "shiftKnobs": [
+    {
+      "parameter": 17,
+      "label": "Scene"
+    },
+    {
+      "parameter": 3,
+      "label": "Length"
+    },
+    {
+      "parameter": 5,
+      "label": "Reverse"
+    }
+  ]
 }

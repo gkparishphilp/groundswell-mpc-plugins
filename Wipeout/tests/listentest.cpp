@@ -3,6 +3,7 @@
 //   mkdir -p tests/build && clang++ -std=c++17 -O2 -I../../framework tests/listentest.cpp -o tests/build/listentest && tests/build/listentest [out.wav]
 //   (run from plugins/Wipeout)
 #include <vector>
+#include <cstring>
 #include <cstdio>
 #include <cmath>
 #include <string>
@@ -474,6 +475,83 @@ int main(int argc, char** argv)
         check(g_events.size() == 2 && std::llabs(s0 - (long long)(16 * SPB)) <= 1, "Length 4 Bars: the tape stop starts on bar 5");
         check(std::fabs(q1 / 247.5 - 1.0) < 0.06 && std::fabs(mid / 165.0 - 1.0) < 0.06, "the 4-bar stop slows evenly (3/4 speed, then 1/2)");
         check(endLevel < 0.1 && back < 1e-6, "it ends stopped, and the track is back afterwards");
+    }
+
+    // ---- 14. Scenes A-D ----
+    {
+        Wipeout p; p.prepare(SR, 512); p.reset();
+        auto near = [](float a, float b) { return std::fabs(a - b) < 1e-3f; };
+        const bool freshA = p.getInt(kScene) == 0 && near(p.get(kChance), 50) && p.getInt(kLength) == 1;
+        p.set(kChance, 80.0f);                                   // edit scene A
+        p.set(kScene, 1.0f);                                     // Bar Fills B: Length 1/2, Roll 50, Offset 8
+        const bool recallB = near(p.get(kChance), 50) && p.getInt(kLength) == 2 && near(p.get(kRoll), 50) && p.getInt(kOffset) == 8;
+        p.set(kRoll, 70.0f);                                     // edit scene B
+        p.set(kScene, 0.0f);
+        const bool backA = near(p.get(kChance), 80) && p.getInt(kLength) == 1 && near(p.get(kRoll), 0);
+        p.set(kScene, 1.0f);
+        const bool keptB = near(p.get(kRoll), 70);
+        p.set(kOutput, -6.0f); p.set(kSmooth, 8.0f); p.set(kHold, 1.0f); p.set(kScene, 2.0f);
+        const bool outside = near(p.get(kOutput), -6) && near(p.get(kSmooth), 8) && p.getBool(kHold);
+        p.set(kHold, 0.0f);
+        std::printf("scenes: fresh = Bar Fills A %d, B recalled %d, back to edited A %d, B kept its edit %d, Output/Smooth/Hold untouched %d\n",
+                    freshA, recallB, backA, keptB, outside);
+        check(freshA && recallB && backA && keptB && outside, "scenes: switching recalls, edits stay with their scene, Output/Smooth/Hold stay put");
+
+        // saved with the project: the scene in play and all four scenes
+        const std::vector<uint8_t> st = p.internalSaveState();
+        Wipeout q; q.prepare(SR, 512); q.reset();
+        q.internalLoadState(st.data(), st.size());
+        bool same = q.getInt(kScene) == 2;
+        for (int i = 0; i < kNumParams; ++i) same = same && near(q.get(i), p.get(i));
+        for (int sc = 0; sc < kNumScenes; ++sc) for (int i : kSceneParams) same = same && near(q.scenes_[sc][i].load(), p.scenes_[sc][i].load());
+        q.set(kScene, 1.0f);
+        same = same && near(q.get(kRoll), 70);
+        // and loading into an instance that sits on another scene does not leave that scene's values behind
+        Wipeout r; r.prepare(SR, 512); r.reset(); r.set(kScene, 3.0f);
+        r.internalLoadState(st.data(), st.size());
+        bool same2 = r.getInt(kScene) == 2;
+        for (int i = 0; i < kNumParams; ++i) same2 = same2 && near(r.get(i), p.get(i));
+        check(same && same2, "scenes: saved and restored with the project, the scene in play too");
+
+        // a 1.0 project (no Scene parameter, no scene data) loads as before
+        std::vector<uint8_t> old(st.begin(), st.end() - 4 - (long)(12 + kNumScenes * kNumParams * 4));
+        old.resize(old.size() - (1 + 5 + 8));                    // drop the "scene" entry (last parameter)
+        const uint32_t n16 = 17; std::memcpy(old.data() + 8, &n16, 4);
+        old.insert(old.end(), {0, 0, 0, 0});                     // no extra state
+        Wipeout o; o.prepare(SR, 512); o.reset();
+        const bool oldOk = o.internalLoadState(old.data(), old.size()) && o.getInt(kScene) == 0 && near(o.get(kChance), p.get(kChance))
+                           && near(o.scenes_[0][kChance].load(), p.getNormalised(kChance));
+        check(oldOk, "scenes: a 1.0 project loads into scene A");
+
+        // programs bring four scenes and start on A
+        p.setProgram(7);   // Transitions
+        const bool progA = p.getInt(kScene) == 0 && p.getInt(kOffset) == 96 && p.getInt(kLength) == 4 && near(p.get(kRoll), 100);
+        p.set(kScene, 2.0f);
+        const bool progC = near(p.get(kTape), 100) && near(p.get(kRoll), 0) && p.getInt(kLength) == 3 && p.getInt(kOffset) == 112;
+        p.setProgram(0);
+        const bool prog0 = p.getInt(kScene) == 0 && near(p.get(kChance), 50) && near(p.scenes_[3][kTape].load(), 1.0f);
+        check(progA && progC && prog0, "scenes: a program loads its four scenes and starts on A");
+
+        // in play: Bar Fills A for 4 bars, then D (a tape stop on beat 4.3 of every 4 bars)
+        Wipeout a; a.prepare(SR, 512); a.reset();
+        render(a, in, 128, true, oL, oR, [&](Wipeout& w, long long pos) { w.set(kScene, pos < (long long)(16 * SPB) ? 0.0f : 3.0f); });
+        int aOk = 0, aN = 0, dOk = 0, dN = 0;
+        for (const EventLog& e : g_events)
+        {
+            const double b = e.sample / SPB;
+            if (b < 16.0) { ++aN; if (e.type == kTypeRepeat && std::fabs(std::fmod(b, 4.0) - 3.0) < 1e-3) ++aOk; }
+            else          { ++dN; if (e.type == kTypeTape && std::fabs(std::fmod(b, 16.0) - 14.0) < 1e-3) ++dOk; }
+        }
+        std::printf("scenes in play: A %d/%d repeats on beat 4; D %d/%d tape stops on beat 4.3 of bar 4 (want 3)\n", aOk, aN, dOk, dN);
+        check(aN > 0 && aOk == aN && dN == 3 && dOk == 3, "scenes: switching A -> D changes what plays from the next roll");
+
+        // no clicks when scenes change mid-event (Glitch Storm: D changes Mix, Slice, Half, Roll)
+        Wipeout c; c.prepare(SR, 512); c.setProgram(1); c.reset();
+        render(c, sine, 64, true, oL, oR, [&](Wipeout& w, long long pos) { w.set(kScene, (float)((pos / 9600) % 4)); });
+        double maxD = 0.0;
+        for (int i = 1; i < total; ++i) maxD = std::fmax(maxD, std::fabs(oL[(size_t)i] - oL[(size_t)i - 1]));
+        std::printf("clicks with scenes switching every 9600 samples: max step %.4f (%.2fx the sine's own), %zu events\n", maxD, maxD / maxDin, g_events.size());
+        check(maxD <= 2.0 * maxDin, "no clicks when scenes change mid-event");
     }
 
     // ---- CPU, roughly ----

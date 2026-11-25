@@ -8,7 +8,7 @@
 // Signal flow
 // -----------
 //   input ──┬──────────────────────────────────────────── dry ──┐
-//           ├─> history ring (6 s; the Tape Stop reads it)       ├─> Mix ─> Output
+//           ├─> history ring (10 s; the Tape Stop reads it)      ├─> Mix ─> Output
 //           └─> event slots (2) ──────────────────────── wet ────┘
 //
 //   * Clock. With the transport playing, beats come from the host's song position (ppq), so events land
@@ -37,6 +37,10 @@
 //     1, 2, 4 or 8 complete bars and replays it from the next bar on (the generator is reseeded at the
 //     start of each cycle). Changing other parameters while locked changes what the dice mean, not the
 //     dice themselves.
+//   * Scenes A-D (1.1). Each scene is a snapshot of the controls you play (Chance, Slice, Length, Mix,
+//     the event chances, Decay, Grid, Offset, Pattern; not Output, Hold or Smooth). Turning a knob edits
+//     the scene in play; switching scenes puts the other scene's values on the knobs. Every program comes
+//     with four scenes. Mix is ramped over a block so a scene change mid-event does not click.
 //   * Clicks. Every slice is windowed with a short smoothstep fade (Smooth, ms) at its edges, and every
 //     event fades in and out against the dry signal over the same time. Two slots let a new event fade
 //     in while the old one fades out.
@@ -47,8 +51,13 @@
 #include "mpc_plugin.h"
 #include "dsp/smoother.h"
 
+#include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <initializer_list>
+#include <utility>
 #include <vector>
 
 // Test hooks (tests/listentest.cpp defines these before including this file).
@@ -82,10 +91,17 @@ enum ParamIndex
                    //   (12 = 1.4.1 = beat 4; with an 8-bar grid, 96 = 7.1.1 = the last two bars)
     kSmooth,       // ms: fade at every slice edge and event edge
     kPattern,      // choice: Free, or lock the last 1/2/4/8 bars of dice and replay them
+    kScene,        // choice: A-D, the scene in play (switching recalls its settings; turning a knob edits it)
     kNumParams
 };
 
 enum EventType { kTypeRepeat = 0, kTypeTape = 1, kTypeGate = 2 };
+
+// What a scene holds: every control you play, but not Output, Hold, Smooth or the Scene switch itself.
+constexpr int kSceneParams[] = {kChance, kSlice, kLength, kMix, kReverse, kHalf, kTape, kGate,
+                                kVary, kRoll, kDecay, kGrid, kOffset, kPattern};
+constexpr int kNumScenes = 4;
+inline bool inScene(int i) { for (int k : kSceneParams) if (k == i) return true; return false; }
 
 constexpr int    kNumSlices = 8;
 constexpr double kSliceBeats[kNumSlices] = {1.0, 2.0 / 3.0, 0.5, 1.0 / 3.0, 0.25, 1.0 / 6.0, 0.125, 1.0 / 12.0};
@@ -155,16 +171,108 @@ public:
         addParam(mpc::intParam   ("offset",  "Offset",       0, 127, 12));
         addParam(mpc::logParam   ("smooth",  "Smooth",       0.5f, 20.0f, 3.0f, "ms", 1));
         addParam(mpc::choiceParam("pattern", "Pattern",    {"Free", "1 Bar", "2 Bars", "4 Bars", "8 Bars"}, 0));
+        addParam(mpc::choiceParam("scene",   "Scene",      {"A", "B", "C", "D"}, 0));      // 1.1
 
-        //                          Out Chnc Slc Len  Mix  Rev Half Tape Gate Vary Roll Dcy Hold Grid Off Smth Pat
-        addProgram("Bar Fills",    {0,  50,  4,  1,  100,  0,   0,   0,   0,   0,   0,   0,  0,   2,  12, 3,   0});
-        addProgram("Glitch Storm", {0,  60,  6,  0,  100,  40,  25,  0,   20,  60,  0,   0,  0,   0,  0,  2,   0});
-        addProgram("Tape Breaks",  {0,  45,  4,  2,  100,  0,   0,   80,  0,   0,   0,   0,  0,   2,  8,  3,   0});
-        addProgram("Snare Rolls",  {0,  70,  2,  1,  100,  0,   0,   0,   0,   0,   100, 0,  0,   2,  12, 3,   0});
-        addProgram("Reverse Wash", {0,  40,  2,  1,  80,   80,  30,  0,   0,   20,  0,   30, 0,   1,  0,  6,   0});
-        addProgram("Trance Gate",  {0,  50,  5,  2,  100,  0,   0,   0,   100, 0,   30,  0,  0,   1,  4,  2,   0});
-        addProgram("Hold To Play", {0,  0,   4,  1,  100,  25,  0,   0,   0,   0,   0,   0,  0,   2,  0,  3,   0});
-        addProgram("Transitions",  {0,  100, 2,  4,  100,  0,   0,   0,   0,   0,   100, 0,  0,   5,  96, 3,   0});
+        // Programs: the values are scene A; B, C and D change only what is listed. The Scene switch is not
+        // part of a program (a program starts on A).
+        //                                 Out Chnc Slc Len  Mix  Rev Half Tape Gate Vary Roll Dcy Hold Grid Off Smth Pat
+        addSceneProgram("Bar Fills",    {0,  50,  4,  1,  100,  0,   0,   0,   0,   0,   0,   0,  0,   2,  12, 3,   0},
+            {{kLength, 2}, {kRoll, 50}, {kOffset, 8}},                                     // B: half-bar fill from beat 3, rolling
+            {{kChance, 80}, {kSlice, 2}, {kLength, 2}, {kRoll, 100}, {kGrid, 3}, {kOffset, 24}},   // C: a roll-up every 2 bars
+            {{kChance, 100}, {kLength, 2}, {kTape, 100}, {kGrid, 4}, {kOffset, 56}});      // D: tape stop at the end of 4 bars
+        addSceneProgram("Glitch Storm", {0,  60,  6,  0,  100,  40,  25,  0,   20,  60,  0,   0,  0,   0,  0,  2,   0},
+            {{kChance, 30}, {kVary, 30}},                                                  // B: sparser
+            {{kChance, 90}, {kReverse, 60}, {kDecay, 40}},                                 // C: nearly constant
+            {{kSlice, 5}, {kHalf, 50}, {kRoll, 60}, {kMix, 80}});                          // D: triplets, lower, rolling
+        addSceneProgram("Tape Breaks",  {0,  45,  4,  2,  100,  0,   0,   80,  0,   0,   0,   0,  0,   2,  8,  3,   0},
+            {{kTape, 40}, {kRoll, 40}},                                                    // B: tape stops and rolls
+            {{kChance, 70}, {kLength, 3}, {kGrid, 3}, {kOffset, 16}},                      // C: a whole-bar stop on bar 2
+            {{kChance, 100}, {kTape, 100}, {kLength, 4}, {kGrid, 5}, {kOffset, 96}});      // D: a 2-bar stop ending 8 bars
+        addSceneProgram("Snare Rolls",  {0,  70,  2,  1,  100,  0,   0,   0,   0,   0,   100, 0,  0,   2,  12, 3,   0},
+            {{kLength, 2}, {kOffset, 8}},                                                  // B: half-bar roll
+            {{kChance, 100}, {kLength, 3}, {kGrid, 3}, {kOffset, 16}},                     // C: a bar of roll every 2 bars
+            {{kChance, 100}, {kLength, 3}, {kDecay, 30}, {kGrid, 4}, {kOffset, 48}});      // D: bar 4 of every 4 rolls
+        addSceneProgram("Reverse Wash", {0,  40,  2,  1,  80,   80,  30,  0,   0,   20,  0,   30, 0,   1,  0,  6,   0},
+            {{kChance, 70}},                                                               // B: more often
+            {{kReverse, 100}, {kHalf, 70}},                                                // C: all backwards, mostly low
+            {{kLength, 2}, {kDecay, 60}, {kMix, 60}});                                     // D: long, fading tails
+        addSceneProgram("Trance Gate",  {0,  50,  5,  2,  100,  0,   0,   0,   100, 0,   30,  0,  0,   1,  4,  2,   0},
+            {{kChance, 100}, {kRoll, 0}},                                                  // B: gate all the time
+            {{kSlice, 6}, {kRoll, 60}},                                                    // C: faster chops
+            {{kChance, 100}, {kGate, 0}, {kTape, 100}, {kGrid, 4}, {kOffset, 56}});        // D: breakdown tape stop
+        addSceneProgram("Hold To Play", {0,  0,   4,  1,  100,  25,  0,   0,   0,   0,   0,   0,  0,   2,  0,  3,   0},
+            {{kSlice, 2}},                                                                 // B: 1/8 repeats
+            {{kSlice, 6}, {kReverse, 50}},                                                 // C: 1/32 buzz
+            {{kSlice, 3}, {kDecay, 40}});                                                  // D: 1/8T, fading
+        addSceneProgram("Transitions",  {0,  100, 2,  4,  100,  0,   0,   0,   0,   0,   100, 0,  0,   5,  96, 3,   0},
+            {{kLength, 3}, {kOffset, 112}},                                                // B: a 1-bar roll on bar 8
+            {{kLength, 3}, {kOffset, 112}, {kRoll, 0}, {kTape, 100}},                      // C: a 1-bar tape stop on bar 8
+            {{kLength, 5}, {kOffset, 64}});                                                // D: a 4-bar build from bar 5
+
+        loadBank(programScenes_[0]);   // the defaults above are Bar Fills, scene A
+    }
+
+    // ---- scenes ---------------------------------------------------------------------------------------
+    // Four snapshots of the controls in kSceneParams. The knobs always show the scene in play: turning one
+    // edits that scene, and switching scenes writes the new scene's values to the knobs (and tells the host,
+    // so the screen follows). Choosing a program loads its four scenes and starts on A. Scenes are saved
+    // with the project. None of this runs on the audio thread's hot path: process() only reads the knobs.
+    void parameterChanged(int index, float plain) override
+    {
+        if (recalling_.load()) return;                    // our own writes while recalling a scene
+        // setProgram() sets the program number before it writes the parameters, so the first write of a
+        // program change arrives here with a new number: load that program's scenes and start on A.
+        const int prog = currentProgram();
+        if (prog != seenProgram_)
+        {
+            seenProgram_ = prog;
+            if (prog >= 0 && prog < (int)programScenes_.size())
+            {
+                loadBank(programScenes_[(size_t)prog]);
+                scene_.store(0);
+                recalling_.store(true); set(kScene, 0.0f); recalling_.store(false);
+            }
+        }
+        if (index == kScene)
+        {
+            const int s = mpc::clamp((int)std::lround(plain), 0, kNumScenes - 1);
+            if (s != scene_.load()) { scene_.store(s); recallScene(s); }
+            return;
+        }
+        if (inScene(index)) scenes_[scene_.load()][index].store(getNormalised(index));   // normalised: recalls are exact
+    }
+
+    // "WSC1" | u32 numParams | u32 scene | numScenes x numParams f32 (normalised 0..1 values by parameter index)
+    void saveExtraState(std::vector<uint8_t>& out) override
+    {
+        auto putU32 = [&out](uint32_t v) { for (int i = 0; i < 4; ++i) out.push_back((uint8_t)(v >> (8 * i))); };
+        out.push_back('W'); out.push_back('S'); out.push_back('C'); out.push_back('1');
+        putU32((uint32_t)kNumParams);
+        putU32((uint32_t)scene_.load());
+        for (int s = 0; s < kNumScenes; ++s)
+            for (int i = 0; i < kNumParams; ++i)
+            {
+                const float f = scenes_[s][i].load(); uint32_t v; std::memcpy(&v, &f, 4); putU32(v);
+            }
+    }
+
+    void loadExtraState(const uint8_t* data, size_t size) override
+    {
+        if (data == nullptr || size < 12 || std::memcmp(data, "WSC1", 4) != 0) return;
+        auto u32At = [data](size_t pos) { uint32_t v = 0; for (int i = 0; i < 4; ++i) v |= (uint32_t)data[pos + (size_t)i] << (8 * i); return v; };
+        const uint32_t n = u32At(4);
+        const int cur = mpc::clamp((int)u32At(8), 0, kNumScenes - 1);
+        if (n == 0 || n > 1024 || size < 12 + (size_t)kNumScenes * n * 4) return;
+        for (int s = 0; s < kNumScenes; ++s)
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                if ((int)i >= kNumParams || !inScene((int)i)) continue;
+                const uint32_t v = u32At(12 + ((size_t)s * n + i) * 4); float f; std::memcpy(&f, &v, 4);
+                if (std::isfinite(f)) scenes_[s][i].store(mpc::clamp(f, 0.0f, 1.0f));
+            }
+        scene_.store(cur);
+        if (getInt(kScene) != cur) { recalling_.store(true); set(kScene, (float)cur); recalling_.store(false); }
+        recallScene(cur);
     }
 
     void prepare(double sampleRate, int maxBlockSize) override
@@ -196,6 +304,7 @@ public:
         envF_ = 0.0f; quietSamps_ = 0;
         lastGrid_ = -1; lastOffset_ = -1; lastBarBeats_ = -1.0;
         out_.snap(dbToGain(get(kOutput)));
+        mix_.snap(get(kMix) * 0.01f);
         needResync_ = true;
     }
 
@@ -249,7 +358,6 @@ public:
         const int   sliceIdx = mpc::clamp(getInt(kSlice), 0, kNumSlices - 1);
         const int   lenIdx  = getInt(kLength);
         const double lenBeats = lenIdx == 0 ? 0.5 : lenIdx == 1 ? 1.0 : lenIdx == 2 ? 2.0 : barBeats * (double)(1 << mpc::clamp(lenIdx - 3, 0, 2));
-        const float mix     = get(kMix) * 0.01f;
         revChance_          = get(kReverse) * 0.01f;
         const float halfCh  = get(kHalf) * 0.01f;
         const float tapeCh  = get(kTape) * 0.01f;
@@ -262,6 +370,7 @@ public:
         const int   patMode = getInt(kPattern);
         const int   patN    = patMode <= 0 ? 0 : 1 << mpc::clamp(patMode - 1, 0, 3);   // 0, 1, 2, 4, 8 bars
         out_.setTarget(dbToGain(get(kOutput)), n);
+        mix_.setTarget(get(kMix) * 0.01f, n);               // ramped: a scene change can jump it mid-event
 
         if (needResync_) { resync(gridBeats, offBeats, barBeats); needResync_ = false; }
 
@@ -358,6 +467,7 @@ public:
             if (evSum > 1.0f) evSum = 1.0f;
 
             const float g = out_.next();
+            const float mix = mix_.next();
             const float dryAmt = 1.0f - mix * evSum;
             const float oL = (inL * dryAmt + wetL * mix) * g;
             const float oR = (inR * dryAmt + wetR * mix) * g;
@@ -376,7 +486,7 @@ private:
         info.name         = "Wipeout";
         info.vendor       = "Groundswell";   // must match plugin.json "manufacturer"
         info.uniqueId     = MPC_FOURCC(kUid[0], kUid[1], kUid[2], kUid[3]);   // must match plugin.json "uid"
-        info.version      = 1000;           // 1.0.0.0
+        info.version      = 1100;           // 1.1.0.0
         info.isInstrument = false;
         info.numInputs    = 2;
         info.numOutputs   = 2;
@@ -387,6 +497,53 @@ private:
     static constexpr char kUid[5] = "G0BG";
 
     static float dbToGain(float dB) { return std::pow(10.0f, dB / 20.0f); }
+
+    // ---- scenes ---------------------------------------------------------------------------------------
+    using SceneValues = std::array<float, kNumParams>;
+    using SceneBank   = std::array<SceneValues, kNumScenes>;
+    using Changes     = std::initializer_list<std::pair<int, float>>;
+
+    void addSceneProgram(const char* name, std::vector<float> a, Changes b, Changes c, Changes d)
+    {
+        addProgram(name, a);
+        SceneBank bank{};
+        const Changes* changes[kNumScenes] = {nullptr, &b, &c, &d};
+        for (int s = 0; s < kNumScenes; ++s)
+        {
+            for (int i = 0; i < kNumParams; ++i) bank[(size_t)s][(size_t)i] = i < (int)a.size() ? a[(size_t)i] : 0.0f;
+            if (changes[s] != nullptr) for (const auto& ch : *changes[s]) bank[(size_t)s][(size_t)ch.first] = ch.second;
+        }
+        programScenes_.push_back(bank);
+    }
+
+    void loadBank(const SceneBank& bank)
+    {
+        for (int s = 0; s < kNumScenes; ++s)
+            for (int i = 0; i < kNumParams; ++i) scenes_[s][i].store(param(i).toNormalised(bank[(size_t)s][(size_t)i]));
+    }
+
+    // Write scene s to the knobs, and tell the host about each one that moved.
+    void recallScene(int s)
+    {
+        bool moved = false;
+        recalling_.store(true);
+        for (int i : kSceneParams)
+        {
+            const float v = scenes_[s][i].load();
+            if (getNormalised(i) == v) continue;
+            setNormalised(i, v);
+            notifyHostParameterChanged(i);
+            moved = true;
+        }
+        recalling_.store(false);
+        if (moved) requestDisplayUpdate();
+    }
+
+    std::vector<SceneBank> programScenes_;               // filled in the constructor, read-only after
+    std::atomic<float> scenes_[kNumScenes][kNumParams];   // normalised values; only kSceneParams are used
+    std::atomic<int>   scene_{0};
+    std::atomic<bool>  recalling_{false};
+    int                seenProgram_ = 0;
 
     // Recompute the next grid and bar lines from beat_, and let any running event fade out.
     void resync(double gridBeats, double offBeats, double barBeats)
@@ -596,7 +753,7 @@ private:
     uint32_t lockSeed_ = 0;
     float    revChance_ = 0.0f;
 
-    mpc::dsp::LinearRamp out_;
+    mpc::dsp::LinearRamp out_, mix_;
 };
 
 // This macro creates the exported VSTPluginMain entry point. Keep it last.
