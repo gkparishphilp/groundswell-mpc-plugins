@@ -47,6 +47,12 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
   softly; the classic passive tone stack (the knobs interact); Bright, Chime, Sag and Master; filter
   cabs (1x12, 2x12, 4x12, Direct) with Mic and Distance; a drippy two-spring reverb; a smooth, opto
   or harmonic tremolo locked to the song. Mono amp, stereo spring. Custom amp-head panel.
+- **Pressure**: a compressor and saturator with a lot of character. One Depth macro squeezes
+  threshold, ratio, saturation and density together, loudness-matched; four Hulls (Glass optical,
+  Bite transistor, Valve variable-mu, Bus console glue); Implode for crushed, exploding drum rooms;
+  Tape/Tube/Iron saturation that growls harder as it compresses; Tide release in ms or note values
+  with Bloom; Blend for parallel smash, a sidechain high-pass, Link, Mid/Side and a Breath noise
+  floor. Custom porthole panel; the caged lamp burns brighter with the gain reduction.
 - **Driftwood**: one pad, one chord. Set a key and scale and each note plays the chord on that
   degree (triad to 9th, sus, add9; close, open or spread; voice leading near a register; bass), on
   a Keys map or a 16-pad degree map. Strum with direction, velocity speed and humanize, or let a
@@ -88,8 +94,6 @@ A backlog of plugins to build. Move an idea to "Started" when a project folder e
 
 ## Mixing and character effects
 
-- **Pressure**: a one-knob processor for a whole mix or bus. Turning it up adds compression and
-  tape saturation together.
 - **Swell**: a volume shaper locked to tempo, with pumping, gating and trance-chop shapes. The
   "ducked by the kick" sound without sidechain routing.
 

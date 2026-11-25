@@ -1,0 +1,46 @@
+{
+  "name": "Pressure",
+  "shortName": "Pressure",
+  "manufacturer": "Groundswell",
+  "version": "1.1.0",
+  "format": "vst2",
+  "kind": "effect",
+  "uid": "GKp3",
+  "numInputs": 2,
+  "numOutputs": 2,
+  "category": "Effect",
+  "file32": "VST/pressure-arm32.so",
+  "file64": "VST/pressure-arm64.so",
+  "description": "A compressor and saturator with a lot of character. One Depth macro squeezes harder the deeper you go (threshold, ratio, saturation and density together) and stays loudness-matched, so it gets thicker, not louder. Four Hulls: Glass (slow optical, two-stage release), Bite (fast transistor grab), Valve (variable-mu, ratio rises with level) and Bus (punchy console glue). Implode crushes drums into an exploding room. Tape, Tube or Iron saturation growls harder the more it compresses. Release in ms or note values locked to the song, with Bloom; Blend for parallel smash, sidechain high-pass, stereo Link, Mid/Side, a Breath noise floor and a GR meter.",
+  "author": "Groundswell",
+  "url": "",
+  "license": "MIT",
+  "knobs": [
+    {
+      "parameter": 1,
+      "label": "Depth"
+    },
+    {
+      "parameter": 5,
+      "label": "Growl"
+    },
+    {
+      "parameter": 10,
+      "label": "Blend"
+    }
+  ],
+  "shiftKnobs": [
+    {
+      "parameter": 2,
+      "label": "Hull"
+    },
+    {
+      "parameter": 4,
+      "label": "Colour"
+    },
+    {
+      "parameter": 3,
+      "label": "Implode"
+    }
+  ]
+}

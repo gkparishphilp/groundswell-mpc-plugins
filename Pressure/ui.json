@@ -1,0 +1,33 @@
+{
+  "kit": "mpc-red",
+  "pages": [
+    {
+      "name": "PRESSURE",
+      "controls": [
+        { "param": "Depth",   "widget": "knob" },
+        { "param": "Growl",   "widget": "knob" },
+        { "param": "Blend",   "widget": "fader" },
+        { "param": "Output",  "widget": "fader", "polarity": "bipolar" },
+
+        { "param": "Hull",    "widget": "switch" },
+        { "param": "Colour",  "widget": "switch" },
+        { "param": "Implode", "widget": "switch" },
+        { "param": "Breath",  "widget": "knob" }
+      ]
+    },
+    {
+      "name": "TIDE",
+      "controls": [
+        { "param": "Attack",  "widget": "knob" },
+        { "param": "Release", "widget": "knob" },
+        { "param": "Tide",    "widget": "switch" },
+        { "param": "Bloom",   "widget": "knob" },
+
+        { "param": "SC HPF",  "widget": "knob" },
+        { "param": "Link",    "widget": "knob" },
+        { "param": "Stereo",  "widget": "switch" },
+        "empty"
+      ]
+    }
+  ]
+}
